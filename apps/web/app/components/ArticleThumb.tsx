@@ -1,7 +1,16 @@
+import { useId } from "react";
+
 /**
  * Flat geometric editorial illustration in the site palette, chosen deterministically from
  * a seed string. Tactics board / chart / supporters motifs — never fake match footage.
  */
+/** Tinted backdrops (light → deeper), as in the reference thumbnails: lilac, peach, butter. */
+const BACKDROPS = [
+  ["#ece8fb", "#cfc6fa"],
+  ["#ffe7dc", "#ffc4ad"],
+  ["#fff3cc", "#ffdc80"],
+] as const;
+
 const P = ["var(--color-coral)", "var(--color-violet)", "var(--color-yellow)", "var(--color-match-blue)"];
 
 function hash(s: string) {
@@ -15,6 +24,8 @@ export function ArticleThumb({ seed, kind, className = "" }: { seed: string; kin
   const a = P[h % 4]!;
   const b = P[(h >>> 3) % 4 === h % 4 ? ((h % 4) + 1) % 4 : (h >>> 3) % 4]!;
   const motif = kind === "analysis" ? "chart" : kind === "column" ? "crowd" : "board";
+  const gid = useId();
+  const [light, deep] = BACKDROPS[(h >>> 7) % BACKDROPS.length]!;
   return (
     <svg
       viewBox="0 0 320 180"
@@ -22,7 +33,13 @@ export function ArticleThumb({ seed, kind, className = "" }: { seed: string; kin
       aria-hidden
       preserveAspectRatio="xMidYMid slice"
     >
-      <rect width="320" height="180" fill="var(--color-canvas)" />
+      <defs>
+        <linearGradient id={gid} x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stopColor={light} />
+          <stop offset="1" stopColor={deep} />
+        </linearGradient>
+      </defs>
+      <rect width="320" height="180" fill={`url(#${gid})`} />
       <path d="M0 180 L120 0 H190 L70 180 Z" fill={a} opacity="0.9" />
       <path d="M210 180 L320 30 V180 Z" fill={b} opacity="0.85" />
       {motif === "board" && (
