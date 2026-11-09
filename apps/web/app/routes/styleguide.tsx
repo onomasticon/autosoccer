@@ -17,7 +17,7 @@ export function meta() {
 }
 
 const TOKENS = [
-  ["canvas", "#F5F0E8", "Page background"],
+  ["canvas", "#FDFAF7", "Page background"],
   ["surface", "#FFFFFF", "Cards, tables"],
   ["ink", "#20203B", "Text"],
   ["muted", "#77758C", "Secondary (large/non-text)"],

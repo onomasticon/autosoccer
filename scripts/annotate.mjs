@@ -506,7 +506,7 @@ async function compose(file, title, shotPng, legend, opts = {}) {
   const html = `<!doctype html><html><head><meta charset="utf-8">
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@1,800&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
 <style>
-body{margin:0;background:#F5F0E8;color:#20203B;font:15px/1.45 Inter,system-ui,sans-serif}
+body{margin:0;background:#FDFAF7;color:#20203B;font:15px/1.45 Inter,system-ui,sans-serif}
 .wrap{display:flex;gap:28px;padding:28px;align-items:flex-start;width:max-content}
 .shot{border-radius:14px;overflow:hidden;box-shadow:0 8px 30px rgba(32,32,59,.15);background:#fff}
 .shot img{display:block;width:${opts.width ?? "auto"}}
@@ -536,7 +536,7 @@ async function storyboard(file, title, frames, cols) {
   const html = `<!doctype html><html><head><meta charset="utf-8">
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@1,800&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
 <style>
-body{margin:0;background:#F5F0E8;color:#20203B;font:16px/1.4 Inter,system-ui,sans-serif}
+body{margin:0;background:#FDFAF7;color:#20203B;font:16px/1.4 Inter,system-ui,sans-serif}
 .wrap{padding:28px;width:max-content}
 h1{font:italic 800 36px/1 "Barlow Condensed",sans-serif;text-transform:uppercase;margin:0 0 20px}
 .grid{display:grid;grid-template-columns:repeat(${cols},auto);gap:22px}

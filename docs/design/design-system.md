@@ -8,7 +8,7 @@ An accessible, lively fictional soccer league: arcade sports broadcast + credibl
 ## Tokens
 | Token | Hex | Usage |
 |---|---|---|
-| canvas | `#F5F0E8` | Primary page background |
+| canvas | `#FDFAF7` | Primary page background (bright warm off-white, matched to the homepage reference) |
 | surface | `#FFFFFF` | Cards, tables, long-form content |
 | ink | `#20203B` | Body and heading text |
 | muted | `#77758C` | Secondary copy |

@@ -12,7 +12,7 @@
   prefersdark: false;
   color-scheme: light;
   --color-base-100: #ffffff;
-  --color-base-200: #f5f0e8;
+  --color-base-200: #fdfaf7;
   --color-base-300: #e7e1f0;
   --color-base-content: #20203b;
   --color-primary: #ff654f;
@@ -43,7 +43,7 @@
 
 @theme {
   /* Pop Arcade tokens (spec) */
-  --color-canvas: #f5f0e8;
+  --color-canvas: #fdfaf7; /* matches the approved homepage reference */
   --color-surface: #ffffff;
   --color-ink: #20203b;
   --color-muted: #77758c;
