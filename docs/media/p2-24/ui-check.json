@@ -1,0 +1,20 @@
+[
+  {
+    "page": "/teams/harbour-city",
+    "viewport": "desktop",
+    "status": 200,
+    "axeViolations": [],
+    "firstTab": "Skip to content",
+    "mobileMenu": "n/a",
+    "consoleErrors": []
+  },
+  {
+    "page": "/teams/harbour-city",
+    "viewport": "mobile",
+    "status": 200,
+    "axeViolations": [],
+    "firstTab": "Skip to content",
+    "mobileMenu": "ok",
+    "consoleErrors": []
+  }
+]

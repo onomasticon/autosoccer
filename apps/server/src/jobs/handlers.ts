@@ -4,6 +4,7 @@ import type { ReplayStore } from "@autosoccer/sim-adapter";
 import type { Logger } from "../log.ts";
 import type { LlmClient } from "../modules/agents/llm.ts";
 import { type ComputeGate, enqueueManagerJobs, managerJobHandlers } from "../modules/agents/service.ts";
+import { ledgerGate } from "../modules/ledger/service.ts";
 import { MATCH_JOB, matchJobHandler } from "../modules/matches/service.ts";
 import type { JobHandler } from "./worker.ts";
 
@@ -27,6 +28,7 @@ export function buildHandlers(d: PlatformDeps): Record<string, JobHandler> {
         await enqueueManagerJobs(d.db, "post", fixtureId);
       },
     }),
-    ...managerJobHandlers({ db: d.db, llm: d.llm, gate: d.gate, log: d.log }),
+    // Every agent call is metered against the team's season budget unless a gate is injected.
+    ...managerJobHandlers({ db: d.db, llm: d.llm, gate: d.gate ?? ledgerGate(d.db), log: d.log }),
   };
 }
