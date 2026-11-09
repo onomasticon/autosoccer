@@ -12,7 +12,7 @@ const SHAPES: Record<Team["crest"]["shape"], string> = {
 
 export interface TeamBadgeProps {
   team: Pick<Team, "name" | "colors" | "crest">;
-  size?: keyof typeof SIZES;
+  size?: keyof typeof SIZES | number;
   /** Decorative when the team name is printed next to it (hidden from assistive tech). */
   decorative?: boolean;
   className?: string;
@@ -20,7 +20,7 @@ export interface TeamBadgeProps {
 
 /** Flat vector crest. Team colours override only the badge itself, never site tokens. */
 export function TeamBadge({ team, size = "md", decorative = false, className = "" }: TeamBadgeProps) {
-  const px = SIZES[size];
+  const px = typeof size === "number" ? size : SIZES[size];
   const glyphColor = onColor(team.colors.primary);
   return (
     <svg

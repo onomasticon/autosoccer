@@ -2,7 +2,7 @@ import type { FixtureView } from "@autosoccer/contracts";
 import { fixtureStatusLabel } from "../lib/format";
 
 const TONE: Record<string, string> = {
-  completed: "bg-ink text-white",
+  completed: "bg-lavender-strong text-violet-deep",
   playing: "bg-coral text-ink",
   failed: "bg-line text-ink",
   ready: "bg-yellow text-ink",

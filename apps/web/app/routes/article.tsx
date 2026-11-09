@@ -41,7 +41,9 @@ export default function ArticlePage({ loaderData }: Route.ComponentProps) {
     <div className="space-y-10">
       <article className="mx-auto max-w-3xl">
         <p className="text-xs font-bold uppercase tracking-[0.14em] text-violet">{KIND[article.kind]}</p>
-        <h1 className="mt-2 font-display text-4xl font-extrabold leading-[1.05] sm:text-5xl">{article.headline}</h1>
+        <h1 className="mt-2 text-balance font-display text-4xl font-extrabold leading-[1.05] sm:text-5xl">
+          {article.headline}
+        </h1>
         {article.standfirst && <p className="mt-3 text-xl text-muted-text">{article.standfirst}</p>}
         <div className="mt-5 border-y border-line py-4">
           <AuthorByline author={author} publishedAt={article.publishedAt} />

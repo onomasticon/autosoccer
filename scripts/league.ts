@@ -1,7 +1,7 @@
 /**
  * League operations against the configured DATABASE_URL.
  *   bun run league seed [--season season-1] [--seed 20261109] [--budget 1.00] [--interval 60]   # minutes between rounds
- *   bun run league run  [--season season-1] [--no-managers]   # plays every remaining round in-process
+ *   bun run league run  [--season season-1] [--no-managers] [--rounds N]   # plays every remaining round in-process (or only the next N)
  *   bun run league managers [--season season-1]              # manager decisions, memory and spend
  *   bun run league budget [--season season-1]                # compute ledger per team
  *   bun run league table [--season season-1]
@@ -73,15 +73,27 @@ try {
       : { [MATCH_JOB]: matchJobHandler({ db, store }) };
     const worker = createWorker({ db, log, handlers });
     const hook = managers ? managerRoundHook(db) : undefined;
+    const limit = Number(opt("rounds", "0"));
+    const roundsDone = async () =>
+      (
+        await db<{ n: number }[]>`select count(*)::int as n from (select round from fixtures where season_id = ${s.id}
+          group by round having bool_and(status = 'completed')) r`
+      )[0]!.n;
+    const startDone = await roundsDone();
+    let rounds = 0;
     const t0 = performance.now();
     for (;;) {
+      if (limit) rounds = (await roundsDone()) - startDone;
+      if (limit && rounds >= limit) break;
       const a = await advanceSeason(db, s.id, { beforeRound: hook });
       if (a.state === "completed") break;
       if (a.state === "blocked") throw new Error(`season blocked: ${JSON.stringify(a)}`);
       const done = await worker.drain();
       for (const d of done) console.log(`  round ${a.round}: job ${d.job.idempotency_key} → ${d.status}`);
     }
-    console.log(`season complete in ${((performance.now() - t0) / 1000).toFixed(1)} s`);
+    console.log(
+      `${rounds && rounds >= limit ? `${rounds} round(s) played` : "season complete"} in ${((performance.now() - t0) / 1000).toFixed(1)} s`,
+    );
     await printTable();
   } else if (cmd === "managers") {
     const s = await seasonBySlug(db, slug);

@@ -1,9 +1,11 @@
-import { AgentProfileCard } from "../components/AgentProfileCard";
+import { AgentProfileCard, VoicesStrip } from "../components/AgentProfileCard";
 import { ArticleCard, ArticleCardSkeleton } from "../components/ArticleCard";
 import { AiBadge, AuthorByline } from "../components/AuthorByline";
-import { FixtureCard, MatchScoreCard } from "../components/MatchScoreCard";
+import { LeadStory } from "../components/LeadStory";
+import { FixtureCard, FixtureRow, MatchScoreCard } from "../components/MatchScoreCard";
+import { Portrait } from "../components/Portrait";
 import { ScoreTicker } from "../components/ScoreTicker";
-import { SectionHeader } from "../components/SectionHeader";
+import { Panel, SectionHeader, Slashes } from "../components/SectionHeader";
 import { StandingsTable } from "../components/StandingsTable";
 import { EmptyState, ErrorState } from "../components/States";
 import { StatusChip } from "../components/StatusChip";
@@ -15,15 +17,18 @@ export function meta() {
 }
 
 const TOKENS = [
-  ["canvas", "#F5F0E8", "Page background"],
+  ["canvas", "#FDFAF7", "Page background"],
   ["surface", "#FFFFFF", "Cards, tables"],
   ["ink", "#20203B", "Text"],
   ["muted", "#77758C", "Secondary (large/non-text)"],
   ["muted-text", "#66647A", "Secondary text, AA"],
   ["coral", "#FF654F", "Brand accent"],
+  ["coral-deep", "#D9442F", "Tabs with white type"],
   ["violet", "#6552DD", "Editorial, navigation"],
   ["yellow", "#FFCB45", "Matchweek, leaders"],
   ["match-blue", "#245EFF", "Match-side graphics"],
+  ["lavender", "#ECE8FB", "Ticker bar, tags"],
+  ["lavender-strong", "#DCD5F7", "Chips on lavender"],
 ] as const;
 
 function Section({ id, title, children }: { id: string; title: string; children: React.ReactNode }) {
@@ -63,12 +68,60 @@ export default function Styleguide() {
           </p>
         </div>
       </Section>
+      <Section id="header-tabs" title="SectionHeader, Panel & Slashes">
+        <div className="space-y-4">
+          <SectionHeader title="Latest stories" action={{ to: "/news", label: "View all" }} />
+          <SectionHeader title="League table" tone="coral" meta="Season 1" />
+          <div className="flex items-center gap-4">
+            <Slashes colors={["coral", "coral"]} height={40} />
+            <Slashes colors={["violet", "coral"]} height={40} />
+            <Slashes colors={["coral", "violet", "violet"]} height={40} />
+          </div>
+          <div className="grid gap-6 lg:grid-cols-2">
+            <Panel id="sg-upcoming" title="Upcoming matches" action={{ to: "/fixtures", label: "Full schedule" }}>
+              <ul>
+                {mockFixtures.map((f) => (
+                  <FixtureRow key={f.id} fixture={f} />
+                ))}
+              </ul>
+            </Panel>
+            <Panel id="sg-stories" title="Latest stories" action={{ to: "/news", label: "View all" }}>
+              <div className="grid gap-4">
+                {mockArticles.slice(0, 2).map((a) => (
+                  <ArticleCard key={a.id} article={a} variant="row" />
+                ))}
+              </div>
+            </Panel>
+          </div>
+        </div>
+      </Section>
       <Section id="ticker" title="ScoreTicker">
-        <div className="space-y-3">
-          <ScoreTicker fixtures={mockFixtures} matchweek={2} />
+        <div className="-mx-4 space-y-3 sm:-mx-6">
+          <ScoreTicker fixtures={mockFixtures.slice(0, 2)} matchweek={1} next={mockFixtures[4]!} />
+          <ScoreTicker fixtures={mockFixtures.slice(2, 4)} matchweek={2} next={mockFixtures[4]!} />
           <ScoreTicker fixtures={null} matchweek={null} loading />
           <ScoreTicker fixtures={[]} matchweek={null} />
         </div>
+      </Section>
+      <Section id="lead" title="LeadStory & hero art">
+        <div className="grid gap-6 lg:grid-cols-2">
+          <LeadStory
+            article={{ ...mockArticles[0]!, teamIds: [mockTeams[0]!.id, mockTeams[1]!.id] }}
+            teams={mockTeams}
+          />
+          <LeadStory article={{ ...mockArticles[2]!, teamIds: [] }} teams={mockTeams} />
+        </div>
+      </Section>
+      <Section id="voices" title="Portrait & VoicesStrip">
+        <div className="mb-4 flex flex-wrap gap-4">
+          {mockJournalists.map((j) => (
+            <div key={j.id} className="flex items-end gap-2">
+              <Portrait avatar={j.avatar} size={96} rounded="rounded-xl" />
+              <Portrait avatar={j.avatar} size={36} rounded="rounded-md" />
+            </div>
+          ))}
+        </div>
+        <VoicesStrip agents={mockJournalists.map((j) => ({ ...j, href: `/journalists/${j.slug}` }))} />
       </Section>
       <Section id="badges" title="TeamBadge & StatusChip">
         <div className="flex flex-wrap items-end gap-6">

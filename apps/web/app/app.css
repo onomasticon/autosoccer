@@ -12,7 +12,7 @@
   prefersdark: false;
   color-scheme: light;
   --color-base-100: #ffffff;
-  --color-base-200: #f5f0e8;
+  --color-base-200: #fdfaf7;
   --color-base-300: #e7e1f0;
   --color-base-content: #20203b;
   --color-primary: #ff654f;
@@ -43,7 +43,7 @@
 
 @theme {
   /* Pop Arcade tokens (spec) */
-  --color-canvas: #f5f0e8;
+  --color-canvas: #fdfaf7; /* matches the approved homepage reference */
   --color-surface: #ffffff;
   --color-ink: #20203b;
   --color-muted: #77758c;
@@ -57,12 +57,22 @@
   --color-violet-deep: #4a3bb8; /* hover/pressed violet */
   --color-pitch: #2f8f4e; /* match viewer turf, matches the simulator's 2D pitch */
   --color-pitch-stripe: #2a8448;
+  --color-coral-deep: #d9442f; /* coral for white text: 4.4:1 (large display type only) */
+  --color-lavender: #ece8fb; /* ticker bar, tag and chip fills */
+  --color-lavender-strong: #dcd5f7;
 
   --font-display: "Barlow Condensed", "Arial Narrow", system-ui, sans-serif;
+  /* Same Barlow family at wider widths, as in the homepage reference: semi-condensed for nav,
+     tabs and list headlines; full width for the lead headline and big labels. */
+  --font-semi: "Barlow Semi Condensed", "Barlow Condensed", "Arial Narrow", system-ui, sans-serif;
+  --font-wide: "Barlow", "Barlow Semi Condensed", system-ui, sans-serif;
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
 
-  --shadow-card: 0 1px 2px rgb(32 32 59 / 0.06), 0 4px 16px rgb(32 32 59 / 0.06);
-  --radius-card: 0.75rem;
+  --shadow-card: 0 1px 2px rgb(32 32 59 / 0.05), 0 10px 30px -6px rgb(74 59 184 / 0.13);
+  --radius-card: 1rem;
+  --color-panel: #faf9fd; /* tinted panel ground behind white inner boxes */
+  --color-navy: #1b1f49; /* replay inner frame and control bar */
+  --color-slate-violet: #5d5a86; /* header tagline */
 }
 
 @layer base {
@@ -98,6 +108,24 @@
     border-radius: var(--radius-card);
     box-shadow: var(--shadow-card);
   }
+  /* Broadcast parallelogram used by section tabs, the active nav item and the matchweek label. */
+  .parallelogram {
+    clip-path: polygon(0.55em 0, 100% 0, calc(100% - 0.55em) 100%, 0 100%);
+    padding-inline: 0.9em;
+  }
+  /* Broadcast gradients (white type: ≥3:1 at the light end, display sizes only). */
+  .grad-violet {
+    background-image: linear-gradient(100deg, #5a3be0, #7b66f2);
+  }
+  .grad-coral {
+    background-image: linear-gradient(100deg, var(--color-coral-deep), #f0663f);
+  }
+  .grad-frame {
+    background-image: linear-gradient(135deg, #8d7cf0 0%, var(--color-violet) 45%, #5a3be0 100%);
+  }
+  .parallelogram-start {
+    clip-path: polygon(0 0, 100% 0, calc(100% - 0.55em) 100%, 0 100%);
+  }
   /* Angular slash accent used on section banners only. */
   .banner-slash {
     background-image: repeating-linear-gradient(
@@ -120,4 +148,47 @@
       background-position: 0 50%;
     }
   }
+}
+
+/* Replay scrubber: violet progress on a dark track with a white thumb (mockup control bar). */
+.replay-range {
+  appearance: none;
+  height: 1.25rem;
+  background: transparent;
+  cursor: pointer;
+}
+.replay-range::-webkit-slider-runnable-track {
+  height: 0.5rem;
+  border-radius: 999px;
+  background:
+    linear-gradient(90deg, #7b5cf0, #c4a8ff) 0 0 / var(--progress, 0%) 100% no-repeat,
+    rgb(255 255 255 / 0.22);
+}
+.replay-range::-moz-range-track {
+  height: 0.5rem;
+  border-radius: 999px;
+  background:
+    linear-gradient(90deg, #7b5cf0, #c4a8ff) 0 0 / var(--progress, 0%) 100% no-repeat,
+    rgb(255 255 255 / 0.22);
+}
+.replay-range::-webkit-slider-thumb {
+  appearance: none;
+  margin-top: -0.375rem;
+  width: 1.25rem;
+  height: 1.25rem;
+  border-radius: 999px;
+  background: #fff;
+  box-shadow: 0 1px 4px rgb(0 0 0 / 0.35);
+}
+.replay-range::-moz-range-thumb {
+  width: 1.25rem;
+  height: 1.25rem;
+  border: 0;
+  border-radius: 999px;
+  background: #fff;
+}
+
+/* Lead story ground: white easing into a faint warm blush toward the art (reference). */
+.lead-ground {
+  background-image: linear-gradient(115deg, #ffffff 0%, #ffffff 40%, #fbf1f1 100%);
 }

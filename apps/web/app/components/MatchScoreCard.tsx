@@ -1,5 +1,6 @@
 import type { FixtureView } from "@autosoccer/contracts";
 import { Link } from "react-router";
+import { formatDate } from "../lib/format";
 import { StatusChip } from "./StatusChip";
 import { TeamBadge } from "./TeamBadge";
 
@@ -87,7 +88,13 @@ export function FixtureCard({ fixture }: { fixture: FixtureView }) {
           </span>
         )}
         <span className="mt-1">
-          <StatusChip status={fixture.status} />
+          {!s && fixture.status === "scheduled" && fixture.scheduledAt ? (
+            <time dateTime={fixture.scheduledAt} className="text-xs font-semibold text-muted-text">
+              {formatDate(fixture.scheduledAt, { weekday: true, time: true, date: false })}
+            </time>
+          ) : (
+            <StatusChip status={fixture.status} />
+          )}
         </span>
       </div>
       <div className="flex min-w-0 items-center gap-2">
@@ -114,5 +121,67 @@ export function FixtureCard({ fixture }: { fixture: FixtureView }) {
     <div aria-label={label} role="group" className="card-surface px-3 py-3 sm:px-4" data-testid="fixture-card">
       {inner}
     </div>
+  );
+}
+
+const pad2 = (n: number) => String(n).padStart(2, "0");
+
+/**
+ * One-line schedule row (mockup "UPCOMING MATCHES"): matchweek chip, crests and names, then the
+ * kick-off time, or the score once played.
+ */
+export function FixtureRow({ fixture }: { fixture: FixtureView }) {
+  const s = fixture.score;
+  const label = s
+    ? `Matchweek ${fixture.round}: ${fixture.home.name} ${s.home}, ${fixture.away.name} ${s.away}`
+    : `Matchweek ${fixture.round}: ${fixture.home.name} versus ${fixture.away.name}`;
+  const inner = (
+    <>
+      <span className="tabular shrink-0 rounded-md bg-lavender px-2 py-1 font-semi text-base font-bold text-slate-violet">
+        MW{pad2(fixture.round)}
+      </span>
+      <span className="flex min-w-0 flex-1 items-center gap-2 font-semi text-xl font-bold" aria-hidden>
+        <TeamBadge team={fixture.home} size="sm" decorative />
+        <span>{fixture.home.shortName}</span>
+        <span className="shrink-0 text-sm font-semibold text-muted-text">
+          {s ? (
+            <span className="tabular font-semi text-lg font-extrabold text-ink">{`${s.home}–${s.away}`}</span>
+          ) : (
+            "vs"
+          )}
+        </span>
+        <span>{fixture.away.shortName}</span>
+        <TeamBadge team={fixture.away} size="sm" decorative />
+      </span>
+      <span className="tabular shrink-0 text-right text-sm font-semibold">
+        {s ? (
+          <StatusChip status={fixture.status} />
+        ) : fixture.scheduledAt ? (
+          <time dateTime={fixture.scheduledAt}>
+            {formatDate(fixture.scheduledAt, { weekday: true, time: true, date: false })}
+          </time>
+        ) : (
+          <StatusChip status={fixture.status} />
+        )}
+      </span>
+    </>
+  );
+  const cls = "flex items-center gap-3 border-b border-line px-1 py-2.5 last:border-0";
+  return (
+    <li>
+      {fixture.matchId ? (
+        <Link
+          to={`/matches/${fixture.matchId}`}
+          aria-label={`${label}. Open match centre`}
+          className={`${cls} hover:bg-canvas`}
+        >
+          {inner}
+        </Link>
+      ) : (
+        <div aria-label={label} role="group" className={cls} data-testid="fixture-row">
+          {inner}
+        </div>
+      )}
+    </li>
   );
 }

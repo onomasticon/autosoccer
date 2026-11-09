@@ -69,7 +69,7 @@ for (const path of pages.length ? pages : ["/"]) {
       await btn.focus();
       await page.keyboard.press("Enter");
       const opened = await btn.getAttribute("aria-expanded");
-      const visible = await page.getByRole("navigation", { name: "Main mobile" }).isVisible();
+      const visible = await page.getByRole("navigation", { name: "Site menu" }).isVisible();
       await page.screenshot({ path: join(out, `${name}-menu.png`) });
       await page.keyboard.press("Escape");
       const closed = await btn.getAttribute("aria-expanded");

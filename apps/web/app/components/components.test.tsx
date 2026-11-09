@@ -6,11 +6,13 @@ import { createRoutesStub } from "react-router";
 import { afterEach, describe, expect, it } from "vitest";
 import { mockArticles, mockFixtures, mockJournalists, mockStandings, mockTeams } from "../lib/mocks";
 import { tickerFixtures } from "../lib/ticker";
-import { AgentProfileCard } from "./AgentProfileCard";
+import { AgentProfileCard, VoicesStrip } from "./AgentProfileCard";
 import { ArticleCard } from "./ArticleCard";
+import { LeadStory } from "./LeadStory";
 import { LeagueHeader } from "./LeagueHeader";
-import { FixtureCard, MatchScoreCard } from "./MatchScoreCard";
+import { FixtureCard, FixtureRow, MatchScoreCard } from "./MatchScoreCard";
 import { ScoreTicker } from "./ScoreTicker";
+import { Panel } from "./SectionHeader";
 import { StandingsTable } from "./StandingsTable";
 import { TeamBadge } from "./TeamBadge";
 
@@ -88,17 +90,30 @@ describe("ScoreTicker", () => {
     inRouter(<ScoreTicker fixtures={null} loading />);
     expect(screen.getByRole("status")).toBeTruthy();
   });
-  it("picks the matchweek: earliest unfinished round, plus the previous round's results", () => {
+  it("shows the next fixture after the matchweek", () => {
+    inRouter(<ScoreTicker fixtures={mockFixtures.slice(0, 2)} matchweek={1} next={mockFixtures[4]!} />);
+    expect(screen.getByText("MATCHWEEK", { exact: false })).toBeTruthy();
+    const next = screen.getByTestId("ticker-next");
+    expect(next.textContent).toContain("Saltmarsh Athletic versus Harbour City");
+    expect(next.querySelector("time")?.getAttribute("datetime")).toBe(mockFixtures[4]!.scheduledAt);
+  });
+  it("picks the matchweek: the round in progress, else the latest round with results", () => {
     const rounds = [1, 2, 3].map((round) => ({ round, fixtures: mockFixtures.filter((f) => f.round === round) }));
     const t = tickerFixtures(rounds);
     expect(t.matchweek).toBe(2);
-    expect(t.fixtures.map((f) => f.round)).toEqual([1, 1, 2, 2]);
+    expect(t.fixtures.map((f) => f.round)).toEqual([2, 2]);
+    expect(t.next?.id).toBe(mockFixtures[4]!.id);
+    const afterRound1 = rounds.map((r) => ({
+      ...r,
+      fixtures: r.fixtures.map((f) => (r.round > 1 ? { ...f, status: "scheduled" as const } : f)),
+    }));
+    expect(tickerFixtures(afterRound1)).toMatchObject({ matchweek: 1, next: { round: 2 } });
     const done = rounds.map((r) => ({
       ...r,
       fixtures: r.fixtures.map((f) => ({ ...f, status: "completed" as const })),
     }));
-    expect(tickerFixtures(done).matchweek).toBe(3);
-    expect(tickerFixtures([])).toEqual({ matchweek: null, fixtures: [] });
+    expect(tickerFixtures(done)).toMatchObject({ matchweek: 3, next: null });
+    expect(tickerFixtures([])).toEqual({ matchweek: null, fixtures: [], next: null });
   });
 });
 
@@ -139,15 +154,63 @@ describe("LeagueHeader", () => {
     const { container } = inRouter(<LeagueHeader />, "/table");
     const main = screen.getByRole("navigation", { name: "Main" });
     expect(within(main).getByRole("link", { name: "Table" }).getAttribute("aria-current")).toBe("page");
+    expect(
+      within(main)
+        .getAllByRole("link")
+        .map((l) => l.textContent),
+    ).toEqual(["Home", "News", "Matches", "Table", "Teams", "Personalities"]);
     expect(screen.getByRole("link", { name: "Skip to content" }).getAttribute("href")).toBe("#main");
     const button = screen.getByRole("button", { name: "Menu" });
     expect(button.getAttribute("aria-expanded")).toBe("false");
     button.focus();
     await user.keyboard("{Enter}");
     expect(button.getAttribute("aria-expanded")).toBe("true");
-    expect(screen.getByRole("navigation", { name: "Main mobile" }).hidden).toBe(false);
+    expect(screen.getByRole("navigation", { name: "Site menu" }).hidden).toBe(false);
     await user.keyboard("{Escape}");
     expect(button.getAttribute("aria-expanded")).toBe("false");
     await expectNoAxeViolations(container);
+  });
+});
+
+describe("mockup homepage components", () => {
+  it("LeadStory: kind tab, linked headline, disclosed AI byline and decorative crests", async () => {
+    const article = { ...mockArticles[0]!, teamIds: [mockTeams[0]!.id, mockTeams[1]!.id] };
+    const { container } = inRouter(<LeadStory article={article} teams={mockTeams} />);
+    expect(screen.getByRole("heading", { level: 2, name: article.headline })).toBeTruthy();
+    expect(screen.getByText("AI-generated")).toBeTruthy();
+    // crests in the hero art are decorative: no extra images announced
+    expect(screen.queryAllByRole("img")).toHaveLength(0);
+    await expectNoAxeViolations(container);
+  });
+  it("Panel + FixtureRow: tab heading labels the panel; rows announce full team names", async () => {
+    const { container } = inRouter(
+      <Panel id="up" title="Upcoming matches" action={{ to: "/fixtures", label: "Full schedule" }}>
+        <ul>
+          <FixtureRow fixture={mockFixtures[0]!} />
+          <FixtureRow fixture={mockFixtures[4]!} />
+        </ul>
+      </Panel>,
+    );
+    expect(screen.getByRole("region", { name: "Upcoming matches" })).toBeTruthy();
+    expect(screen.getByRole("link", { name: /Matchweek 1: Harbour City 2, Red Rock Rovers 1/ })).toBeTruthy();
+    const upcoming = screen.getByRole("group", { name: "Matchweek 3: Saltmarsh Athletic versus Harbour City" });
+    expect(upcoming.textContent).toContain("MW03");
+    expect(upcoming.querySelector("time")?.textContent).toBe("Mon 12:00");
+    await expectNoAxeViolations(container);
+  });
+  it("VoicesStrip lists every journalist with a portrait, role and AI disclosure", async () => {
+    const { container } = inRouter(
+      <VoicesStrip agents={mockJournalists.map((j) => ({ ...j, href: `/journalists/${j.slug}` }))} />,
+    );
+    expect(screen.getByRole("heading", { name: "Voices around the league" })).toBeTruthy();
+    expect(screen.getAllByTestId("portrait")).toHaveLength(mockJournalists.length);
+    expect(screen.getAllByText("AI-generated")).toHaveLength(mockJournalists.length);
+    await expectNoAxeViolations(container);
+  });
+  it("LeagueHeader treats a match centre as part of Matches", () => {
+    inRouter(<LeagueHeader />, "/matches/abc");
+    const main = screen.getByRole("navigation", { name: "Main" });
+    expect(within(main).getByRole("link", { name: "Matches" }).getAttribute("aria-current")).toBe("page");
+    expect(within(main).getByRole("link", { name: "Home" }).getAttribute("aria-current")).toBeNull();
   });
 });
