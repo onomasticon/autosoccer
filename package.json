@@ -1,0 +1,37 @@
+{
+  "name": "autosoccer",
+  "private": true,
+  "type": "module",
+  "packageManager": "bun@1.2.19",
+  "engines": {
+    "bun": "1.2.19"
+  },
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "setup": "bun install && bun run db:up && bun run db:migrate",
+    "dev": "bun scripts/dev.ts",
+    "start": "bun scripts/dev.ts --prod",
+    "db:up": "docker compose up -d --wait db",
+    "db:down": "docker compose down",
+    "db:migrate": "bun packages/db/src/migrate-cli.ts",
+    "build": "bun run --cwd apps/web build",
+    "lint": "biome check .",
+    "format": "biome check --write .",
+    "typecheck": "tsc -p tsconfig.json --noEmit && bun run --cwd apps/web typecheck",
+    "test": "vitest run",
+    "smoke": "bun scripts/smoke.ts"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.2.5",
+    "@types/node": "22.18.8",
+    "typescript": "5.9.3",
+    "vitest": "3.2.4",
+    "@types/bun": "1.2.19"
+  },
+  "trustedDependencies": [
+    "@tailwindcss/oxide"
+  ]
+}
