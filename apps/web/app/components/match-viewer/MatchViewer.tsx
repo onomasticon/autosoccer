@@ -1,5 +1,5 @@
 import type { OfficialEvent, Team } from "@autosoccer/contracts";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { formatClock, onColor } from "../../lib/format";
 import { ErrorState } from "../States";
 import { aspect, drawFrame } from "./draw";
@@ -51,12 +51,15 @@ export function MatchViewer({
   const [speed, setSpeed] = useState<number>(initialSpeed);
   const tickRef = useRef(0);
 
-  const colors = {
-    home: home.colors.primary,
-    away: away.colors.primary,
-    homeText: onColor(home.colors.primary),
-    awayText: onColor(away.colors.primary),
-  };
+  const colors = useMemo(
+    () => ({
+      home: home.colors.primary,
+      away: away.colors.primary,
+      homeText: onColor(home.colors.primary),
+      awayText: onColor(away.colors.primary),
+    }),
+    [home.colors.primary, away.colors.primary],
+  );
 
   const render = useCallback(
     (t: number) => {
@@ -77,8 +80,7 @@ export function MatchViewer({
       drawFrame(ctx, f, { pitch: src.pitch, playerRadius: src.playerRadius, colors }, w, h);
       setFrame(f);
     },
-    // biome-ignore lint/correctness/useExhaustiveDependencies: colours are stable per match
-    [],
+    [colors],
   );
 
   useEffect(() => {
@@ -184,14 +186,14 @@ export function MatchViewer({
           {periodClock(frame)}
         </span>
       </div>
-      {/* biome-ignore lint/a11y/noNoninteractiveTabindex: focusable region exposes keyboard playback controls */}
       <div
         ref={wrapRef}
         className="relative w-full bg-ink outline-none"
+        // biome-ignore lint/a11y/noNoninteractiveTabindex: the pitch is a keyboard-operable player (role=application)
         tabIndex={0}
         onKeyDown={onKey}
         aria-label="Replay pitch. Space to play or pause, arrow keys to seek."
-        role="group"
+        role="application"
       >
         <canvas
           ref={canvasRef}
