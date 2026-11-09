@@ -5,6 +5,7 @@
 import { z } from "zod";
 import { ErrorEnvelope, Id, MicroUsd, Slug } from "./common.ts";
 import {
+  AgentRun,
   Article,
   EditorialAgent,
   Fixture,
@@ -49,6 +50,7 @@ export const PublicManager = ManagerAgent.pick({
   persona: true,
   philosophy: true,
   model: true,
+  memory: true,
 });
 
 export const SeasonResponse = z.object({ season: Season, teams: z.array(Team), rounds: z.number().int() });
@@ -266,4 +268,16 @@ ROUTES.push({
   params: { team: Slug },
   response: RevisionHistoryResponse,
   responseName: "RevisionHistoryResponse",
+});
+
+export const AgentRunListResponse = z.object({ team: Team, items: z.array(AgentRun) });
+export type AgentRunListResponse = z.infer<typeof AgentRunListResponse>;
+ROUTES.push({
+  method: "get",
+  path: "/teams/{team}/agent-runs",
+  operationId: "getTeamAgentRuns",
+  summary: "Manager agent runs for the current season: prompts, outputs, model, tokens and cost (audit trail)",
+  params: { team: Slug },
+  response: AgentRunListResponse,
+  responseName: "AgentRunListResponse",
 });

@@ -23,6 +23,8 @@ export interface MatchDeps {
   resolveParams?: ParamsResolver;
   /** Test hook: overrides the simulator half length (seconds). */
   halfDurationSec?: number;
+  /** Called once, after a match result is first recorded (e.g. enqueue post-match reviews). */
+  onCompleted?: (fixtureId: string, matchId: string) => Promise<void>;
 }
 
 interface TeamSelection {
@@ -133,7 +135,7 @@ export async function playFixture(deps: MatchDeps, fixtureId: string, log?: Logg
     throw e;
   }
 
-  return db.begin(async (tx) => {
+  const outcome = await db.begin(async (tx): Promise<PlayOutcome> => {
     const [m] = await tx<{ status: string }[]>`select status from matches where id = ${matchId} for update`;
     if (m!.status === "completed") return { matchId, replayId: null, alreadyCompleted: true, result: null };
     const [replay] = await tx<{ id: string }[]>`
@@ -151,6 +153,8 @@ export async function playFixture(deps: MatchDeps, fixtureId: string, log?: Logg
     await tx`update fixtures set status = 'completed', updated_at = now() where id = ${fixtureId}`;
     return { matchId, replayId: replay!.id, alreadyCompleted: false, result };
   });
+  if (!outcome.alreadyCompleted) await deps.onCompleted?.(fixtureId, matchId);
+  return outcome;
 }
 
 /** Enqueues the (idempotent) job that plays a fixture. */

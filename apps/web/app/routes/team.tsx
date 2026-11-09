@@ -138,6 +138,20 @@ export default function Team({ loaderData }: Route.ComponentProps) {
                 {currentRevision.rationale ? ` — “${currentRevision.rationale}”` : ""}
               </p>
             )}
+            {manager && (manager.memory.summary || manager.memory.notes.length > 0) && (
+              <div className="card-surface mt-4 p-4 text-sm" data-testid="manager-notebook">
+                <h3 className="font-display text-lg font-extrabold uppercase italic">Manager's notebook</h3>
+                <p className="mt-1 text-xs text-muted-text">
+                  The AI manager's persistent memory, rewritten after every match from the official record.
+                </p>
+                {manager.memory.summary && <p className="mt-3">{manager.memory.summary}</p>}
+                <ul className="mt-2 list-disc space-y-1 pl-5 text-muted-text">
+                  {manager.memory.notes.map((n) => (
+                    <li key={n}>{n}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </section>
           <section aria-labelledby="squad">
             <SectionHeader id="squad" title="Squad" />

@@ -95,3 +95,28 @@ and its loading, empty and error states on mock data.
 One addition to the spec: `muted-text` (#66647A). Spec `muted` (#77758C) is only 3.9:1 on canvas,
 so `muted-text` is used for secondary text to meet WCAG AA. Coral and yellow always carry ink
 text, never white.
+
+## AI managers
+
+Each club has a persistent AI manager (`apps/server/src/modules/agents`) with a stable persona,
+philosophy and memory.
+- **Before each round**, the scheduler's `beforeRound` hook enqueues one `manager.pre_match` job
+  per team. The manager gets grounded facts only (its memory, the table, both teams' official
+  recent results and stats, its squad and current setup) and returns a `tactics/1` config, five
+  starters by shirt number and a rationale (structured output). That's validated into a new
+  tactical revision, with one repair attempt if it's invalid. The round is released once every
+  decision has finished.
+- **After each match**, a `manager.post_match` job feeds the official result back. The manager
+  rewrites its memory (summary, up to six notes, one lesson).
+- **No model runs during a simulation.** Decisions happen in separate jobs before the round and
+  reviews after the result.
+- **Audit trail:** every run stores its prompt, output, provider, model, tokens and cost
+  (`GET /api/v1/teams/{team}/agent-runs`), and every revision stores its rationale.
+- **Fallback:** if a proposal is rejected, a run fails, or the compute gate refuses, the team
+  plays its last valid tactics.
+
+Provider: `LLM_PROVIDER=anthropic` (default when `ANTHROPIC_API_KEY` is set) calls
+`MANAGER_MODEL` (default `claude-opus-5-5`) via the official SDK with structured outputs.
+`LLM_PROVIDER=offline` uses a deterministic rule-based stand-in for tests, CI and keyless demos;
+its runs are recorded as provider `offline`, with token usage estimated and priced at the
+configured model.

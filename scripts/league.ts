@@ -1,14 +1,19 @@
 /**
  * League operations against the configured DATABASE_URL.
  *   bun run league seed [--season season-1] [--seed 20261109] [--budget 1.00]
- *   bun run league run  [--season season-1]   # plays every remaining round in-process (no AI)
+ *   bun run league run  [--season season-1] [--no-managers]   # plays every remaining round in-process
+ *   bun run league managers [--season season-1]              # manager decisions, memory and spend
  *   bun run league table [--season season-1]
  */
 import { createDb } from "@autosoccer/db";
 import { FileReplayStore } from "@autosoccer/sim-adapter";
 import { loadConfig } from "../apps/server/src/config.ts";
+import { buildHandlers } from "../apps/server/src/jobs/handlers.ts";
 import { createWorker } from "../apps/server/src/jobs/worker.ts";
 import { createLogger } from "../apps/server/src/log.ts";
+import { managerLlm } from "../apps/server/src/modules/agents/index.ts";
+import { formatUsd } from "../apps/server/src/modules/agents/pricing.ts";
+import { managerRoundHook, seedManagers } from "../apps/server/src/modules/agents/service.ts";
 import { fixtureViews, seasonBySlug, standingRows } from "../apps/server/src/modules/league/read.ts";
 import { SEED_TEAMS } from "../apps/server/src/modules/league/seed-data.ts";
 import { advanceSeason, createSeason, seedTeams } from "../apps/server/src/modules/league/service.ts";
@@ -47,6 +52,7 @@ try {
       budgetPerTeamMicroUsd: Math.round(Number(opt("budget", "1.00")) * 1_000_000),
       teamSlugs: SEED_TEAMS.map((t) => t.slug),
     });
+    await seedManagers(db, seasonId, config.MANAGER_MODEL);
     const fx = await fixtureViews(db, seasonId);
     console.log(`${created ? "created" : "exists"}: ${slug} (${fx.length} fixtures)`);
     for (const f of fx) console.log(`  R${f.round}  ${f.home.name.padEnd(20)} v ${f.away.name.padEnd(20)} ${f.status}`);
@@ -54,21 +60,44 @@ try {
     const s = await seasonBySlug(db, slug);
     if (!s) throw new Error(`no season ${slug}; run \`bun run league seed\``);
     const log = createLogger("warn");
-    const worker = createWorker({
-      db,
-      log,
-      handlers: { [MATCH_JOB]: matchJobHandler({ db, store: new FileReplayStore(config.REPLAY_DIR) }) },
-    });
+    const store = new FileReplayStore(config.REPLAY_DIR);
+    const managers = !process.argv.includes("--no-managers");
+    if (managers) console.log(`managers on · llm ${config.LLM_PROVIDER} · model ${config.MANAGER_MODEL}`);
+    const handlers = managers
+      ? buildHandlers({ db, store, llm: managerLlm(config), log })
+      : { [MATCH_JOB]: matchJobHandler({ db, store }) };
+    const worker = createWorker({ db, log, handlers });
+    const hook = managers ? managerRoundHook(db) : undefined;
     const t0 = performance.now();
     for (;;) {
-      const a = await advanceSeason(db, s.id);
+      const a = await advanceSeason(db, s.id, { beforeRound: hook });
       if (a.state === "completed") break;
-      if (a.state === "blocked" || a.state === "waiting") throw new Error(`season ${a.state}: ${JSON.stringify(a)}`);
+      if (a.state === "blocked") throw new Error(`season blocked: ${JSON.stringify(a)}`);
       const done = await worker.drain();
       for (const d of done) console.log(`  round ${a.round}: job ${d.job.idempotency_key} → ${d.status}`);
     }
     console.log(`season complete in ${((performance.now() - t0) / 1000).toFixed(1)} s`);
     await printTable();
+  } else if (cmd === "managers") {
+    const s = await seasonBySlug(db, slug);
+    if (!s) throw new Error(`no season ${slug}`);
+    const ms = await db<{ id: string; name: string; team: string; memory: { summary: string; notes: string[] } }[]>`
+      select m.id, m.name, t.name as team, m.memory from manager_agents m join teams t on t.id = m.team_id order by t.name`;
+    for (const m of ms) {
+      const runs = await db<{ purpose: string; status: string; cost: number; provider: string | null }[]>`
+        select purpose, status, cost_micro_usd as cost, provider from agent_runs where agent_id = ${m.id} and season_id = ${s.id}`;
+      const revs = await db<{ version: number; source: string; status: string; rationale: string | null }[]>`
+        select r.version, r.source, r.status, r.rationale from tactical_revisions r join manager_agents m on m.team_id = r.team_id
+        where m.id = ${m.id} and r.season_id = ${s.id} order by version`;
+      const spent = runs.reduce((a, r) => a + r.cost, 0);
+      console.log(
+        `\n${m.name} (${m.team}) — ${runs.length} runs, ${runs.filter((r) => r.status === "succeeded").length} succeeded, spend ${formatUsd(spent)} [${[...new Set(runs.map((r) => r.provider))].join(",")}]`,
+      );
+      for (const r of revs)
+        console.log(`  v${r.version} ${r.source.padEnd(7)} ${r.status.padEnd(8)} ${r.rationale ?? ""}`);
+      console.log(`  memory: ${m.memory.summary}`);
+      for (const n of m.memory.notes) console.log(`    · ${n}`);
+    }
   } else if (cmd === "table") {
     await printTable();
   } else throw new Error(`unknown command ${cmd}`);
