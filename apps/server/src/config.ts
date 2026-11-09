@@ -1,3 +1,4 @@
+import { existsSync, readFileSync } from "node:fs";
 import { isAbsolute, resolve } from "node:path";
 import { z } from "zod";
 
@@ -14,7 +15,17 @@ const Env = z.object({
 
 export type ServerConfig = z.infer<typeof Env>;
 
+/** Fills unset variables from the repo-root .env (processes may start in any directory). */
+export function loadDotEnv(path = resolve(REPO_ROOT, ".env"), env: Record<string, string | undefined> = process.env) {
+  if (!existsSync(path)) return;
+  for (const line of readFileSync(path, "utf8").split("\n")) {
+    const m = /^\s*([A-Z0-9_]+)\s*=\s*(.*?)\s*$/.exec(line);
+    if (m && env[m[1]!] === undefined) env[m[1]!] = m[2]!.replace(/^(['"])(.*)\1$/, "$2");
+  }
+}
+
 export function loadConfig(env: Record<string, string | undefined> = process.env): ServerConfig {
+  if (env === process.env) loadDotEnv();
   const parsed = Env.safeParse(env);
   if (!parsed.success) {
     const issues = parsed.error.issues.map((i) => `  ${i.path.join(".")}: ${i.message}`).join("\n");

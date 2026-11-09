@@ -36,6 +36,7 @@ Already have Postgres? Set `DATABASE_URL` in `.env` and run `bun run dev -- --no
 | `bun run worker` | Background job worker (plays matches) |
 | `bun run sim:check [--seed N]` | Full-length match through the pinned simulator, twice, checking determinism |
 | `bun run league seed` / `run` / `table` | Seed the four clubs + Season 1 calendar; play remaining rounds (no AI); print the table |
+| `bun run ui:check --base URL [--out DIR] /path …` | Chromium screenshots (desktop + mobile), axe WCAG 2.1 AA scan, keyboard and overflow checks |
 | `bun run contracts:gen` | Regenerate `docs/api` (OpenAPI + examples) from the zod contracts |
 
 ## Layout
@@ -83,3 +84,14 @@ Matches are played by durable `match.play` jobs:
   permanently, and completes the season after the last result.
 - **Standings:** 3/1/0 points, ranked by points → goal difference → goals for → head-to-head
   (points, GD, GF among the tied teams) → name.
+
+## Frontend
+
+Pop Arcade v0.2 lives in `apps/web/app/app.css` as the DaisyUI `autosoccer-pop` theme plus Tailwind
+tokens (`bg-canvas`, `text-ink`, `text-violet`, `font-display`…). Components never hard-code
+colours. Shared components are in `apps/web/app/components`, and `/styleguide` renders each one
+and its loading, empty and error states on mock data.
+
+One addition to the spec: `muted-text` (#66647A). Spec `muted` (#77758C) is only 3.9:1 on canvas,
+so `muted-text` is used for secondary text to meet WCAG AA. Coral and yellow always carry ink
+text, never white.

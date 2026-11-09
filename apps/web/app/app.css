@@ -1,2 +1,123 @@
+/*
+ * Auto Soccer — Pop Arcade v0.2 (docs/design/design-system.md).
+ * All site colours are CSS variables; components use the utilities below, never raw hex.
+ */
 @import "tailwindcss";
-@plugin "daisyui";
+@plugin "daisyui" {
+  themes: false;
+}
+@plugin "daisyui/theme" {
+  name: "autosoccer-pop";
+  default: true;
+  prefersdark: false;
+  color-scheme: light;
+  --color-base-100: #ffffff;
+  --color-base-200: #f5f0e8;
+  --color-base-300: #e7e1f0;
+  --color-base-content: #20203b;
+  --color-primary: #ff654f;
+  --color-primary-content: #20203b;
+  --color-secondary: #6552dd;
+  --color-secondary-content: #ffffff;
+  --color-accent: #ffcb45;
+  --color-accent-content: #20203b;
+  --color-neutral: #20203b;
+  --color-neutral-content: #ffffff;
+  --color-info: #245eff;
+  --color-info-content: #ffffff;
+  --color-success: #1f9d74;
+  --color-success-content: #20203b;
+  --color-warning: #ffcb45;
+  --color-warning-content: #20203b;
+  --color-error: #d93a25;
+  --color-error-content: #ffffff;
+  --radius-selector: 0.5rem;
+  --radius-field: 0.5rem;
+  --radius-box: 0.75rem;
+  --size-selector: 0.25rem;
+  --size-field: 0.25rem;
+  --border: 1px;
+  --depth: 1;
+  --noise: 0;
+}
+
+@theme {
+  /* Pop Arcade tokens (spec) */
+  --color-canvas: #f5f0e8;
+  --color-surface: #ffffff;
+  --color-ink: #20203b;
+  --color-muted: #77758c;
+  --color-coral: #ff654f;
+  --color-violet: #6552dd;
+  --color-yellow: #ffcb45;
+  --color-match-blue: #245eff;
+  /* Derived, documented additions */
+  --color-muted-text: #66647a; /* AA-safe secondary text: 5.0:1 on canvas, 5.7:1 on surface */
+  --color-line: #e7e1f0; /* subtle cool border */
+  --color-violet-deep: #4a3bb8; /* hover/pressed violet */
+  --color-pitch: #2f8f4e; /* match viewer turf, matches the simulator's 2D pitch */
+  --color-pitch-stripe: #2a8448;
+
+  --font-display: "Barlow Condensed", "Arial Narrow", system-ui, sans-serif;
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+
+  --shadow-card: 0 1px 2px rgb(32 32 59 / 0.06), 0 4px 16px rgb(32 32 59 / 0.06);
+  --radius-card: 0.75rem;
+}
+
+@layer base {
+  html {
+    background: var(--color-canvas);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+  :focus-visible {
+    outline: 3px solid var(--color-violet);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+@layer components {
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+  .card-surface {
+    background: var(--color-surface);
+    border: 1px solid var(--color-line);
+    border-radius: var(--radius-card);
+    box-shadow: var(--shadow-card);
+  }
+  /* Angular slash accent used on section banners only. */
+  .banner-slash {
+    background-image: repeating-linear-gradient(
+      -60deg,
+      transparent 0 10px,
+      color-mix(in srgb, var(--color-coral) 85%, transparent) 10px 16px
+    );
+  }
+  .skeleton-block {
+    background: linear-gradient(90deg, var(--color-line) 25%, #f3eff8 37%, var(--color-line) 63%);
+    background-size: 400% 100%;
+    animation: shimmer 1.4s ease infinite;
+    border-radius: 6px;
+  }
+  @keyframes shimmer {
+    0% {
+      background-position: 100% 50%;
+    }
+    100% {
+      background-position: 0 50%;
+    }
+  }
+}

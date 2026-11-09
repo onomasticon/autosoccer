@@ -27,14 +27,16 @@
     "contracts:gen": "bun packages/contracts/src/generate.ts",
     "sim:check": "bun scripts/sim-check.ts",
     "worker": "bun --cwd apps/server src/worker.ts",
-    "league": "bun scripts/league.ts"
+    "league": "bun scripts/league.ts",
+    "ui:check": "node scripts/ui-check.mjs"
   },
   "devDependencies": {
     "@biomejs/biome": "2.2.5",
     "@types/node": "22.18.8",
     "typescript": "5.9.3",
     "vitest": "3.2.4",
-    "@types/bun": "1.2.19"
+    "@types/bun": "1.2.19",
+    "playwright": "1.49.1"
   },
   "trustedDependencies": [
     "@tailwindcss/oxide"

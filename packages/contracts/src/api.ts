@@ -242,3 +242,16 @@ export const ROUTES: RouteDef[] = [
 ];
 
 export { ErrorEnvelope };
+
+export type ArticleCardView = z.infer<typeof ArticleCardView>;
+export type SeasonResponse = z.infer<typeof SeasonResponse>;
+export type StandingsResponse = z.infer<typeof StandingsResponse>;
+export type FixturesResponse = z.infer<typeof FixturesResponse>;
+export type TeamListResponse = z.infer<typeof TeamListResponse>;
+export type TeamDetailResponse = z.infer<typeof TeamDetailResponse>;
+export type MatchDetailResponse = z.infer<typeof MatchDetailResponse>;
+export type ArticleListResponse = z.infer<typeof ArticleListResponse>;
+export type ArticleDetailResponse = z.infer<typeof ArticleDetailResponse>;
+export type JournalistListResponse = z.infer<typeof JournalistListResponse>;
+export type JournalistDetailResponse = z.infer<typeof JournalistDetailResponse>;
+export type BudgetResponse = z.infer<typeof BudgetResponse>;
