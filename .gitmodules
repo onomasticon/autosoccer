@@ -1,0 +1,3 @@
+[submodule "vendor/autosoccer-sim"]
+	path = vendor/autosoccer-sim
+	url = https://github.com/onomasticon/autosoccer-sim.git

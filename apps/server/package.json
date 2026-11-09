@@ -5,12 +5,14 @@
   "type": "module",
   "scripts": {
     "dev": "bun --watch src/api.ts",
-    "start": "bun src/api.ts"
+    "start": "bun src/api.ts",
+    "worker": "bun src/worker.ts"
   },
   "dependencies": {
     "@autosoccer/db": "workspace:*",
     "hono": "4.9.12",
     "zod": "4.1.12",
-    "@autosoccer/contracts": "workspace:*"
+    "@autosoccer/contracts": "workspace:*",
+    "@autosoccer/sim-adapter": "workspace:*"
   }
 }

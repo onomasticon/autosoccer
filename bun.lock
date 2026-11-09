@@ -17,6 +17,7 @@
       "dependencies": {
         "@autosoccer/contracts": "workspace:*",
         "@autosoccer/db": "workspace:*",
+        "@autosoccer/sim-adapter": "workspace:*",
         "hono": "4.9.12",
         "zod": "4.1.12",
       },
@@ -58,6 +59,55 @@
         "postgres": "3.4.7",
       },
     },
+    "packages/sim-adapter": {
+      "name": "@autosoccer/sim-adapter",
+      "version": "1.0.0",
+      "dependencies": {
+        "@autosoccer/contracts": "workspace:*",
+        "@autosoccer/controller-sdk": "workspace:*",
+        "@autosoccer/match-runner": "workspace:*",
+        "@autosoccer/sim-core": "workspace:*",
+        "@autosoccer/telemetry": "workspace:*",
+      },
+    },
+    "vendor/autosoccer-sim/packages/controller-runtime": {
+      "name": "@autosoccer/controller-runtime",
+      "version": "0.1.0",
+      "dependencies": {
+        "@autosoccer/controller-sdk": "workspace:*",
+        "@autosoccer/sim-core": "workspace:*",
+        "@jitl/quickjs-singlefile-mjs-release-sync": "0.31.0",
+        "quickjs-emscripten-core": "0.31.0",
+      },
+    },
+    "vendor/autosoccer-sim/packages/controller-sdk": {
+      "name": "@autosoccer/controller-sdk",
+      "version": "0.1.0",
+      "dependencies": {
+        "@autosoccer/sim-core": "workspace:*",
+      },
+    },
+    "vendor/autosoccer-sim/packages/match-runner": {
+      "name": "@autosoccer/match-runner",
+      "version": "0.1.0",
+      "dependencies": {
+        "@autosoccer/controller-runtime": "workspace:*",
+        "@autosoccer/controller-sdk": "workspace:*",
+        "@autosoccer/sim-core": "workspace:*",
+        "@autosoccer/telemetry": "workspace:*",
+      },
+    },
+    "vendor/autosoccer-sim/packages/sim-core": {
+      "name": "@autosoccer/sim-core",
+      "version": "0.1.0",
+    },
+    "vendor/autosoccer-sim/packages/telemetry": {
+      "name": "@autosoccer/telemetry",
+      "version": "0.1.0",
+      "dependencies": {
+        "@autosoccer/sim-core": "workspace:*",
+      },
+    },
   },
   "trustedDependencies": [
     "@tailwindcss/oxide",
@@ -71,9 +121,21 @@
 
     "@autosoccer/contracts": ["@autosoccer/contracts@workspace:packages/contracts"],
 
+    "@autosoccer/controller-runtime": ["@autosoccer/controller-runtime@workspace:vendor/autosoccer-sim/packages/controller-runtime"],
+
+    "@autosoccer/controller-sdk": ["@autosoccer/controller-sdk@workspace:vendor/autosoccer-sim/packages/controller-sdk"],
+
     "@autosoccer/db": ["@autosoccer/db@workspace:packages/db"],
 
+    "@autosoccer/match-runner": ["@autosoccer/match-runner@workspace:vendor/autosoccer-sim/packages/match-runner"],
+
     "@autosoccer/server": ["@autosoccer/server@workspace:apps/server"],
+
+    "@autosoccer/sim-adapter": ["@autosoccer/sim-adapter@workspace:packages/sim-adapter"],
+
+    "@autosoccer/sim-core": ["@autosoccer/sim-core@workspace:vendor/autosoccer-sim/packages/sim-core"],
+
+    "@autosoccer/telemetry": ["@autosoccer/telemetry@workspace:vendor/autosoccer-sim/packages/telemetry"],
 
     "@autosoccer/web": ["@autosoccer/web@workspace:apps/web"],
 
@@ -220,6 +282,10 @@
     "@isaacs/cliui": ["@isaacs/cliui@8.0.2", "", { "dependencies": { "string-width": "^5.1.2", "string-width-cjs": "npm:string-width@^4.2.0", "strip-ansi": "^7.0.1", "strip-ansi-cjs": "npm:strip-ansi@^6.0.1", "wrap-ansi": "^8.1.0", "wrap-ansi-cjs": "npm:wrap-ansi@^7.0.0" } }, "sha512-O8jcjabXaleOG9DQ0+ARXWZBTfnP4WNAqzuiJK7ll44AmxGKv/J2M4TPjxjY3znBCfvBXFzucm1twdyFybFqEA=="],
 
     "@isaacs/fs-minipass": ["@isaacs/fs-minipass@4.0.1", "", { "dependencies": { "minipass": "^7.0.4" } }, "sha512-wgm9Ehl2jpeqP3zw/7mo3kRHFp5MEDhqAdwy1fTGkHAwnkGOVsgpvQhL8B5n1qlb01jV3n/bI0ZfZp5lWA1k4w=="],
+
+    "@jitl/quickjs-ffi-types": ["@jitl/quickjs-ffi-types@0.31.0", "", {}, "sha512-1yrgvXlmXH2oNj3eFTrkwacGJbmM0crwipA3ohCrjv52gBeDaD7PsTvFYinlAnqU8iPME3LGP437yk05a2oejw=="],
+
+    "@jitl/quickjs-singlefile-mjs-release-sync": ["@jitl/quickjs-singlefile-mjs-release-sync@0.31.0", "", { "dependencies": { "@jitl/quickjs-ffi-types": "0.31.0" } }, "sha512-VyN48sbNnlhvH/17xoy3Ck15Y9ChFg/e9hcLP/yFdwrGy/x2s1Hnbg0orL3OYiQYKRSpdecrB09rwEPUdDt8BA=="],
 
     "@jridgewell/gen-mapping": ["@jridgewell/gen-mapping@0.3.13", "", { "dependencies": { "@jridgewell/sourcemap-codec": "^1.5.0", "@jridgewell/trace-mapping": "^0.3.24" } }, "sha512-2kkt/7niJ6MgEPxF0bYdQ6etZaA+fQvDcLKckhy1yIQOzaoKjBBjSj63/aLVjYE3qhRt5dvM+uUyfCg6UKCBbA=="],
 
@@ -704,6 +770,8 @@
     "punycode": ["punycode@2.3.1", "", {}, "sha512-vYt7UD1U9Wg6138shLtLOvdAu+8DsC/ilFtEVHcH+wydcSpNE20AfSOduf6MkRFahL5FY7X1oU7nKVZFtfq8Fg=="],
 
     "qs": ["qs@6.16.2", "", { "dependencies": { "es-define-property": "^1.0.1", "side-channel": "^1.1.1" } }, "sha512-VYdnB5S7/0IeXzBacUtwNAaM6d7Y/PgYnNC7bJCI6meqA/OgnsQbZMtVW8Dt2D1PHgbHGtYmhSoEIgvt7xZ2ZA=="],
+
+    "quickjs-emscripten-core": ["quickjs-emscripten-core@0.31.0", "", { "dependencies": { "@jitl/quickjs-ffi-types": "0.31.0" } }, "sha512-oQz8p0SiKDBc1TC7ZBK2fr0GoSHZKA0jZIeXxsnCyCs4y32FStzCW4d1h6E1sE0uHDMbGITbk2zhNaytaoJwXQ=="],
 
     "range-parser": ["range-parser@1.2.1", "", {}, "sha512-Hrgsx+orqoygnmhFbKaHE6c296J+HTAQXoxEF6gNupROmmGJRoyzfG3ccAveqCBrwr/2yxQ5BVd/GTl5agOwSg=="],
 
