@@ -35,16 +35,24 @@ const PAGES = [
     notes: [
       {
         sel: 'header a[aria-label="Auto Soccer home"]',
-        text: "Stacked italic wordmark with twin coral slashes (mockup logo).",
+        text: "Ink rule across the top; heavy italic wordmark in wide Barlow with twin gradient coral slashes.",
       },
       { sel: "header p", text: "Tagline “The AI-managed soccer league” (xl+ only)." },
       {
         sel: 'nav[aria-label="Main"] a[aria-current="page"]',
-        text: "Current section: skewed deep-coral pill. Nav matches the mockup: Home, News, Matches, Table, Teams, Personalities.",
+        text: "Upright semi-condensed nav, as in the mockup; the current section is a skewed deep-coral pill.",
+      },
+      {
+        sel: 'header div[aria-hidden="true"].absolute',
+        text: "Oversized gradient stripes bleeding off the top edge (coral, peach, violet, lilac); decorative.",
+      },
+      {
+        sel: 'header a[aria-label="Search"]',
+        text: "Search (teams, stories, personalities) and a menu panel with secondary links.",
       },
       {
         sel: 'section[aria-label="Scores"] p',
-        text: "Yellow MATCHWEEK label, zero-padded. Shows the round in progress, else the latest round with results.",
+        text: "Yellow parallelogram MATCHWEEK label overlapping a lavender bar with a slanted end. Round in progress, else the latest with results.",
       },
       {
         sel: '[data-testid="score-ticker"] li',
@@ -56,7 +64,7 @@ const PAGES = [
       },
       {
         sel: '[data-testid="lead-story"] h2',
-        text: "Lead story: kind tab, oversized italic headline, coral underline bar. Prefers the report on the featured match so story and replay agree.",
+        text: "Lead story on a soft blush ground: gradient kind tab, heavy wide italic headline, slanted coral underline. Prefers the report on the featured match.",
       },
       {
         sel: '[data-testid="lead-story"] .mt-auto',
@@ -64,24 +72,24 @@ const PAGES = [
       },
       {
         sel: '[data-testid="lead-story"] > div:first-child',
-        text: "Flat-vector hero art: broadcast stripes around the crests of the clubs in the story. Decorative, never fake match imagery.",
+        text: "Hero art in a slanted panel: gradient stripes around the crests of the clubs in the story. Decorative, never fake match imagery.",
       },
       {
         sel: '[data-testid="score-bug"]',
-        text: "Broadcast score bug over the genuine replay: team-colour chips (deepened only if needed for AA), live score, clock.",
+        text: "Gradient violet frame with a navy inner frame; score bug flush in the corner (team chips deepened only if AA needs it). Pitch has nets, corner arcs, patterned ball.",
       },
       {
         sel: `${viewer} > div:last-child`,
-        text: "Control bar: play, replay time, violet scrubber, speed (cycles 0.5×–8×), full screen.",
+        text: "Control bar: play, replay time, gradient scrubber, speed (cycles 0.5×–8×), full screen.",
       },
       { sel: `${viewer} ~ p`, text: "Honesty caption: genuine autosoccer-sim replay with engine version." },
       {
         sel: 'section[aria-labelledby="latest-stories"]',
-        text: "Panel with flush violet tab. Story rows: thumbnail, category tag, headline, author · date.",
+        text: "Tinted panel, gradient tab with lighter trailing slashes, white inner box. Story rows with upright headlines.",
       },
       {
         sel: 'section[aria-labelledby="table-heading"] tbody tr',
-        text: "League table panel (coral tab): # Team P W D L GD Pts, leader row in yellow.",
+        text: "Coral gradient tab; # Team P W D L GD Pts with a rounded yellow leader row.",
       },
       {
         sel: 'section[aria-labelledby="schedule"]',
@@ -89,7 +97,7 @@ const PAGES = [
       },
       {
         sel: '[data-testid="voices-strip"]',
-        text: "Voices around the league: illustrated portraits of the AI journalists, role, bio, AI disclosure.",
+        text: "Voices strip: lavender block with a slanted end, short dividers, portraits on warm tiles, AI disclosure.",
       },
     ],
   },
@@ -233,6 +241,17 @@ const PAGES = [
       },
     ],
   },
+  {
+    name: "09b-search",
+    title: "Search",
+    path: "/search?q=rovers",
+    viewport: DESKTOP,
+    notes: [
+      { sel: 'header a[aria-label="Search"]', text: "The header search icon opens this page." },
+      { sel: 'form[role="search"]', text: "Plain GET form, so results have shareable URLs. Every term must match." },
+      { sel: 'section[aria-labelledby="r-teams"]', text: "Teams, stories and personalities, each under a tab header." },
+    ],
+  },
 ];
 
 const COMPONENTS = [
@@ -242,12 +261,12 @@ const COMPONENTS = [
     section: "header-tabs",
     notes: [
       {
-        sel: '[data-section="header-tabs"] h2[class*="bg-violet"]',
-        text: "Tab header (violet): skewed parallelogram, white italic Barlow Condensed, slash accents.",
+        sel: '[data-section="header-tabs"] h2[class*="grad-violet"]',
+        text: "Tab header: violet gradient parallelogram, white italic Barlow Semi Condensed, lighter trailing slashes.",
       },
       {
-        sel: '[data-section="header-tabs"] h2[class*="bg-coral-deep"]',
-        text: "Coral tone uses coral-deep (#D9442F) so white type passes AA for large text.",
+        sel: '[data-section="header-tabs"] h2[class*="grad-coral"]',
+        text: "Coral tone: coral-deep to warm coral gradient, kept at ≥3:1 for the large white type.",
       },
       {
         sel: '[data-section="header-tabs"] .flex.items-center.gap-4',
@@ -255,7 +274,7 @@ const COMPONENTS = [
       },
       {
         sel: 'section[aria-labelledby="sg-upcoming"]',
-        text: "Panel: tab flush on the card's top-left corner. FixtureRow: result vs upcoming states.",
+        text: "Panel: tinted ground, tab flush on the corner, white inner box. FixtureRow: result vs upcoming.",
       },
       { sel: 'section[aria-labelledby="sg-stories"] [data-testid="article-card"]', text: "ArticleCard “row” variant." },
     ],
@@ -397,12 +416,12 @@ const FLOWS = [
       {
         caption: "Menu opens (Enter/click); Escape closes",
         run: async (p) => p.getByRole("button", { name: "Menu" }).click(),
-        mark: 'nav[aria-label="Main mobile"]',
+        mark: 'nav[aria-label="Site menu"]',
       },
       {
         caption: "Choose Table",
         run: async (p) => {
-          await p.getByRole("navigation", { name: "Main mobile" }).getByRole("link", { name: "Table" }).click();
+          await p.getByRole("navigation", { name: "Site menu" }).getByRole("link", { name: "Table" }).click();
           await p.waitForURL(/\/table/);
           await p.waitForLoadState("networkidle");
         },

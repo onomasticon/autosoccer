@@ -194,12 +194,12 @@ export function MatchViewer({
       <section
         ref={rootRef}
         aria-label="Match replay"
-        className="overflow-hidden rounded-2xl bg-violet p-1.5 text-white shadow-[0_10px_30px_rgb(101_82_221/0.25)] sm:p-2"
+        className="grad-frame overflow-hidden rounded-2xl p-1.5 text-white shadow-[0_12px_34px_rgb(101_82_221/0.3)] sm:p-2"
         data-testid="match-viewer"
       >
         <div
           ref={wrapRef}
-          className="relative w-full overflow-hidden rounded-t-xl bg-ink outline-none"
+          className="relative w-full overflow-hidden rounded-t-xl border-[6px] border-b-0 border-navy bg-navy outline-none sm:border-8 sm:border-b-0"
           // biome-ignore lint/a11y/noNoninteractiveTabindex: the pitch is a keyboard-operable player (role=application)
           tabIndex={0}
           onKeyDown={onKey}
@@ -215,7 +215,7 @@ export function MatchViewer({
           />
           <div
             aria-hidden
-            className="pointer-events-none absolute left-2 top-2 flex items-stretch font-display text-base font-extrabold uppercase italic leading-none shadow-lg sm:left-3 sm:top-3 sm:text-2xl"
+            className="pointer-events-none absolute left-0 top-0 flex items-stretch font-semi text-base font-extrabold uppercase italic leading-none shadow-lg sm:text-[1.6rem]"
             data-testid="score-bug"
           >
             <span
@@ -224,13 +224,13 @@ export function MatchViewer({
             >
               {home.shortName}
             </span>
-            <span className="parallelogram tabular -ml-2 bg-ink py-1.5 text-white">
+            <span className="parallelogram tabular -ml-2 bg-navy py-1.5 text-white">
               {frame ? `${frame.score.home}–${frame.score.away}` : "–"}
             </span>
             <span className="parallelogram -ml-2 py-1.5" style={{ background: chips.away.bg, color: chips.away.fg }}>
               {away.shortName}
             </span>
-            <span className="parallelogram tabular -ml-2 bg-ink py-1.5 text-sm text-white sm:text-lg">
+            <span className="parallelogram tabular -ml-2 bg-navy py-1.5 text-sm text-white sm:text-lg">
               {shortClock(frame)}
             </span>
           </div>
@@ -249,7 +249,7 @@ export function MatchViewer({
           )}
         </div>
         <div
-          className={`flex items-center gap-1 rounded-b-xl bg-ink px-2 py-1.5 sm:gap-3 sm:px-3 ${status !== "ready" ? "pointer-events-none opacity-60" : ""}`}
+          className={`flex items-center gap-1 rounded-b-xl bg-navy px-2 py-1.5 sm:gap-3 sm:px-3 ${status !== "ready" ? "pointer-events-none opacity-60" : ""}`}
         >
           <button
             type="button"
@@ -261,7 +261,7 @@ export function MatchViewer({
             aria-label={playing ? "Pause" : "Play"}
             disabled={status !== "ready"}
           >
-            <svg aria-hidden viewBox="0 0 12 12" width="18" height="18">
+            <svg aria-hidden viewBox="0 0 12 12" width="22" height="22">
               {playing ? (
                 <path d="M2 1 H5 V11 H2 Z M7 1 H10 V11 H7 Z" fill="currentColor" />
               ) : (

@@ -47,22 +47,28 @@ export function VoicesStrip({ agents }: { agents: AgentProfile[] }) {
   return (
     <section
       aria-labelledby="voices"
-      className="card-surface grid overflow-hidden lg:grid-cols-[minmax(15rem,auto)_1fr]"
+      className="grid overflow-hidden rounded-[var(--radius-card)] border border-line bg-surface shadow-[var(--shadow-card)] lg:grid-cols-[minmax(17rem,auto)_1fr]"
       data-testid="voices-strip"
     >
-      <div className="flex items-center justify-between gap-3 bg-lavender px-6 py-5">
-        <h2 id="voices" className="font-display font-extrabold uppercase italic leading-[0.85] tracking-tight">
-          <span className="block text-5xl">Voices</span> <span className="block text-2xl">around the league</span>
+      <div className="relative flex items-center bg-lavender px-7 py-6 lg:pr-14 lg:[clip-path:polygon(0_0,100%_0,calc(100%-2.2rem)_100%,0_100%)]">
+        <h2 id="voices" className="font-wide font-black uppercase italic leading-[0.86] tracking-tight">
+          <span className="flex items-start gap-3 text-[3.2rem]">
+            Voices
+            <Slashes colors={["violet", "violet-light", "coral"]} height={42} />
+          </span>{" "}
+          <span className="block font-semi text-[1.55rem] font-extrabold">around the league</span>
         </h2>
-        <Slashes colors={["violet", "coral", "coral"]} height={44} />
       </div>
       {agents.length ? (
-        <ul className="grid divide-y divide-line sm:grid-cols-3 sm:divide-x sm:divide-y-0">
-          {agents.map((a) => (
-            <li key={a.slug} className="flex gap-4 p-4">
-              <Portrait avatar={a.avatar} size={88} rounded="rounded-xl" />
+        <ul className="grid divide-y divide-line sm:grid-cols-3 sm:divide-y-0">
+          {agents.map((a, i) => (
+            <li
+              key={a.slug}
+              className={`relative flex gap-4 px-5 py-5 ${i ? "sm:before:absolute sm:before:inset-y-6 sm:before:left-0 sm:before:w-px sm:before:bg-ink/15" : ""}`}
+            >
+              <Portrait avatar={a.avatar} size={96} rounded="rounded-xl" />
               <div className="min-w-0">
-                <h3 className="font-display text-2xl font-extrabold leading-none">
+                <h3 className="font-semi text-[1.45rem] font-bold leading-none">
                   {a.href ? (
                     <Link to={a.href} className="hover:underline">
                       {a.name}
@@ -74,7 +80,7 @@ export function VoicesStrip({ agents }: { agents: AgentProfile[] }) {
                 <p className="mt-1 flex flex-wrap items-center gap-2 text-sm text-muted-text">
                   {ROLE[a.role]} <AiBadge />
                 </p>
-                <p className="mt-1.5 line-clamp-3 text-sm">{a.bio}</p>
+                <p className="mt-2 line-clamp-3 text-sm leading-snug">{a.bio}</p>
               </div>
             </li>
           ))}

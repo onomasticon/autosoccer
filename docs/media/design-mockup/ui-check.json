@@ -160,5 +160,23 @@
     "firstTab": "Skip to content",
     "mobileMenu": "ok",
     "consoleErrors": []
+  },
+  {
+    "page": "/search?q=rovers",
+    "viewport": "desktop",
+    "status": 200,
+    "axeViolations": [],
+    "firstTab": "Skip to content",
+    "mobileMenu": "n/a",
+    "consoleErrors": []
+  },
+  {
+    "page": "/search?q=rovers",
+    "viewport": "mobile",
+    "status": 200,
+    "axeViolations": [],
+    "firstTab": "Skip to content",
+    "mobileMenu": "ok",
+    "consoleErrors": []
   }
 ]

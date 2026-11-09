@@ -6,8 +6,13 @@ const FILL = {
   violet: "var(--color-violet)",
   yellow: "var(--color-yellow)",
   blue: "var(--color-match-blue)",
+  "violet-light": "#a796f5",
+  "violet-pale": "#d4ccfa",
+  "coral-light": "#ff9b7a",
+  "coral-pale": "#ffcdb8",
 } as const;
 type Tone = keyof typeof FILL;
+export type SlashTone = Tone;
 
 /** Decorative broadcast slashes (the angular stripe motif). Never carries meaning. */
 export function Slashes({
@@ -87,35 +92,39 @@ export function SectionHeader({
       <div className={`mb-6 flex flex-wrap items-end justify-between gap-4 ${className}`}>
         <div>
           {eyebrow && (
-            <p className="parallelogram mb-2 inline-block bg-yellow py-1 font-display text-sm font-extrabold uppercase italic tracking-wide text-ink">
+            <p className="parallelogram mb-2 inline-block bg-yellow py-1 font-semi text-sm font-extrabold uppercase italic tracking-wide text-ink">
               {eyebrow}
             </p>
           )}
           <div className="flex items-start gap-3">
             <H
               id={id}
-              className="font-display text-5xl font-extrabold uppercase italic leading-[0.9] tracking-tight sm:text-6xl"
+              className="font-wide text-4xl font-black uppercase italic leading-[0.9] tracking-tight sm:text-[3.4rem]"
             >
               {title}
             </H>
-            <Slashes colors={["violet", "coral"]} height={40} className="mt-1" />
+            <Slashes colors={["violet", "violet-light", "coral"]} height={40} className="mt-1" />
           </div>
-          <div aria-hidden className="mt-2 h-1.5 w-24 -skew-x-12 rounded-sm bg-coral" />
+          <div aria-hidden className="mt-2 h-2 w-28 -skew-x-[20deg] rounded-sm bg-coral" />
         </div>
         {right}
       </div>
     );
   return (
     <div className={`mb-4 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 ${className}`}>
-      <div className="flex min-w-0 items-center gap-1">
+      <div className="flex min-w-0 items-center">
         <H
           id={id}
-          className={`${flush ? "parallelogram-start pl-4 pr-[1.1em]" : "parallelogram"} py-1.5 font-display text-2xl font-extrabold uppercase italic leading-none tracking-tight text-white sm:text-[1.75rem] ${tone === "coral" ? "bg-coral-deep" : "bg-violet"}`}
+          className={`${flush ? "parallelogram-start pl-4 pr-[1.2em]" : "parallelogram pr-[1.2em]"} py-1.5 font-semi text-2xl font-extrabold uppercase italic leading-none tracking-tight text-white sm:text-[1.7rem] ${tone === "coral" ? "grad-coral" : "grad-violet"}`}
         >
           {eyebrow && <span className="sr-only">{eyebrow}: </span>}
           {title}
         </H>
-        <Slashes colors={tone === "coral" ? ["coral", "yellow"] : ["violet", "coral"]} height={30} />
+        <Slashes
+          colors={tone === "coral" ? ["coral-light", "coral-pale"] : ["violet-light", "violet-pale"]}
+          height={38}
+          className="-ml-[0.95rem]"
+        />
       </div>
       {right}
     </div>
@@ -132,9 +141,14 @@ export function Panel({
   ...header
 }: SectionHeaderProps & { children: ReactNode; bodyClassName?: string }) {
   return (
-    <section aria-labelledby={header.id} className={`card-surface flex flex-col overflow-hidden ${className}`}>
+    <section
+      aria-labelledby={header.id}
+      className={`flex flex-col overflow-hidden rounded-[var(--radius-card)] border border-line bg-panel shadow-[var(--shadow-card)] ${className}`}
+    >
       <SectionHeader {...header} flush className="mb-0 pr-4 [&>div:last-child]:pl-4" />
-      <div className={`flex-1 ${bodyClassName}`}>{children}</div>
+      <div className={`m-2 mt-2 rounded-xl border border-line bg-surface sm:m-3 sm:mt-2 ${bodyClassName}`}>
+        {children}
+      </div>
     </section>
   );
 }

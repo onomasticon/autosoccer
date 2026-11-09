@@ -25,11 +25,16 @@ Derived tokens (implementation, keep in step with `apps/web/app/app.css`):
 | coral-deep | `#D9442F` | Coral behind white type: section tabs, active nav (4.4:1, large display type only) |
 | lavender | `#ECE8FB` | Ticker bar, report tags, matchweek chips |
 | lavender-strong | `#DCD5F7` | FT and time chips on lavender |
+| panel | `#FAF9FD` | Tinted panel ground behind white inner boxes |
+| navy | `#1B1F49` | Replay inner frame and control bar |
+| slate-violet | `#5D5A86` | Header tagline, matchweek chips |
+
+Broadcast gradients (`.grad-violet`, `.grad-coral`, `.grad-frame`) carry white type only at display sizes and stay ≥3:1 at their light end.
 
 Keep text contrast accessible: use ink on light backgrounds; use white on dark violet/coral only after verifying contrast. Do not use pale accents as body text.
 
 ## Typography
-- Display: **Barlow Condensed**, bold/extra-bold, optionally italic for match headlines and broadcast labels.
+- Display: **Barlow Condensed**, bold/extra-bold, optionally italic for match headlines and broadcast labels. The same family at wider widths follows the homepage reference: **Barlow Semi Condensed** (`font-semi`) for navigation, section tabs, list headlines and names (upright for nav and lists, italic for tabs); **Barlow** Black Italic (`font-wide`) for the wordmark, lead headline, page titles and big labels.
 - UI/body: **Inter**, normal through bold, with tabular numerals for scores, clocks and standings.
 - Headlines expressive, article body calm. Limit oversized all-caps typography to short titles.
 

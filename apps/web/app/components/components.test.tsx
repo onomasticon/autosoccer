@@ -165,7 +165,7 @@ describe("LeagueHeader", () => {
     button.focus();
     await user.keyboard("{Enter}");
     expect(button.getAttribute("aria-expanded")).toBe("true");
-    expect(screen.getByRole("navigation", { name: "Main mobile" }).hidden).toBe(false);
+    expect(screen.getByRole("navigation", { name: "Site menu" }).hidden).toBe(false);
     await user.keyboard("{Escape}");
     expect(button.getAttribute("aria-expanded")).toBe("false");
     await expectNoAxeViolations(container);

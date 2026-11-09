@@ -137,15 +137,15 @@ export function FixtureRow({ fixture }: { fixture: FixtureView }) {
     : `Matchweek ${fixture.round}: ${fixture.home.name} versus ${fixture.away.name}`;
   const inner = (
     <>
-      <span className="tabular shrink-0 rounded-md bg-lavender px-2 py-1 font-display text-base font-bold text-violet-deep">
+      <span className="tabular shrink-0 rounded-md bg-lavender px-2 py-1 font-semi text-base font-bold text-slate-violet">
         MW{pad2(fixture.round)}
       </span>
-      <span className="flex min-w-0 flex-1 items-center gap-2 font-display text-xl font-bold" aria-hidden>
+      <span className="flex min-w-0 flex-1 items-center gap-2 font-semi text-xl font-bold" aria-hidden>
         <TeamBadge team={fixture.home} size="sm" decorative />
         <span>{fixture.home.shortName}</span>
         <span className="shrink-0 text-sm font-semibold text-muted-text">
           {s ? (
-            <span className="tabular font-display text-lg font-extrabold text-ink">{`${s.home}–${s.away}`}</span>
+            <span className="tabular font-semi text-lg font-extrabold text-ink">{`${s.home}–${s.away}`}</span>
           ) : (
             "vs"
           )}

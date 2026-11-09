@@ -12,11 +12,11 @@ function TickerItem({ f }: { f: FixtureView }) {
   const content = (
     <>
       <TeamBadge team={f.home} size="sm" decorative />
-      <span className={`font-display text-lg uppercase ${s && s.home > s.away ? "font-extrabold" : "font-bold"}`}>
+      <span className={`font-semi text-lg uppercase ${s && s.home > s.away ? "font-extrabold" : "font-bold"}`}>
         {f.home.shortName}
       </span>
-      <span className="tabular px-1 font-display text-xl font-extrabold">{s ? `${s.home} – ${s.away}` : "v"}</span>
-      <span className={`font-display text-lg uppercase ${s && s.away > s.home ? "font-extrabold" : "font-bold"}`}>
+      <span className="tabular px-2 font-semi text-xl font-bold">{s ? `${s.home} – ${s.away}` : "v"}</span>
+      <span className={`font-semi text-lg uppercase ${s && s.away > s.home ? "font-extrabold" : "font-bold"}`}>
         {f.away.shortName}
       </span>
       <TeamBadge team={f.away} size="sm" decorative />
@@ -30,7 +30,7 @@ function TickerItem({ f }: { f: FixtureView }) {
     : `Round ${f.round}: ${f.home.name} versus ${f.away.name}`;
   const cls = "flex items-center gap-2 whitespace-nowrap rounded-md px-3 py-1";
   return (
-    <li className="flex shrink-0 items-center border-l-2 border-lavender-strong first:border-l-0">
+    <li className="flex shrink-0 items-center before:mx-2 before:h-8 before:w-px before:bg-ink/25 first:before:hidden">
       {f.matchId ? (
         <Link to={`/matches/${f.matchId}`} aria-label={label} className={`${cls} hover:bg-white/70`}>
           {content}
@@ -55,60 +55,65 @@ export interface ScoreTickerProps {
 export function ScoreTicker({ fixtures, matchweek, next, loading }: ScoreTickerProps) {
   return (
     <section aria-label="Scores" className="mx-auto max-w-[1440px] px-4 pb-2 sm:px-6">
-      <div className="flex min-h-14 items-stretch overflow-hidden rounded-xl bg-lavender">
-        <p className="parallelogram-start flex shrink-0 items-center bg-yellow py-2 pl-4 pr-7 font-display text-lg font-extrabold uppercase italic leading-none text-ink sm:text-xl">
+      <div className="relative flex min-h-14 items-stretch">
+        <p className="parallelogram relative z-10 flex shrink-0 items-center bg-yellow py-2 pl-6 pr-7 font-wide text-lg font-black uppercase italic leading-none text-ink shadow-[0_4px_14px_rgb(255_203_69/0.35)] sm:text-xl">
           <span className="hidden sm:inline">Matchweek&nbsp;</span>
           <span className="sm:hidden">MW&nbsp;</span>
           <span className="tabular">{matchweek ? pad(matchweek) : "–"}</span>
         </p>
-        {loading ? (
-          <Loading label="Loading scores">
-            <div className="flex min-w-0 items-center gap-3 overflow-hidden px-3">
-              {[0, 1, 2].map((i) => (
-                <Skeleton key={i} className="h-7 w-48" />
+        <div
+          className="-ml-5 flex min-w-0 flex-1 items-stretch bg-lavender pl-5 pr-6"
+          style={{ clipPath: "polygon(0 0, 100% 0, calc(100% - 1.1rem) 100%, 0 100%)" }}
+        >
+          {loading ? (
+            <Loading label="Loading scores">
+              <div className="flex min-w-0 items-center gap-3 overflow-hidden px-3">
+                {[0, 1, 2].map((i) => (
+                  <Skeleton key={i} className="h-7 w-48" />
+                ))}
+              </div>
+            </Loading>
+          ) : !fixtures?.length ? (
+            <p className="self-center px-4 text-sm text-muted-text" data-testid="empty-state">
+              No fixtures scheduled yet.
+            </p>
+          ) : (
+            <ul
+              className="relative flex min-w-0 flex-1 items-center overflow-x-auto px-2 py-2 [scrollbar-width:thin]"
+              data-testid="score-ticker"
+              aria-label={`Matchweek ${matchweek ?? ""} fixtures`}
+              // biome-ignore lint/a11y/noNoninteractiveTabindex: the strip scrolls horizontally, so keyboard users must be able to focus it
+              tabIndex={0}
+            >
+              {fixtures.map((f) => (
+                <TickerItem key={f.id} f={f} />
               ))}
-            </div>
-          </Loading>
-        ) : !fixtures?.length ? (
-          <p className="self-center px-4 text-sm text-muted-text" data-testid="empty-state">
-            No fixtures scheduled yet.
-          </p>
-        ) : (
-          <ul
-            className="relative flex min-w-0 flex-1 items-center overflow-x-auto px-2 py-2 [scrollbar-width:thin]"
-            data-testid="score-ticker"
-            aria-label={`Matchweek ${matchweek ?? ""} fixtures`}
-            // biome-ignore lint/a11y/noNoninteractiveTabindex: the strip scrolls horizontally, so keyboard users must be able to focus it
-            tabIndex={0}
-          >
-            {fixtures.map((f) => (
-              <TickerItem key={f.id} f={f} />
-            ))}
-            {next && (
-              <li
-                className="flex shrink-0 items-center gap-2 whitespace-nowrap border-l-2 border-lavender-strong px-3 font-display text-lg font-bold uppercase lg:ml-auto"
-                data-testid="ticker-next"
-              >
-                <span className="font-extrabold">Next:</span>
-                <span>
-                  {next.home.shortName} <span className="text-sm text-muted-text">vs</span> {next.away.shortName}
-                  <span className="sr-only">
-                    {" "}
-                    ({next.home.name} versus {next.away.name})
+              {next && (
+                <li
+                  className="flex shrink-0 items-center gap-2 whitespace-nowrap px-3 font-semi text-lg font-bold uppercase before:mr-3 before:h-8 before:w-px before:bg-ink/25 lg:ml-auto"
+                  data-testid="ticker-next"
+                >
+                  <span className="font-extrabold">Next:</span>
+                  <span>
+                    {next.home.shortName} <span className="text-sm text-muted-text">vs</span> {next.away.shortName}
+                    <span className="sr-only">
+                      {" "}
+                      ({next.home.name} versus {next.away.name})
+                    </span>
                   </span>
-                </span>
-                {next.scheduledAt && (
-                  <time
-                    dateTime={next.scheduledAt}
-                    className="rounded-md bg-lavender-strong px-2 py-0.5 text-base text-violet-deep"
-                  >
-                    {formatDate(next.scheduledAt, { weekday: true, time: true, date: false })}
-                  </time>
-                )}
-              </li>
-            )}
-          </ul>
-        )}
+                  {next.scheduledAt && (
+                    <time
+                      dateTime={next.scheduledAt}
+                      className="rounded-md bg-lavender-strong px-2.5 py-0.5 text-base font-bold text-violet-deep"
+                    >
+                      {formatDate(next.scheduledAt, { weekday: true, time: true, date: false })}
+                    </time>
+                  )}
+                </li>
+              )}
+            </ul>
+          )}
+        </div>
       </div>
     </section>
   );

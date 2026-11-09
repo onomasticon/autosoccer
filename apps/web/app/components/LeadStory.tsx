@@ -1,4 +1,5 @@
 import type { ArticleCardView, Team } from "@autosoccer/contracts";
+import { useId } from "react";
 import { Link } from "react-router";
 import { formatDate } from "../lib/format";
 import { KIND } from "./ArticleCard";
@@ -26,6 +27,7 @@ export function HeroArt({
   /** Landscape banner (mobile) instead of the tall side panel. */
   wide?: boolean;
 }) {
+  const uid = useId();
   const [w, h] = wide ? [480, 200] : [320, 480];
   const spots = wide
     ? teams.length === 1
@@ -42,20 +44,35 @@ export function HeroArt({
         ];
   return (
     <svg viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="xMidYMid slice" aria-hidden className="block size-full">
+      <defs>
+        <linearGradient id={`${uid}coral`} x1="0" y1="1" x2="1" y2="0">
+          <stop offset="0" stopColor="var(--color-coral-deep)" />
+          <stop offset="1" stopColor="#ffa071" />
+        </linearGradient>
+        <linearGradient id={`${uid}violet`} x1="0" y1="1" x2="1" y2="0">
+          <stop offset="0" stopColor="#5a3be0" />
+          <stop offset="1" stopColor="#a796f5" />
+        </linearGradient>
+        <linearGradient id={`${uid}yellow`} x1="0" y1="1" x2="1" y2="0">
+          <stop offset="0" stopColor="#ffb938" />
+          <stop offset="1" stopColor="#ffe08a" />
+        </linearGradient>
+      </defs>
       {wide ? (
         <>
-          <path d="M40 0 H90 L50 70 H0 Z" fill="var(--color-yellow)" />
-          <path d="M200 0 H300 L190 200 H90 Z" fill="var(--color-violet)" opacity="0.92" />
-          <path d="M340 0 H395 L285 200 H230 Z" fill="var(--color-coral)" />
-          <path d="M480 40 V200 H390 Z" fill="var(--color-yellow)" opacity="0.9" />
+          <path d="M40 0 H90 L50 70 H0 Z" fill={`url(#${uid}yellow)`} />
+          <path d="M200 0 H300 L190 200 H90 Z" fill={`url(#${uid}violet)`} />
+          <path d="M340 0 H395 L285 200 H230 Z" fill={`url(#${uid}coral)`} />
+          <path d="M480 40 V200 H390 Z" fill={`url(#${uid}yellow)`} />
         </>
       ) : (
         <>
-          <path d="M120 0 H170 L120 80 H70 Z" fill="var(--color-yellow)" />
-          <path d="M215 0 H320 L60 480 H-45 Z" fill="var(--color-violet)" opacity="0.92" />
-          <path d="M320 40 V140 L135 480 H80 Z" fill="var(--color-coral)" />
-          <path d="M320 260 V480 H200 Z" fill="var(--color-yellow)" opacity="0.9" />
-          <path d="M20 400 H60 L40 435 H0 Z" fill="var(--color-coral)" opacity="0.8" />
+          <path d="M120 0 H170 L120 80 H70 Z" fill={`url(#${uid}yellow)`} />
+          <path d="M215 0 H320 L60 480 H-45 Z" fill={`url(#${uid}violet)`} />
+          <path d="M262 0 H300 L80 480 H42 Z" fill="#ffffff" opacity="0.18" />
+          <path d="M320 40 V140 L135 480 H80 Z" fill={`url(#${uid}coral)`} />
+          <path d="M320 260 V480 H200 Z" fill={`url(#${uid}yellow)`} />
+          <path d="M20 400 H60 L40 435 H0 Z" fill={`url(#${uid}coral)`} opacity="0.85" />
         </>
       )}
       {teams.length ? (
@@ -80,8 +97,11 @@ export function HeroArt({
 export function LeadStory({ article, teams }: { article: ArticleCardView; teams: Team[] }) {
   const about = article.teamIds.map((id) => teams.find((t) => t.id === id)).filter((t): t is Team => !!t);
   return (
-    <article className="card-surface relative flex h-full flex-col overflow-hidden" data-testid="lead-story">
-      <div className="h-44 sm:absolute sm:inset-y-0 sm:right-0 sm:h-auto sm:w-[38%]">
+    <article
+      className="lead-ground relative flex h-full flex-col overflow-hidden rounded-[var(--radius-card)] border border-line shadow-[var(--shadow-card)]"
+      data-testid="lead-story"
+    >
+      <div className="h-44 sm:absolute sm:inset-y-0 sm:right-0 sm:h-auto sm:w-[42%] sm:[clip-path:polygon(22%_0,100%_0,100%_100%,0_100%)]">
         <span className="contents sm:hidden">
           <HeroArt teams={about} seed={article.id} kind={article.kind} wide />
         </span>
@@ -90,27 +110,24 @@ export function LeadStory({ article, teams }: { article: ArticleCardView; teams:
         </span>
       </div>
       <div className="relative flex flex-1 flex-col gap-4 p-5 sm:max-w-[62%] sm:p-7">
-        <p className="flex items-center gap-1">
-          <span className="parallelogram -ml-[0.55em] bg-violet py-1.5 font-display text-xl font-extrabold uppercase italic leading-none text-white sm:text-2xl">
+        <p className="flex items-center">
+          <span className="parallelogram grad-violet -ml-[0.55em] py-1.5 pr-[1.2em] font-semi text-xl font-extrabold uppercase italic leading-none text-white sm:text-2xl">
             {KIND[article.kind]}
           </span>
-          <Slashes colors={["violet"]} height={30} />
+          <Slashes colors={["violet-light"]} height={34} className="-ml-[0.95rem]" />
         </p>
-        <h2 className="font-display text-[2.5rem] font-extrabold uppercase italic leading-[0.88] tracking-tight sm:text-5xl xl:text-[3.6rem]">
+        <h2 className="text-balance font-wide text-[2.1rem] font-black uppercase italic leading-[0.92] tracking-[-0.01em] sm:text-[2.4rem] xl:text-[2.85rem]">
           <Link to={`/news/${article.slug}`} className="underline-offset-4 hover:underline">
             {article.headline}
           </Link>
         </h2>
-        <div aria-hidden className="h-2 w-3/4 -skew-x-12 rounded-sm bg-coral" />
+        <div aria-hidden className="-mt-1 h-2.5 w-2/3 -skew-x-[20deg] rounded-sm bg-coral" />
         {article.standfirst && <p className="max-w-prose text-lg leading-snug">{article.standfirst}</p>}
         <div className="mt-auto flex items-center gap-3 pt-2">
-          <Portrait avatar={article.author.avatar} size={60} rounded="rounded-lg" />
+          <Portrait avatar={article.author.avatar} size={64} rounded="rounded-xl" />
           <div className="min-w-0 leading-tight">
             <p className="flex flex-wrap items-center gap-2">
-              <Link
-                to={`/journalists/${article.author.slug}`}
-                className="font-display text-xl font-extrabold hover:underline"
-              >
+              <Link to={`/journalists/${article.author.slug}`} className="font-semi text-xl font-bold hover:underline">
                 {article.author.name}
               </Link>
               <AiBadge />

@@ -25,7 +25,7 @@ const TAG_TONE: Record<ArticleCardView["kind"], string> = {
 export function KindTag({ kind }: { kind: ArticleCardView["kind"] }) {
   return (
     <span
-      className={`inline-block rounded-sm px-1.5 py-0.5 font-display text-sm font-extrabold uppercase italic leading-none tracking-wide ${TAG_TONE[kind]}`}
+      className={`inline-block rounded-sm px-1.5 py-0.5 font-semi text-sm font-extrabold uppercase italic leading-none tracking-wide ${TAG_TONE[kind]}`}
     >
       {KIND[kind]}
     </span>
@@ -49,7 +49,7 @@ export function ArticleCard({
           <p>
             <KindTag kind={article.kind} />
           </p>
-          <h3 className="font-display text-lg font-extrabold leading-[1.1] sm:text-xl">
+          <h3 className="font-semi text-lg font-bold leading-[1.12] sm:text-[1.3rem]">
             <Link to={`/news/${article.slug}`} className="underline-offset-4 hover:underline">
               {article.headline}
             </Link>

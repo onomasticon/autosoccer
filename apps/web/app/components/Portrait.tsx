@@ -4,12 +4,18 @@
  * journalist always looks the same and no image assets are needed.
  */
 import type { EditorialAgent } from "@autosoccer/contracts";
+import { useId } from "react";
 
 type Avatar = EditorialAgent["avatar"];
 
 const SKIN = ["#F3C9A6", "#DDA27C", "#B57650", "#7E4E31"];
 const HAIR = ["#20203B", "#4A2E1F", "#8A5A2B", "#20203B"];
-const SHIRT = ["#20203B", "#FFFFFF", "#FFCB45", "#FF654F"];
+/** Warm tile per persona (reference: yellow reporter, lilac analyst, coral pundit). */
+const TILE = {
+  circle: ["#FFCB45", "#FFE08A"],
+  square: ["#A796F5", "#D4CCFA"],
+  hexagon: ["#FF8A5B", "#FFC1A1"],
+} as const;
 
 function hash(s: string) {
   let h = 2166136261;
@@ -31,7 +37,9 @@ export function Portrait({
   const h = hash(`${avatar.initials}${avatar.color}`);
   const skin = SKIN[h % SKIN.length]!;
   const hair = HAIR[(h >>> 3) % HAIR.length]!;
-  const shirt = SHIRT[(h >>> 6) % SHIRT.length]!;
+  const shirt = avatar.color;
+  const [tile, tileLight] = TILE[avatar.shape];
+  const gid = useId();
   // Hairstyle follows the avatar's shape so the three journalists read as distinct people.
   const style = avatar.shape === "circle" ? "long" : avatar.shape === "square" ? "short" : "cap";
   const glasses = style === "long";
@@ -44,9 +52,15 @@ export function Portrait({
       className={`shrink-0 overflow-hidden ${rounded} ${className}`}
       data-testid="portrait"
     >
-      <rect width="100" height="100" fill={avatar.color} />
-      <path d="M58 0 H80 L36 100 H14 Z" fill="#FFFFFF" opacity="0.14" />
-      <path d="M84 0 H96 L52 100 H40 Z" fill="var(--color-yellow)" opacity="0.55" />
+      <defs>
+        <linearGradient id={gid} x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stopColor={tileLight} />
+          <stop offset="1" stopColor={tile} />
+        </linearGradient>
+      </defs>
+      <rect width="100" height="100" fill={`url(#${gid})`} />
+      <path d="M58 0 H80 L36 100 H14 Z" fill="#FFFFFF" opacity="0.22" />
+      <path d="M84 0 H96 L52 100 H40 Z" fill="#FFFFFF" opacity="0.14" />
       {style === "long" && <path d="M28 44 C26 22 38 14 50 14 C63 14 74 22 72 44 L74 76 H26 Z" fill={hair} />}
       <path d="M12 100 C14 80 30 71 50 71 C70 71 86 80 88 100 Z" fill={shirt} stroke="#20203B" strokeWidth="2" />
       <path d="M43 71 L50 82 L57 71" fill="none" stroke="#20203B" strokeWidth="2" strokeLinejoin="round" />

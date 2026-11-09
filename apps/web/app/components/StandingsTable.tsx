@@ -57,14 +57,18 @@ export function StandingsTable({
       </Loading>
     );
   if (!rows?.length) return <EmptyState title="No table yet">Standings appear after the first results.</EmptyState>;
-  const num = "tabular px-2 py-2.5 text-right";
+  const num = `tabular px-2 py-2.5 text-right ${compact ? "font-semi text-[1.05rem] font-semibold" : ""}`;
   const wdl = "hidden sm:table-cell";
   return (
     <div className={`${bare ? "" : "card-surface"} relative overflow-x-auto`} data-testid="standings-table">
-      <table className="w-full min-w-[18rem] border-collapse text-sm">
+      <table
+        className={`w-full min-w-[18rem] text-sm ${compact ? "border-separate border-spacing-0" : "border-collapse"}`}
+      >
         <caption className="sr-only">{caption}</caption>
         <thead>
-          <tr className="border-b border-line text-left text-[11px] font-bold uppercase tracking-wider text-muted-text">
+          <tr
+            className={`border-b border-line text-left font-bold uppercase tracking-wider text-muted-text ${compact ? "font-semi text-[13px]" : "text-[11px]"}`}
+          >
             <th scope="col" className="w-10 px-3 py-2 text-right">
               <abbr title="Position">#</abbr>
             </th>
@@ -113,17 +117,21 @@ export function StandingsTable({
             return (
               <tr
                 key={r.team.id}
-                className={`border-b border-line last:border-0 ${leader ? "bg-yellow/45" : ""} ${mine ? "outline-2 -outline-offset-2 outline-violet" : ""}`}
+                className={`${
+                  compact
+                    ? `[&>*]:border-line [&:not(:last-child)>*]:border-b ${leader ? "[&>*:first-child]:rounded-l-lg [&>*:last-child]:rounded-r-lg [&>*]:border-transparent [&>*]:bg-yellow/55" : ""}`
+                    : `border-b border-line last:border-0 ${leader ? "bg-yellow/45" : ""}`
+                } ${mine ? "outline-2 -outline-offset-2 outline-violet" : ""}`}
                 aria-current={mine ? "true" : undefined}
               >
-                <td className="tabular px-3 py-2.5 text-right font-bold">
+                <td className={`tabular px-3 py-2.5 text-right font-bold ${compact ? "font-semi text-lg" : ""}`}>
                   {r.position}
                   {leader && <span className="sr-only"> (leader)</span>}
                 </td>
                 <th scope="row" className="px-2 py-2 text-left font-semibold">
                   <Link to={`/teams/${r.team.slug}`} className="flex items-center gap-2 hover:underline">
                     <TeamBadge team={r.team} size="sm" decorative />
-                    <span className={`truncate ${compact ? "font-display text-lg font-bold" : ""}`}>{r.team.name}</span>
+                    <span className={`truncate ${compact ? "font-semi text-lg font-bold" : ""}`}>{r.team.name}</span>
                     {leader && !compact && (
                       <span aria-hidden className="rounded bg-yellow px-1 text-[10px] font-bold uppercase text-ink">
                         Top
@@ -142,7 +150,11 @@ export function StandingsTable({
                   </>
                 )}
                 <td className={num}>{r.goalDifference > 0 ? `+${r.goalDifference}` : r.goalDifference}</td>
-                <td className="tabular px-3 py-2.5 text-right font-display text-lg font-extrabold">{r.points}</td>
+                <td
+                  className={`tabular px-3 py-2.5 text-right text-lg font-extrabold ${compact ? "font-semi" : "font-display"}`}
+                >
+                  {r.points}
+                </td>
                 {!compact && (
                   <td className="hidden px-3 py-2 lg:table-cell">
                     <FormGuide form={r.form} />
