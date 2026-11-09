@@ -5,6 +5,7 @@ import { Hono } from "hono";
 import { type Logger, silentLogger } from "./log.ts";
 import { leagueRoutes } from "./modules/league/routes.ts";
 import { matchRoutes } from "./modules/matches/routes.ts";
+import { tacticsRoutes } from "./modules/tactics/routes.ts";
 
 export const API_VERSION = "v1";
 
@@ -48,6 +49,7 @@ export function createApp({ db, store, log = silentLogger }: AppDeps) {
   api.get("/openapi.json", (c) => c.json(openapi));
   api.route("/", leagueRoutes({ db }));
   api.route("/", matchRoutes({ db, store }));
+  api.route("/", tacticsRoutes({ db }));
   app.route(`/api/${API_VERSION}`, api);
 
   app.notFound((c) =>

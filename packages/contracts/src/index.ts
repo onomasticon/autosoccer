@@ -6,3 +6,4 @@ export * from "./editorial.ts";
 export * from "./jobs.ts";
 export * from "./match.ts";
 export { buildOpenApi } from "./openapi.ts";
+export * from "./tactics.ts";

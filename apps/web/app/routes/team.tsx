@@ -9,6 +9,7 @@ import { EmptyState } from "../components/States";
 import { TeamBadge } from "../components/TeamBadge";
 import { apiMaybe, apiOr404 } from "../lib/api.server";
 import { seo } from "../lib/seo";
+import { describeDeployment } from "../lib/tactics";
 import type { Route } from "./+types/team";
 
 export async function loader({ params }: Route.LoaderArgs) {
@@ -133,7 +134,7 @@ export default function Team({ loaderData }: Route.ComponentProps) {
             )}
             {currentRevision && (
               <p className="mt-3 text-sm text-muted-text">
-                Current tactics: revision v{currentRevision.version}
+                Current tactics (v{currentRevision.version}): {describeDeployment(currentRevision.deployment)}
                 {currentRevision.rationale ? ` — “${currentRevision.rationale}”` : ""}
               </p>
             )}

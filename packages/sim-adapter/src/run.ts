@@ -6,13 +6,14 @@ import { canonicalJson, sha256 } from "./canonical.ts";
 import { controllerSource, type ParamsResolver } from "./controllers/index.ts";
 import { officialEvents } from "./events.ts";
 import type { ReplayStore } from "./replay-store.ts";
+import { resolveTactics } from "./tactics.ts";
 import { SIM_COMMIT, SIM_VERSION, VERSIONS } from "./version.ts";
 
 export class SimVersionMismatchError extends Error {}
 
 export interface RunMatchOptions {
   store: ReplayStore;
-  /** Maps a tactical deployment's config to controller params (supplied by the tactics module). */
+  /** Maps a tactical deployment's config to controller params. Defaults to the tactics/1 mapping. */
   resolveParams?: ParamsResolver;
 }
 
@@ -46,8 +47,14 @@ export async function runMatch(input: MatchRequest, opts: RunMatchOptions): Prom
   const label = (t: typeof request.home, side: string) => `${t.name} (${side}, ${t.tacticalRevisionId ?? "default"})`;
 
   const { summary, replay } = await runSeriesMatch(request.seed, {
-    blue: { label: label(request.home, "home"), source: controllerSource(request.home.deployment, opts.resolveParams) },
-    red: { label: label(request.away, "away"), source: controllerSource(request.away.deployment, opts.resolveParams) },
+    blue: {
+      label: label(request.home, "home"),
+      source: controllerSource(request.home.deployment, opts.resolveParams ?? resolveTactics),
+    },
+    red: {
+      label: label(request.away, "away"),
+      source: controllerSource(request.away.deployment, opts.resolveParams ?? resolveTactics),
+    },
     config,
     replayEvery: 1,
     determinismEvery: 0,

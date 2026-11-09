@@ -255,3 +255,15 @@ export type ArticleDetailResponse = z.infer<typeof ArticleDetailResponse>;
 export type JournalistListResponse = z.infer<typeof JournalistListResponse>;
 export type JournalistDetailResponse = z.infer<typeof JournalistDetailResponse>;
 export type BudgetResponse = z.infer<typeof BudgetResponse>;
+
+export const RevisionHistoryResponse = z.object({ team: Team, seasonId: Id, items: z.array(TacticalRevision) });
+export type RevisionHistoryResponse = z.infer<typeof RevisionHistoryResponse>;
+ROUTES.push({
+  method: "get",
+  path: "/teams/{team}/revisions",
+  operationId: "getTeamRevisions",
+  summary: "Tactical revision history for the current season (valid and rejected, for audit)",
+  params: { team: Slug },
+  response: RevisionHistoryResponse,
+  responseName: "RevisionHistoryResponse",
+});
