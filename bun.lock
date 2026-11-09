@@ -28,6 +28,8 @@
       "version": "0.1.0",
       "dependencies": {
         "@autosoccer/contracts": "workspace:*",
+        "@autosoccer/sim-core": "workspace:*",
+        "@autosoccer/telemetry": "workspace:*",
         "@react-router/node": "7.9.4",
         "@react-router/serve": "7.9.4",
         "isbot": "5.1.31",
@@ -36,6 +38,7 @@
         "react-router": "7.9.4",
       },
       "devDependencies": {
+        "@autosoccer/sim-adapter": "workspace:*",
         "@react-router/dev": "7.9.4",
         "@tailwindcss/vite": "4.1.14",
         "@testing-library/react": "16.3.0",
