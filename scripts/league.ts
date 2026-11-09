@@ -1,6 +1,6 @@
 /**
  * League operations against the configured DATABASE_URL.
- *   bun run league seed [--season season-1] [--seed 20261109] [--budget 1.00]
+ *   bun run league seed [--season season-1] [--seed 20261109] [--budget 1.00] [--interval 60]   # minutes between rounds
  *   bun run league run  [--season season-1] [--no-managers]   # plays every remaining round in-process
  *   bun run league managers [--season season-1]              # manager decisions, memory and spend
  *   bun run league budget [--season season-1]                # compute ledger per team
@@ -54,6 +54,7 @@ try {
       seed: Number(opt("seed", "20261109")),
       budgetPerTeamMicroUsd: Math.round(Number(opt("budget", "1.00")) * 1_000_000),
       teamSlugs: SEED_TEAMS.map((t) => t.slug),
+      roundIntervalMinutes: Number(opt("interval", "60")),
     });
     await seedManagers(db, seasonId, config.MANAGER_MODEL);
     await seedJournalists(db, config.EDITORIAL_MODEL);

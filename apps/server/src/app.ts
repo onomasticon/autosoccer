@@ -8,6 +8,7 @@ import { editorialRoutes } from "./modules/editorial/routes.ts";
 import { leagueRoutes } from "./modules/league/routes.ts";
 import { ledgerRoutes } from "./modules/ledger/routes.ts";
 import { matchRoutes } from "./modules/matches/routes.ts";
+import { opsRoutes } from "./modules/ops/routes.ts";
 import { tacticsRoutes } from "./modules/tactics/routes.ts";
 
 export const API_VERSION = "v1";
@@ -16,10 +17,12 @@ export interface AppDeps {
   db: Db;
   store: ReplayStore;
   log?: Logger;
+  /** Bearer token for /api/v1/ops/*; unset = open (local development). */
+  opsToken?: string;
 }
 
 /** The HTTP API (modular monolith). Feature modules mount their routes under /api/v1. */
-export function createApp({ db, store, log = silentLogger }: AppDeps) {
+export function createApp({ db, store, log = silentLogger, opsToken }: AppDeps) {
   const app = new Hono();
 
   app.use("*", async (c, next) => {
@@ -56,6 +59,7 @@ export function createApp({ db, store, log = silentLogger }: AppDeps) {
   api.route("/", agentRoutes({ db }));
   api.route("/", ledgerRoutes({ db }));
   api.route("/", editorialRoutes({ db }));
+  api.route("/", opsRoutes({ db, token: opsToken }));
   app.route(`/api/${API_VERSION}`, api);
 
   app.notFound((c) =>

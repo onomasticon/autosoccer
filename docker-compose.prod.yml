@@ -1,0 +1,87 @@
+# Production-style stack: Postgres, one-shot migrations, API, two workers (scheduler is
+# leader-elected between them) and the public web app. Configure via .env (see .env.example).
+#   docker compose -f docker-compose.prod.yml up -d --build
+x-app: &app
+  build:
+    context: .
+    target: runtime
+  image: autosoccer:latest
+  restart: unless-stopped
+  env_file: .env
+  environment:
+    DATABASE_URL: postgres://autosoccer:${POSTGRES_PASSWORD:-autosoccer}@db:5432/autosoccer
+    REPLAY_DIR: /data/replays
+  volumes:
+    - replays:/data/replays
+  depends_on:
+    migrate:
+      condition: service_completed_successfully
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: autosoccer
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-autosoccer}
+      POSTGRES_DB: autosoccer
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U autosoccer -d autosoccer"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  migrate:
+    image: autosoccer:latest
+    build:
+      context: .
+      target: runtime
+    env_file: .env
+    environment:
+      DATABASE_URL: postgres://autosoccer:${POSTGRES_PASSWORD:-autosoccer}@db:5432/autosoccer
+    command: ["bun", "packages/db/src/migrate-cli.ts"]
+    depends_on:
+      db:
+        condition: service_healthy
+
+  api:
+    <<: *app
+    command: ["bun", "apps/server/src/api.ts"]
+    environment:
+      DATABASE_URL: postgres://autosoccer:${POSTGRES_PASSWORD:-autosoccer}@db:5432/autosoccer
+      REPLAY_DIR: /data/replays
+      API_PORT: "4000"
+    ports:
+      - "${API_PORT:-4000}:4000"
+    healthcheck:
+      test: ["CMD", "bun", "-e", "fetch('http://localhost:4000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  worker:
+    <<: *app
+    command: ["bun", "apps/server/src/worker.ts"]
+    deploy:
+      replicas: 2
+
+  web:
+    build:
+      context: .
+      target: web
+    image: autosoccer-web:latest
+    restart: unless-stopped
+    environment:
+      API_URL: http://api:4000
+      PORT: "3000"
+    ports:
+      - "${WEB_PORT:-3000}:3000"
+    depends_on:
+      api:
+        condition: service_healthy
+
+volumes:
+  pgdata:
+  replays:

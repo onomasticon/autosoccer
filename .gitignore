@@ -11,3 +11,4 @@ coverage/
 .env.local
 data/replays/
 test-results/
+docs/media/**/*.mp4

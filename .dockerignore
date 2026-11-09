@@ -1,0 +1,13 @@
+node_modules
+**/node_modules
+**/build
+**/.react-router
+out
+data
+coverage
+.env
+.git
+docs/media
+vendor/autosoccer-sim/node_modules
+vendor/autosoccer-sim/docs/media
+vendor/autosoccer-sim/out

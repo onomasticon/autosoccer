@@ -37,6 +37,8 @@ Already have Postgres? Set `DATABASE_URL` in `.env` and run `bun run dev -- --no
 | `bun run sim:check [--seed N]` | Full-length match through the pinned simulator, twice, checking determinism |
 | `bun run league seed` / `run` / `table` | Seed the four clubs + Season 1 calendar; play remaining rounds (no AI); print the table |
 | `bun run ui:check --base URL [--out DIR] /path …` | Chromium screenshots (desktop + mobile), axe WCAG 2.1 AA scan, keyboard and overflow checks |
+| `bun run season:e2e` | Unattended season on a fresh DB with real workers (one killed mid-season) + full verification report |
+| `bun run ops status` / `requeue` / `tick` | Operator view: progress, queue, failures, heartbeats, spend; retry failed jobs; manual scheduler tick |
 | `bun run contracts:gen` | Regenerate `docs/api` (OpenAPI + examples) from the zod contracts |
 
 ## Layout
@@ -163,3 +165,11 @@ to its official record. Routes: `/news`, `/news/:slug`, `/journalists`, `/journa
 API `/api/v1/articles`, `/api/v1/journalists`. `EDITORIAL_MODEL` defaults to `claude-opus-5-5`
 (the offline provider writes from templates). Editorial spend is recorded per run in
 `agent_runs`; the team budgets apply to managers only.
+
+## Running a season unattended
+
+Workers run the round scheduler (leader-elected). Seed a season and the platform does the rest:
+pre-match decisions at each kickoff, matches, reviews, articles and completion.
+Deployment (`Dockerfile`, `docker-compose.prod.yml`), monitoring and failure handling are in
+[docs/operations/runbook.md](docs/operations/runbook.md). The latest end-to-end verification is
+in [docs/operations/e2e-report.md](docs/operations/e2e-report.md).

@@ -23,6 +23,7 @@ export interface WorkerOptions {
 }
 
 export function createWorker(o: WorkerOptions) {
+  const stats = { succeeded: 0, failed: 0, lastKind: null as string | null };
   const workerId = o.workerId ?? `${hostname()}:${process.pid}:${Math.random().toString(36).slice(2, 8)}`;
   const log = (o.log ?? silentLogger).child({ worker: workerId });
   const kinds = Object.keys(o.handlers);
@@ -40,6 +41,8 @@ export function createWorker(o: WorkerOptions) {
       const out = await handler(job, { log: jlog, workerId });
       await complete(o.db, job, out.result, out.artifacts ?? []);
       jlog.info("job succeeded", { ms: Math.round(performance.now() - t0) });
+      stats.succeeded++;
+      stats.lastKind = job.kind;
       return { job, status: "succeeded" };
     } catch (e) {
       const err = e as Error;
@@ -48,6 +51,8 @@ export function createWorker(o: WorkerOptions) {
         baseBackoffMs: o.baseBackoffMs,
       })) as "queued" | "failed";
       jlog[status === "failed" ? "error" : "warn"]("job attempt failed", { error: err.message, next: status });
+      stats.failed++;
+      stats.lastKind = job.kind;
       return { job, status };
     }
   }
@@ -81,6 +86,8 @@ export function createWorker(o: WorkerOptions) {
 
   return {
     workerId,
+    /** Counters for heartbeats: attempts that succeeded / failed in this process. */
+    stats: () => ({ ...stats }),
     runOnce,
     drain,
     start,

@@ -29,7 +29,9 @@
     "worker": "bun --cwd apps/server src/worker.ts",
     "league": "bun scripts/league.ts",
     "ui:check": "node scripts/ui-check.mjs",
-    "tactics:compare": "bun scripts/tactics-compare.ts"
+    "tactics:compare": "bun scripts/tactics-compare.ts",
+    "ops": "bun scripts/ops.ts",
+    "season:e2e": "bun scripts/season-e2e.ts"
   },
   "devDependencies": {
     "@biomejs/biome": "2.2.5",
