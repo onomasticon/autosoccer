@@ -4,6 +4,8 @@ const Env = z.object({
   DATABASE_URL: z.string().url(),
   API_PORT: z.coerce.number().int().positive().default(4000),
   LOG_LEVEL: z.enum(["debug", "info", "warn", "error"]).default("info"),
+  REPLAY_DIR: z.string().default("data/replays"),
+  WORKER_POLL_MS: z.coerce.number().int().positive().default(1000),
 });
 
 export type ServerConfig = z.infer<typeof Env>;

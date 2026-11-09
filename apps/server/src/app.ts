@@ -1,17 +1,20 @@
 import { buildOpenApi, CONTRACTS_VERSION } from "@autosoccer/contracts";
 import type { Db } from "@autosoccer/db";
+import type { ReplayStore } from "@autosoccer/sim-adapter";
 import { Hono } from "hono";
 import { type Logger, silentLogger } from "./log.ts";
+import { matchRoutes } from "./modules/matches/routes.ts";
 
 export const API_VERSION = "v1";
 
 export interface AppDeps {
   db: Db;
+  store: ReplayStore;
   log?: Logger;
 }
 
 /** The HTTP API (modular monolith). Feature modules mount their routes under /api/v1. */
-export function createApp({ db, log = silentLogger }: AppDeps) {
+export function createApp({ db, store, log = silentLogger }: AppDeps) {
   const app = new Hono();
 
   app.use("*", async (c, next) => {
@@ -42,6 +45,7 @@ export function createApp({ db, log = silentLogger }: AppDeps) {
   });
   const openapi = buildOpenApi();
   api.get("/openapi.json", (c) => c.json(openapi));
+  api.route("/", matchRoutes({ db, store }));
   app.route(`/api/${API_VERSION}`, api);
 
   app.notFound((c) =>

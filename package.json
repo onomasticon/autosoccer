@@ -8,7 +8,8 @@
   },
   "workspaces": [
     "apps/*",
-    "packages/*"
+    "packages/*",
+    "vendor/autosoccer-sim/packages/*"
   ],
   "scripts": {
     "setup": "bun install && bun run db:up && bun run db:migrate",
@@ -23,7 +24,9 @@
     "typecheck": "tsc -p tsconfig.json --noEmit && bun run --cwd apps/web typecheck",
     "test": "vitest run",
     "smoke": "bun scripts/smoke.ts",
-    "contracts:gen": "bun packages/contracts/src/generate.ts"
+    "contracts:gen": "bun packages/contracts/src/generate.ts",
+    "sim:check": "bun scripts/sim-check.ts",
+    "worker": "bun --cwd apps/server src/worker.ts"
   },
   "devDependencies": {
     "@biomejs/biome": "2.2.5",

@@ -30,12 +30,14 @@ const webPort = process.env.WEB_PORT ?? "3000";
 if (prod) {
   if (run(["bun", "run", "build"]) !== 0) process.exit(1);
   spawn("api", ["bun", "src/api.ts"], { cwd: "apps/server" });
+  spawn("worker", ["bun", "src/worker.ts"], { cwd: "apps/server" });
   spawn("web", [RR_SERVE, "./build/server/index.js"], {
     cwd: "apps/web",
     env: { PORT: webPort, NODE_ENV: "production" },
   });
 } else {
   spawn("api", ["bun", "--watch", "src/api.ts"], { cwd: "apps/server" });
+  spawn("worker", ["bun", "--watch", "src/worker.ts"], { cwd: "apps/server" });
   spawn("web", [RR_CLI, "dev"], { cwd: "apps/web" });
 }
 

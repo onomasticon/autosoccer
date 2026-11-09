@@ -1,0 +1,16 @@
+{
+  "name": "@autosoccer/sim-adapter",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@autosoccer/contracts": "workspace:*",
+    "@autosoccer/controller-sdk": "workspace:*",
+    "@autosoccer/match-runner": "workspace:*",
+    "@autosoccer/sim-core": "workspace:*",
+    "@autosoccer/telemetry": "workspace:*"
+  }
+}

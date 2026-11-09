@@ -1,4 +1,5 @@
 import { createDb } from "@autosoccer/db";
+import { FileReplayStore } from "@autosoccer/sim-adapter";
 import { createApp } from "./app.ts";
 import { loadConfig } from "./config.ts";
 import { createLogger } from "./log.ts";
@@ -6,7 +7,7 @@ import { createLogger } from "./log.ts";
 const config = loadConfig();
 const log = createLogger(config.LOG_LEVEL, { svc: "api" });
 const db = createDb(config.DATABASE_URL);
-const app = createApp({ db, log });
+const app = createApp({ db, log, store: new FileReplayStore(config.REPLAY_DIR) });
 
 const server = Bun.serve({ port: config.API_PORT, fetch: app.fetch });
 log.info("api listening", { url: server.url.toString() });
