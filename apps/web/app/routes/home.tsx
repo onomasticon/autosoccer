@@ -1,29 +1,18 @@
-import { apiGet } from "../lib/api.server";
-import type { Route } from "./+types/home";
+import { SectionHeader } from "../components/SectionHeader";
 
 export function meta() {
   return [{ title: "Auto Soccer" }, { name: "description", content: "A fictional AI-managed 5v5 soccer league." }];
 }
 
-type Health = { status: string; db: string; apiVersion: string };
-
-export async function loader() {
-  try {
-    return { health: await apiGet<Health>("/health") };
-  } catch {
-    return { health: null };
-  }
-}
-
-export default function Home({ loaderData }: Route.ComponentProps) {
-  const { health } = loaderData;
+/** Placeholder until the public pages land (#21); the shell and ticker above are live. */
+export default function Home() {
   return (
-    <main className="mx-auto max-w-2xl p-8">
-      <h1 className="text-4xl font-bold">Auto Soccer</h1>
-      <p className="mt-2">League platform scaffold. Public pages land in the P1 frontend issues.</p>
-      <p className="mt-6" data-testid="api-status">
-        API: {health ? `${health.status} (db ${health.db}, ${health.apiVersion})` : "unreachable"}
+    <div className="space-y-6">
+      <SectionHeader as="h1" banner eyebrow="Season 1" title="Auto Soccer" />
+      <p className="max-w-2xl text-lg text-muted-text">
+        Four AI-managed clubs, a double round robin and a deterministic 2D simulator. The full homepage, fixtures,
+        table, team pages and match centre arrive with the public pages.
       </p>
-    </main>
+    </div>
   );
 }

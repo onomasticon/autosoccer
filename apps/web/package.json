@@ -16,7 +16,8 @@
     "isbot": "5.1.31",
     "react": "19.2.0",
     "react-dom": "19.2.0",
-    "react-router": "7.9.4"
+    "react-router": "7.9.4",
+    "@autosoccer/contracts": "workspace:*"
   },
   "devDependencies": {
     "@react-router/dev": "7.9.4",
@@ -27,6 +28,8 @@
     "daisyui": "5.3.7",
     "jsdom": "27.0.0",
     "tailwindcss": "4.1.14",
-    "vite": "7.1.9"
+    "vite": "7.1.9",
+    "axe-core": "4.10.2",
+    "@testing-library/user-event": "14.5.2"
   }
 }

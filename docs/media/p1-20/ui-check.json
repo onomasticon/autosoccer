@@ -1,0 +1,38 @@
+[
+  {
+    "page": "/styleguide",
+    "viewport": "desktop",
+    "status": 200,
+    "axeViolations": [],
+    "firstTab": "Skip to content",
+    "mobileMenu": "n/a",
+    "consoleErrors": []
+  },
+  {
+    "page": "/styleguide",
+    "viewport": "mobile",
+    "status": 200,
+    "axeViolations": [],
+    "firstTab": "Skip to content",
+    "mobileMenu": "ok",
+    "consoleErrors": []
+  },
+  {
+    "page": "/",
+    "viewport": "desktop",
+    "status": 200,
+    "axeViolations": [],
+    "firstTab": "Skip to content",
+    "mobileMenu": "n/a",
+    "consoleErrors": []
+  },
+  {
+    "page": "/",
+    "viewport": "mobile",
+    "status": 200,
+    "axeViolations": [],
+    "firstTab": "Skip to content",
+    "mobileMenu": "ok",
+    "consoleErrors": []
+  }
+]
