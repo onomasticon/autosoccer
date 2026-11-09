@@ -35,6 +35,7 @@ Already have Postgres? Set `DATABASE_URL` in `.env` and run `bun run dev -- --no
 | `bun run smoke` | Boots API + built web against the DB and checks the homepage renders |
 | `bun run worker` | Background job worker (plays matches) |
 | `bun run sim:check [--seed N]` | Full-length match through the pinned simulator, twice, checking determinism |
+| `bun run league seed` / `run` / `table` | Seed the four clubs + Season 1 calendar; play remaining rounds (no AI); print the table |
 | `bun run contracts:gen` | Regenerate `docs/api` (OpenAPI + examples) from the zod contracts |
 
 ## Layout
@@ -67,3 +68,18 @@ Matches are played by durable `match.play` jobs:
 - Retried with exponential backoff, and reclaimed if a worker dies.
 - The request is frozen on the first attempt, and completion is guarded by a row lock plus a
   unique `matches.fixture_id`, so a fixture's result is recorded exactly once.
+
+## League and season lifecycle
+
+- **Clubs:** four fictional clubs with seven-player squads: five starters (GK, DF, DF, MF, FW)
+  and two reserves (`apps/server/src/modules/league/seed-data.ts`).
+- **Calendar:** a double round robin (4 teams → 6 rounds, 12 fixtures).
+  - The season seed fixes the team order, so it alone decides the calendar.
+  - Each team plays once per round, with three home games, and never three home or away games in a row.
+  - Fixture seeds are derived from the season seed, so a season is reproducible from its seed.
+- **Round scheduler:** `advanceSeason` is idempotent and safe to call on a timer. It activates the
+  season, releases the earliest unfinished round to the match queue (optionally waiting for its
+  scheduled time and for pre-round hooks), reports a round as `blocked` if a match job failed
+  permanently, and completes the season after the last result.
+- **Standings:** 3/1/0 points, ranked by points → goal difference → goals for → head-to-head
+  (points, GD, GF among the tied teams) → name.

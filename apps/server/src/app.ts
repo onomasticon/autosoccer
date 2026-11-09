@@ -3,6 +3,7 @@ import type { Db } from "@autosoccer/db";
 import type { ReplayStore } from "@autosoccer/sim-adapter";
 import { Hono } from "hono";
 import { type Logger, silentLogger } from "./log.ts";
+import { leagueRoutes } from "./modules/league/routes.ts";
 import { matchRoutes } from "./modules/matches/routes.ts";
 
 export const API_VERSION = "v1";
@@ -45,6 +46,7 @@ export function createApp({ db, store, log = silentLogger }: AppDeps) {
   });
   const openapi = buildOpenApi();
   api.get("/openapi.json", (c) => c.json(openapi));
+  api.route("/", leagueRoutes({ db }));
   api.route("/", matchRoutes({ db, store }));
   app.route(`/api/${API_VERSION}`, api);
 
