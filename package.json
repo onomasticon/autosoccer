@@ -15,7 +15,7 @@
     "headless": "bun packages/match-runner/src/cli.ts",
     "test": "vitest run && bun scripts/golden.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "walkthrough": "bun scripts/m5-highlights.ts && node scripts/walkthrough-m5.mjs",
+    "walkthrough": "node scripts/walkthrough-m6.mjs",
     "test:unit": "vitest run",
     "golden:write": "bun scripts/golden.ts --write",
     "walkthrough:m1": "node scripts/record-walkthrough.mjs",
@@ -26,7 +26,10 @@
     "walkthrough:m4": "node scripts/walkthrough-m4.mjs",
     "bvr": "bun packages/match-runner/src/bvr-cli.ts",
     "coverage:api": "bun scripts/api-coverage.ts",
-    "demo": "bun run --cwd packages/viewer dev --open '/?demo=1'"
+    "demo": "bun run --cwd packages/viewer dev --open '/?demo=1'",
+    "walkthrough:m5": "bun scripts/m5-highlights.ts && node scripts/walkthrough-m5.mjs",
+    "replay": "bun packages/match-runner/src/replay-cli.ts",
+    "tournament": "bun packages/match-runner/src/tournament-cli.ts"
   },
   "devDependencies": {
     "@autosoccer/controller-runtime": "workspace:*",
