@@ -26,7 +26,8 @@
     "smoke": "bun scripts/smoke.ts",
     "contracts:gen": "bun packages/contracts/src/generate.ts",
     "sim:check": "bun scripts/sim-check.ts",
-    "worker": "bun --cwd apps/server src/worker.ts"
+    "worker": "bun --cwd apps/server src/worker.ts",
+    "league": "bun scripts/league.ts"
   },
   "devDependencies": {
     "@biomejs/biome": "2.2.5",

@@ -57,7 +57,10 @@ describe("api", () => {
 
 describe("config", () => {
   it("applies defaults and validates the environment", () => {
-    expect(loadConfig({ DATABASE_URL: "postgres://a:b@h:1/d" })).toMatchObject({ API_PORT: 4000, LOG_LEVEL: "info" });
+    const cfg = loadConfig({ DATABASE_URL: "postgres://a:b@h:1/d" });
+    expect(cfg).toMatchObject({ API_PORT: 4000, LOG_LEVEL: "info" });
+    expect(cfg.REPLAY_DIR.endsWith("/data/replays")).toBe(true);
+    expect(cfg.REPLAY_DIR.startsWith("/")).toBe(true);
     expect(() => loadConfig({})).toThrow(/DATABASE_URL/);
   });
 });
