@@ -32,7 +32,16 @@ describe("api", () => {
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.apiVersion).toBe("v1");
-    expect(body.schemaVersion).toBeGreaterThanOrEqual(1);
+    expect(body.schemaVersion).toBeGreaterThanOrEqual(2);
+    expect(body.contractsVersion).toBe("1.0.0");
+  });
+
+  it("publishes the OpenAPI document for the v1 contracts", async () => {
+    const res = await createApp({ db: t.db }).request("/api/v1/openapi.json");
+    const doc = await res.json();
+    expect(doc.openapi).toBe("3.1.0");
+    expect(doc.paths["/seasons/{season}/standings"].get.operationId).toBe("getStandings");
+    expect(doc.components.schemas.MatchDetailResponse).toBeDefined();
   });
 
   it("returns a JSON 404 envelope for unknown routes", async () => {

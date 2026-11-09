@@ -1,0 +1,222 @@
+{
+  "contract": "editorial-facts/1",
+  "seasonId": "00000000-0000-4000-8000-000000000384",
+  "matchId": "00000000-0000-4000-8000-0000000001f4",
+  "generatedFrom": {
+    "resultFinalHash": "9c1e44a07b3d2f15",
+    "standingsAfterRound": 1
+  },
+  "match": {
+    "round": 1,
+    "home": {
+      "teamId": "00000000-0000-4000-8000-000000000001",
+      "name": "Harbour City",
+      "score": 2
+    },
+    "away": {
+      "teamId": "00000000-0000-4000-8000-000000000002",
+      "name": "Red Rock Rovers",
+      "score": 1
+    },
+    "events": [
+      {
+        "type": "periodStart",
+        "tick": 120,
+        "period": "firstHalf",
+        "clockSec": 0
+      },
+      {
+        "type": "goal",
+        "tick": 2410,
+        "period": "firstHalf",
+        "clockSec": 38.2,
+        "side": "home",
+        "scorerId": "00000000-0000-4000-8000-000000000069",
+        "ownGoal": false,
+        "score": {
+          "home": 1,
+          "away": 0
+        }
+      },
+      {
+        "type": "foul",
+        "tick": 4020,
+        "period": "firstHalf",
+        "clockSec": 65,
+        "side": "away",
+        "playerId": "00000000-0000-4000-8000-0000000000ca",
+        "againstId": "00000000-0000-4000-8000-000000000068"
+      },
+      {
+        "type": "restart",
+        "tick": 4080,
+        "period": "firstHalf",
+        "clockSec": 65,
+        "side": "home",
+        "restart": "freeKick",
+        "takerId": "00000000-0000-4000-8000-000000000068"
+      },
+      {
+        "type": "periodEnd",
+        "tick": 7320,
+        "period": "firstHalf",
+        "clockSec": 120
+      },
+      {
+        "type": "goal",
+        "tick": 9930,
+        "period": "secondHalf",
+        "clockSec": 33.5,
+        "side": "away",
+        "scorerId": "00000000-0000-4000-8000-0000000000cd",
+        "ownGoal": false,
+        "score": {
+          "home": 1,
+          "away": 1
+        }
+      },
+      {
+        "type": "goal",
+        "tick": 13800,
+        "period": "secondHalf",
+        "clockSec": 98,
+        "side": "home",
+        "scorerId": "00000000-0000-4000-8000-000000000068",
+        "ownGoal": false,
+        "score": {
+          "home": 2,
+          "away": 1
+        }
+      }
+    ],
+    "stats": {
+      "home": {
+        "goals": 2,
+        "passes": 41,
+        "passesCompleted": 30,
+        "passesIntercepted": 9,
+        "avgPassLength": 11.4,
+        "forwardPassShare": 0.43,
+        "shots": 6,
+        "shotsOnTarget": 3,
+        "avgShotDistance": 14.2,
+        "dribbleTouches": 120,
+        "tackles": 8,
+        "tacklesWon": 5,
+        "interceptions": 7,
+        "keeperCatches": 2,
+        "keeperReleases": 2,
+        "fouls": 1,
+        "restartsTaken": 9,
+        "restartFallbacks": 0,
+        "possession": 0.56,
+        "avgTeamHeight": 21.7
+      },
+      "away": {
+        "goals": 1,
+        "passes": 41,
+        "passesCompleted": 30,
+        "passesIntercepted": 9,
+        "avgPassLength": 11.4,
+        "forwardPassShare": 0.43,
+        "shots": 6,
+        "shotsOnTarget": 3,
+        "avgShotDistance": 14.2,
+        "dribbleTouches": 120,
+        "tackles": 8,
+        "tacklesWon": 5,
+        "interceptions": 7,
+        "keeperCatches": 2,
+        "keeperReleases": 2,
+        "fouls": 1,
+        "restartsTaken": 9,
+        "restartFallbacks": 0,
+        "possession": 0.44,
+        "avgTeamHeight": 21.7
+      }
+    },
+    "lineups": {
+      "home": [
+        {
+          "playerId": "00000000-0000-4000-8000-000000000065",
+          "name": "Ada Okafor",
+          "position": "GK"
+        },
+        {
+          "playerId": "00000000-0000-4000-8000-000000000066",
+          "name": "Bruno Lind",
+          "position": "DF"
+        },
+        {
+          "playerId": "00000000-0000-4000-8000-000000000067",
+          "name": "Chen Wu",
+          "position": "DF"
+        },
+        {
+          "playerId": "00000000-0000-4000-8000-000000000068",
+          "name": "Dara Quinn",
+          "position": "MF"
+        },
+        {
+          "playerId": "00000000-0000-4000-8000-000000000069",
+          "name": "Eli Moreau",
+          "position": "FW"
+        }
+      ],
+      "away": [
+        {
+          "playerId": "00000000-0000-4000-8000-0000000000c9",
+          "name": "Iris Kale",
+          "position": "GK"
+        },
+        {
+          "playerId": "00000000-0000-4000-8000-0000000000ca",
+          "name": "Jon Pike",
+          "position": "DF"
+        },
+        {
+          "playerId": "00000000-0000-4000-8000-0000000000cb",
+          "name": "Kofi Mensah",
+          "position": "DF"
+        },
+        {
+          "playerId": "00000000-0000-4000-8000-0000000000cc",
+          "name": "Lia Sorn",
+          "position": "MF"
+        },
+        {
+          "playerId": "00000000-0000-4000-8000-0000000000cd",
+          "name": "Max Ruiz",
+          "position": "FW"
+        }
+      ]
+    }
+  },
+  "facts": [
+    {
+      "id": "match:00000000-0000-4000-8000-0000000001f4:score",
+      "kind": "score",
+      "statement": "Harbour City 2–1 Red Rock Rovers (round 1)",
+      "value": {
+        "home": 2,
+        "away": 1
+      },
+      "source": {
+        "table": "matches",
+        "id": "00000000-0000-4000-8000-0000000001f4"
+      }
+    },
+    {
+      "id": "match:00000000-0000-4000-8000-0000000001f4:goal:3",
+      "kind": "goal",
+      "statement": "Dara Quinn (Harbour City) scored at 98s of the second half",
+      "value": {
+        "tick": 13800
+      },
+      "source": {
+        "table": "matches",
+        "id": "00000000-0000-4000-8000-0000000001f4"
+      }
+    }
+  ]
+}

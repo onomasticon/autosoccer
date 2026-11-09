@@ -1,0 +1,302 @@
+{
+  "match": {
+    "id": "00000000-0000-4000-8000-0000000001f4",
+    "fixtureId": "00000000-0000-4000-8000-00000000012c",
+    "status": "completed",
+    "seed": 3141592653,
+    "requestHash": "a3f1c9e0b7d24c5e8f6a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f6a",
+    "homeScore": 2,
+    "awayScore": 1,
+    "finalHash": "9c1e44a07b3d2f15",
+    "versions": {
+      "simCommit": "38b8c6f",
+      "engineVersion": "0.3.0",
+      "sdkVersion": "1.2.0",
+      "adapterVersion": "1.0.0",
+      "replayFormatVersion": 1
+    },
+    "homeRevisionId": "00000000-0000-4000-8000-000000000190",
+    "awayRevisionId": "00000000-0000-4000-8000-000000000191",
+    "startedAt": "2026-11-09T12:00:00.000Z",
+    "completedAt": "2026-11-09T12:00:00.000Z"
+  },
+  "fixture": {
+    "id": "00000000-0000-4000-8000-00000000012c",
+    "seasonId": "00000000-0000-4000-8000-000000000384",
+    "round": 1,
+    "homeTeamId": "00000000-0000-4000-8000-000000000001",
+    "awayTeamId": "00000000-0000-4000-8000-000000000002",
+    "status": "completed",
+    "scheduledAt": "2026-11-09T12:00:00.000Z",
+    "matchId": "00000000-0000-4000-8000-0000000001f4",
+    "home": {
+      "id": "00000000-0000-4000-8000-000000000001",
+      "slug": "harbour-city",
+      "name": "Harbour City",
+      "shortName": "HBC",
+      "city": "Harbour City",
+      "colors": {
+        "primary": "#245EFF",
+        "secondary": "#FFFFFF"
+      },
+      "crest": {
+        "shape": "shield",
+        "glyph": "H"
+      }
+    },
+    "away": {
+      "id": "00000000-0000-4000-8000-000000000002",
+      "slug": "red-rock-rovers",
+      "name": "Red Rock Rovers",
+      "shortName": "RRR",
+      "city": "Red Rock",
+      "colors": {
+        "primary": "#E2412E",
+        "secondary": "#FFE7A3"
+      },
+      "crest": {
+        "shape": "circle",
+        "glyph": "R"
+      }
+    },
+    "score": {
+      "home": 2,
+      "away": 1
+    }
+  },
+  "events": [
+    {
+      "type": "periodStart",
+      "tick": 120,
+      "period": "firstHalf",
+      "clockSec": 0
+    },
+    {
+      "type": "goal",
+      "tick": 2410,
+      "period": "firstHalf",
+      "clockSec": 38.2,
+      "side": "home",
+      "scorerId": "00000000-0000-4000-8000-000000000069",
+      "ownGoal": false,
+      "score": {
+        "home": 1,
+        "away": 0
+      }
+    },
+    {
+      "type": "foul",
+      "tick": 4020,
+      "period": "firstHalf",
+      "clockSec": 65,
+      "side": "away",
+      "playerId": "00000000-0000-4000-8000-0000000000ca",
+      "againstId": "00000000-0000-4000-8000-000000000068"
+    },
+    {
+      "type": "restart",
+      "tick": 4080,
+      "period": "firstHalf",
+      "clockSec": 65,
+      "side": "home",
+      "restart": "freeKick",
+      "takerId": "00000000-0000-4000-8000-000000000068"
+    },
+    {
+      "type": "periodEnd",
+      "tick": 7320,
+      "period": "firstHalf",
+      "clockSec": 120
+    },
+    {
+      "type": "goal",
+      "tick": 9930,
+      "period": "secondHalf",
+      "clockSec": 33.5,
+      "side": "away",
+      "scorerId": "00000000-0000-4000-8000-0000000000cd",
+      "ownGoal": false,
+      "score": {
+        "home": 1,
+        "away": 1
+      }
+    },
+    {
+      "type": "goal",
+      "tick": 13800,
+      "period": "secondHalf",
+      "clockSec": 98,
+      "side": "home",
+      "scorerId": "00000000-0000-4000-8000-000000000068",
+      "ownGoal": false,
+      "score": {
+        "home": 2,
+        "away": 1
+      }
+    }
+  ],
+  "stats": {
+    "home": {
+      "goals": 2,
+      "passes": 41,
+      "passesCompleted": 30,
+      "passesIntercepted": 9,
+      "avgPassLength": 11.4,
+      "forwardPassShare": 0.43,
+      "shots": 6,
+      "shotsOnTarget": 3,
+      "avgShotDistance": 14.2,
+      "dribbleTouches": 120,
+      "tackles": 8,
+      "tacklesWon": 5,
+      "interceptions": 7,
+      "keeperCatches": 2,
+      "keeperReleases": 2,
+      "fouls": 1,
+      "restartsTaken": 9,
+      "restartFallbacks": 0,
+      "possession": 0.56,
+      "avgTeamHeight": 21.7
+    },
+    "away": {
+      "goals": 1,
+      "passes": 41,
+      "passesCompleted": 30,
+      "passesIntercepted": 9,
+      "avgPassLength": 11.4,
+      "forwardPassShare": 0.43,
+      "shots": 6,
+      "shotsOnTarget": 3,
+      "avgShotDistance": 14.2,
+      "dribbleTouches": 120,
+      "tackles": 8,
+      "tacklesWon": 5,
+      "interceptions": 7,
+      "keeperCatches": 2,
+      "keeperReleases": 2,
+      "fouls": 1,
+      "restartsTaken": 9,
+      "restartFallbacks": 0,
+      "possession": 0.44,
+      "avgTeamHeight": 21.7
+    }
+  },
+  "lineups": {
+    "home": [
+      {
+        "id": "00000000-0000-4000-8000-000000000065",
+        "teamId": "00000000-0000-4000-8000-000000000001",
+        "name": "Ada Okafor",
+        "shirtNumber": 1,
+        "position": "GK"
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000000066",
+        "teamId": "00000000-0000-4000-8000-000000000001",
+        "name": "Bruno Lind",
+        "shirtNumber": 2,
+        "position": "DF"
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000000067",
+        "teamId": "00000000-0000-4000-8000-000000000001",
+        "name": "Chen Wu",
+        "shirtNumber": 3,
+        "position": "DF"
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000000068",
+        "teamId": "00000000-0000-4000-8000-000000000001",
+        "name": "Dara Quinn",
+        "shirtNumber": 4,
+        "position": "MF"
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000000069",
+        "teamId": "00000000-0000-4000-8000-000000000001",
+        "name": "Eli Moreau",
+        "shirtNumber": 5,
+        "position": "FW"
+      }
+    ],
+    "away": [
+      {
+        "id": "00000000-0000-4000-8000-0000000000c9",
+        "teamId": "00000000-0000-4000-8000-000000000002",
+        "name": "Iris Kale",
+        "shirtNumber": 1,
+        "position": "GK"
+      },
+      {
+        "id": "00000000-0000-4000-8000-0000000000ca",
+        "teamId": "00000000-0000-4000-8000-000000000002",
+        "name": "Jon Pike",
+        "shirtNumber": 2,
+        "position": "DF"
+      },
+      {
+        "id": "00000000-0000-4000-8000-0000000000cb",
+        "teamId": "00000000-0000-4000-8000-000000000002",
+        "name": "Kofi Mensah",
+        "shirtNumber": 3,
+        "position": "DF"
+      },
+      {
+        "id": "00000000-0000-4000-8000-0000000000cc",
+        "teamId": "00000000-0000-4000-8000-000000000002",
+        "name": "Lia Sorn",
+        "shirtNumber": 4,
+        "position": "MF"
+      },
+      {
+        "id": "00000000-0000-4000-8000-0000000000cd",
+        "teamId": "00000000-0000-4000-8000-000000000002",
+        "name": "Max Ruiz",
+        "shirtNumber": 5,
+        "position": "FW"
+      }
+    ]
+  },
+  "replay": {
+    "id": "00000000-0000-4000-8000-0000000002bc",
+    "matchId": "00000000-0000-4000-8000-0000000001f4",
+    "uri": "file://data/replays/00000000-0000-4000-8000-00000000012c.replay.json.gz",
+    "format": "autosoccer-replay",
+    "formatVersion": 1,
+    "engineVersion": "0.3.0",
+    "sdkVersion": "1.2.0",
+    "byteSize": 592282,
+    "sha256": "a3f1c9e0b7d24c5e8f6a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f6a",
+    "finalHash": "9c1e44a07b3d2f15",
+    "verified": true,
+    "createdAt": "2026-11-09T12:00:00.000Z"
+  },
+  "revisions": {
+    "home": {
+      "id": "00000000-0000-4000-8000-000000000190",
+      "version": 2,
+      "deployment": {
+        "kind": "tactical",
+        "schemaVersion": "tactics/1",
+        "config": {
+          "formation": "2-1-1",
+          "pressing": "high"
+        }
+      },
+      "rationale": "Press higher after conceding few shots."
+    },
+    "away": {
+      "id": "00000000-0000-4000-8000-000000000191",
+      "version": 1,
+      "deployment": {
+        "kind": "tactical",
+        "schemaVersion": "tactics/1",
+        "config": {
+          "formation": "2-1-1",
+          "pressing": "high"
+        }
+      },
+      "rationale": null
+    }
+  }
+}

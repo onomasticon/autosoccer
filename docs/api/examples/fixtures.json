@@ -1,0 +1,64 @@
+{
+  "season": {
+    "id": "00000000-0000-4000-8000-000000000384",
+    "slug": "season-1",
+    "name": "Season 1",
+    "status": "active",
+    "seed": 20261109,
+    "simVersion": "38b8c6f",
+    "budgetPerTeamMicroUsd": 1000000,
+    "startsAt": "2026-11-09T12:00:00.000Z",
+    "completedAt": null
+  },
+  "rounds": [
+    {
+      "round": 1,
+      "fixtures": [
+        {
+          "id": "00000000-0000-4000-8000-00000000012c",
+          "seasonId": "00000000-0000-4000-8000-000000000384",
+          "round": 1,
+          "homeTeamId": "00000000-0000-4000-8000-000000000001",
+          "awayTeamId": "00000000-0000-4000-8000-000000000002",
+          "status": "completed",
+          "scheduledAt": "2026-11-09T12:00:00.000Z",
+          "matchId": "00000000-0000-4000-8000-0000000001f4",
+          "home": {
+            "id": "00000000-0000-4000-8000-000000000001",
+            "slug": "harbour-city",
+            "name": "Harbour City",
+            "shortName": "HBC",
+            "city": "Harbour City",
+            "colors": {
+              "primary": "#245EFF",
+              "secondary": "#FFFFFF"
+            },
+            "crest": {
+              "shape": "shield",
+              "glyph": "H"
+            }
+          },
+          "away": {
+            "id": "00000000-0000-4000-8000-000000000002",
+            "slug": "red-rock-rovers",
+            "name": "Red Rock Rovers",
+            "shortName": "RRR",
+            "city": "Red Rock",
+            "colors": {
+              "primary": "#E2412E",
+              "secondary": "#FFE7A3"
+            },
+            "crest": {
+              "shape": "circle",
+              "glyph": "R"
+            }
+          },
+          "score": {
+            "home": 2,
+            "away": 1
+          }
+        }
+      ]
+    }
+  ]
+}

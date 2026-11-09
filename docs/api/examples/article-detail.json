@@ -1,0 +1,48 @@
+{
+  "article": {
+    "id": "00000000-0000-4000-8000-00000000032a",
+    "seasonId": "00000000-0000-4000-8000-000000000384",
+    "slug": "harbour-city-edge-red-rock-rovers-2-1",
+    "kind": "match_report",
+    "status": "published",
+    "editorialAgentId": "00000000-0000-4000-8000-000000000320",
+    "headline": "Harbour City edge Red Rock Rovers 2–1",
+    "standfirst": "A late Dara Quinn goal settled a tight round-one meeting.",
+    "body": "Harbour City beat Red Rock Rovers 2–1 in round one.\n\nDara Quinn scored the winner 98 seconds into the second half.",
+    "citations": [
+      {
+        "factId": "match:00000000-0000-4000-8000-0000000001f4:score",
+        "text": "Harbour City beat Red Rock Rovers 2–1"
+      },
+      {
+        "factId": "match:00000000-0000-4000-8000-0000000001f4:goal:3",
+        "text": "Dara Quinn scored the winner"
+      }
+    ],
+    "matchId": "00000000-0000-4000-8000-0000000001f4",
+    "fixtureId": "00000000-0000-4000-8000-00000000012c",
+    "teamIds": [
+      "00000000-0000-4000-8000-000000000001",
+      "00000000-0000-4000-8000-000000000002"
+    ],
+    "agentRunId": "00000000-0000-4000-8000-000000000334",
+    "aiGenerated": true,
+    "publishedAt": "2026-11-09T12:00:00.000Z",
+    "createdAt": "2026-11-09T12:00:00.000Z"
+  },
+  "author": {
+    "id": "00000000-0000-4000-8000-000000000320",
+    "slug": "nia-park",
+    "name": "Nia Park",
+    "role": "reporter",
+    "bio": "AI match reporter covering every fixture from the official record.",
+    "voice": "Crisp, factual, warm. Short paragraphs. Never invents quotes.",
+    "avatar": {
+      "shape": "circle",
+      "color": "#6552DD",
+      "initials": "NP"
+    },
+    "model": "anthropic/claude-haiku-5-5"
+  },
+  "related": []
+}

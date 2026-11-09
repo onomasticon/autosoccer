@@ -1,0 +1,165 @@
+{
+  "team": {
+    "id": "00000000-0000-4000-8000-000000000001",
+    "slug": "harbour-city",
+    "name": "Harbour City",
+    "shortName": "HBC",
+    "city": "Harbour City",
+    "colors": {
+      "primary": "#245EFF",
+      "secondary": "#FFFFFF"
+    },
+    "crest": {
+      "shape": "shield",
+      "glyph": "H"
+    }
+  },
+  "players": [
+    {
+      "id": "00000000-0000-4000-8000-000000000065",
+      "teamId": "00000000-0000-4000-8000-000000000001",
+      "name": "Ada Okafor",
+      "shirtNumber": 1,
+      "position": "GK"
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000066",
+      "teamId": "00000000-0000-4000-8000-000000000001",
+      "name": "Bruno Lind",
+      "shirtNumber": 2,
+      "position": "DF"
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000067",
+      "teamId": "00000000-0000-4000-8000-000000000001",
+      "name": "Chen Wu",
+      "shirtNumber": 3,
+      "position": "DF"
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000068",
+      "teamId": "00000000-0000-4000-8000-000000000001",
+      "name": "Dara Quinn",
+      "shirtNumber": 4,
+      "position": "MF"
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000069",
+      "teamId": "00000000-0000-4000-8000-000000000001",
+      "name": "Eli Moreau",
+      "shirtNumber": 5,
+      "position": "FW"
+    },
+    {
+      "id": "00000000-0000-4000-8000-00000000006a",
+      "teamId": "00000000-0000-4000-8000-000000000001",
+      "name": "Femi Adeyemi",
+      "shirtNumber": 6,
+      "position": "MF"
+    },
+    {
+      "id": "00000000-0000-4000-8000-00000000006b",
+      "teamId": "00000000-0000-4000-8000-000000000001",
+      "name": "Gus Varga",
+      "shirtNumber": 7,
+      "position": "FW"
+    }
+  ],
+  "manager": {
+    "id": "00000000-0000-4000-8000-000000000258",
+    "slug": "marta-sol",
+    "name": "Marta Sol",
+    "persona": "Calm, methodical possession coach.",
+    "philosophy": "Control the ball, control the game.",
+    "model": "anthropic/claude-haiku-5-5"
+  },
+  "standing": {
+    "position": 1,
+    "team": {
+      "id": "00000000-0000-4000-8000-000000000001",
+      "slug": "harbour-city",
+      "name": "Harbour City",
+      "shortName": "HBC",
+      "city": "Harbour City",
+      "colors": {
+        "primary": "#245EFF",
+        "secondary": "#FFFFFF"
+      },
+      "crest": {
+        "shape": "shield",
+        "glyph": "H"
+      }
+    },
+    "played": 1,
+    "won": 1,
+    "drawn": 0,
+    "lost": 0,
+    "goalsFor": 2,
+    "goalsAgainst": 1,
+    "goalDifference": 1,
+    "points": 3,
+    "form": [
+      "W"
+    ]
+  },
+  "fixtures": [
+    {
+      "id": "00000000-0000-4000-8000-00000000012c",
+      "seasonId": "00000000-0000-4000-8000-000000000384",
+      "round": 1,
+      "homeTeamId": "00000000-0000-4000-8000-000000000001",
+      "awayTeamId": "00000000-0000-4000-8000-000000000002",
+      "status": "completed",
+      "scheduledAt": "2026-11-09T12:00:00.000Z",
+      "matchId": "00000000-0000-4000-8000-0000000001f4",
+      "home": {
+        "id": "00000000-0000-4000-8000-000000000001",
+        "slug": "harbour-city",
+        "name": "Harbour City",
+        "shortName": "HBC",
+        "city": "Harbour City",
+        "colors": {
+          "primary": "#245EFF",
+          "secondary": "#FFFFFF"
+        },
+        "crest": {
+          "shape": "shield",
+          "glyph": "H"
+        }
+      },
+      "away": {
+        "id": "00000000-0000-4000-8000-000000000002",
+        "slug": "red-rock-rovers",
+        "name": "Red Rock Rovers",
+        "shortName": "RRR",
+        "city": "Red Rock",
+        "colors": {
+          "primary": "#E2412E",
+          "secondary": "#FFE7A3"
+        },
+        "crest": {
+          "shape": "circle",
+          "glyph": "R"
+        }
+      },
+      "score": {
+        "home": 2,
+        "away": 1
+      }
+    }
+  ],
+  "currentRevision": {
+    "id": "00000000-0000-4000-8000-000000000190",
+    "version": 2,
+    "deployment": {
+      "kind": "tactical",
+      "schemaVersion": "tactics/1",
+      "config": {
+        "formation": "2-1-1",
+        "pressing": "high"
+      }
+    },
+    "rationale": "Press higher after conceding few shots.",
+    "createdAt": "2026-11-09T12:00:00.000Z"
+  }
+}
