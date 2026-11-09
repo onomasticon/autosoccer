@@ -268,7 +268,12 @@ export const exampleTeamDetail: z.infer<typeof TeamDetailResponse> = {
     name: "Marta Sol",
     persona: "Calm, methodical possession coach.",
     philosophy: "Control the ball, control the game.",
-    model: "anthropic/claude-haiku-5-5",
+    model: "claude-opus-5-5",
+    memory: {
+      summary: "Won the opener 2–1 with a patient setup.",
+      notes: ["R1 vs Red Rock Rovers: W 2–1"],
+      updatedAt: T0,
+    },
   },
   standing: exampleStandings.rows[0]!,
   fixtures: [fixtureView],

@@ -54,9 +54,17 @@ export function leagueRoutes({ db }: { db: Db }) {
       toPlayer,
     );
     const [mgr] = await db<
-      { id: string; slug: string; name: string; persona: string; philosophy: string; model: string }[]
+      {
+        id: string;
+        slug: string;
+        name: string;
+        persona: string;
+        philosophy: string;
+        model: string;
+        memory: { summary: string; notes: string[]; updatedAt: string | null };
+      }[]
     >`
-      select id, slug, name, persona, philosophy, model from manager_agents where team_id = ${t.id}`;
+      select id, slug, name, persona, philosophy, model, memory from manager_agents where team_id = ${t.id}`;
     const season = await currentSeason(db);
     let standing = null;
     let fixtures: Awaited<ReturnType<typeof fixtureViews>> = [];

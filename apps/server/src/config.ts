@@ -11,6 +11,10 @@ const Env = z.object({
   LOG_LEVEL: z.enum(["debug", "info", "warn", "error"]).default("info"),
   REPLAY_DIR: z.string().default("data/replays"),
   WORKER_POLL_MS: z.coerce.number().int().positive().default(1000),
+  /** "anthropic" calls Claude; "offline" uses the deterministic rule-based stand-in. Default: anthropic if a key is set. */
+  LLM_PROVIDER: z.enum(["anthropic", "offline"]).optional(),
+  MANAGER_MODEL: z.string().default("claude-opus-5-5"),
+  ANTHROPIC_API_KEY: z.string().optional(),
 });
 
 export type ServerConfig = z.infer<typeof Env>;
@@ -32,6 +36,7 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     throw new Error(`Invalid server environment:\n${issues}\nSee .env.example.`);
   }
   const data = parsed.data;
+  data.LLM_PROVIDER ??= data.ANTHROPIC_API_KEY ? "anthropic" : "offline";
   if (!isAbsolute(data.REPLAY_DIR)) data.REPLAY_DIR = resolve(REPO_ROOT, data.REPLAY_DIR);
   return data;
 }
