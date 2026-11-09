@@ -1,35 +1,12 @@
 import type { EditorialAgent } from "@autosoccer/contracts";
 import { Link } from "react-router";
 import { formatDate } from "../lib/format";
+import { Portrait } from "./Portrait";
 
 type Author = Pick<EditorialAgent, "slug" | "name" | "role" | "avatar">;
 
 export function AgentAvatar({ avatar, size = 36 }: { avatar: Author["avatar"]; size?: number }) {
-  const shape =
-    avatar.shape === "circle" ? (
-      <circle cx="20" cy="20" r="19" fill={avatar.color} />
-    ) : avatar.shape === "square" ? (
-      <rect x="1" y="1" width="38" height="38" rx="8" fill={avatar.color} />
-    ) : (
-      <path d="M20 1 L37 10.5 V29.5 L20 39 L3 29.5 V10.5 Z" fill={avatar.color} />
-    );
-  return (
-    <svg viewBox="0 0 40 40" width={size} height={size} aria-hidden className="shrink-0">
-      {shape}
-      <text
-        x="20"
-        y="21"
-        textAnchor="middle"
-        dominantBaseline="middle"
-        fontFamily="Inter, sans-serif"
-        fontWeight="700"
-        fontSize="14"
-        fill="#FFFFFF"
-      >
-        {avatar.initials}
-      </text>
-    </svg>
-  );
+  return <Portrait avatar={avatar} size={size} rounded={size < 48 ? "rounded-md" : "rounded-xl"} />;
 }
 
 /** AI disclosure badge: shown on every AI-written byline and article. */

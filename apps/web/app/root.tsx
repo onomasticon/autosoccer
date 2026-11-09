@@ -23,7 +23,7 @@ export async function loader() {
     const { rounds } = await apiGet<FixturesResponse>(`/api/v1/seasons/${season.slug}/fixtures`);
     return { ticker: tickerFixtures(rounds) };
   } catch {
-    return { ticker: { matchweek: null, fixtures: [] } };
+    return { ticker: { matchweek: null, fixtures: [], next: null } };
   }
 }
 
@@ -51,7 +51,7 @@ export default function App({ loaderData }: Route.ComponentProps) {
   return (
     <>
       <LeagueHeader />
-      <ScoreTicker fixtures={loaderData.ticker.fixtures} matchweek={loaderData.ticker.matchweek} />
+      <ScoreTicker {...loaderData.ticker} />
       <main
         id="main"
         tabIndex={-1}

@@ -1,31 +1,42 @@
 import { useEffect, useId, useState } from "react";
-import { Link, NavLink, useLocation } from "react-router";
+import { Link, useLocation } from "react-router";
+import { Slashes } from "./SectionHeader";
 
 export const NAV = [
   { to: "/", label: "Home", end: true },
-  { to: "/fixtures", label: "Fixtures" },
+  { to: "/news", label: "News" },
+  { to: "/fixtures", label: "Matches", also: "/matches/" },
   { to: "/table", label: "Table" },
   { to: "/teams", label: "Teams" },
-  { to: "/news", label: "News" },
+  { to: "/journalists", label: "Personalities" },
 ] as const;
 
-export function Wordmark() {
+/** Stacked italic wordmark with the twin broadcast slashes. */
+export function Wordmark({ size = "md" }: { size?: "md" | "lg" }) {
+  const lg = size === "lg";
   return (
-    <span className="inline-flex items-center gap-2 font-display text-2xl font-extrabold uppercase italic leading-none tracking-tight">
-      <svg aria-hidden viewBox="0 0 32 32" width="28" height="28">
-        <rect x="1" y="1" width="30" height="30" rx="8" fill="var(--color-coral)" />
-        <path d="M9 23 L19 7 H24 L14 23 Z" fill="var(--color-ink)" />
-        <circle cx="22" cy="21" r="3.5" fill="var(--color-yellow)" stroke="var(--color-ink)" strokeWidth="1.5" />
-      </svg>
-      <span>
-        Auto<span className="text-violet">Soccer</span>
+    <span className="inline-flex items-center gap-2">
+      <Slashes colors={["coral", "coral"]} height={lg ? 46 : 36} />
+      <span
+        className={`flex flex-col font-display font-extrabold uppercase italic leading-[0.8] tracking-tight ${lg ? "text-[2.1rem]" : "text-[1.6rem]"}`}
+      >
+        <span>Auto</span>
+        <span>Soccer</span>
       </span>
     </span>
   );
 }
 
+/** Current section: exact for Home, prefix for the rest (match centres count as "Matches"). */
+export function isCurrent(n: (typeof NAV)[number], pathname: string) {
+  if ("end" in n) return pathname === n.to;
+  return pathname === n.to || pathname.startsWith(`${n.to}/`) || ("also" in n && pathname.startsWith(n.also));
+}
+
 const linkClass = ({ isActive }: { isActive: boolean }) =>
-  `rounded-md px-3 py-2 text-sm font-semibold transition ${isActive ? "bg-ink text-white" : "text-ink hover:bg-canvas"}`;
+  `block px-3 py-1.5 font-display text-lg font-extrabold uppercase italic tracking-wide transition ${
+    isActive ? "parallelogram bg-coral-deep text-white" : "text-ink hover:text-violet"
+  }`;
 
 /** Global navigation with skip link, current-page state and an accessible mobile disclosure menu. */
 export function LeagueHeader() {
@@ -47,55 +58,73 @@ export function LeagueHeader() {
     return () => window.removeEventListener("keydown", onKey);
   }, [open]);
   return (
-    <header className="sticky top-0 z-40 border-b border-line bg-surface/95 backdrop-blur">
+    <header className="sticky top-0 z-40 bg-canvas/95 backdrop-blur">
       <a
         href="#main"
         className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-2 focus:z-50 focus:rounded focus:bg-yellow focus:px-3 focus:py-2 focus:font-semibold"
       >
         Skip to content
       </a>
-      <div className="mx-auto flex h-16 max-w-[1440px] items-center justify-between gap-4 px-4 sm:px-6">
-        <Link to="/" aria-label="Auto Soccer home" className="rounded-md">
-          <Wordmark />
+      <div className="relative mx-auto flex h-[4.5rem] max-w-[1440px] items-center gap-5 overflow-hidden px-4 sm:px-6 lg:h-[5.5rem]">
+        <Link to="/" aria-label="Auto Soccer home" className="shrink-0 rounded-md">
+          <span className="lg:hidden">
+            <Wordmark />
+          </span>
+          <span className="hidden lg:inline">
+            <Wordmark size="lg" />
+          </span>
         </Link>
-        <nav aria-label="Main" className="hidden md:block">
+        <p className="hidden shrink-0 border-l-2 border-line pl-4 font-display text-base font-bold uppercase italic leading-[1.05] text-violet-deep xl:block">
+          The AI-managed
+          <br />
+          soccer league
+        </p>
+        <nav aria-label="Main" className="hidden lg:ml-4 lg:block">
           <ul className="flex items-center gap-1">
             {NAV.map((n) => (
               <li key={n.to}>
-                <NavLink to={n.to} end={"end" in n} className={linkClass}>
+                <Link
+                  to={n.to}
+                  className={linkClass({ isActive: isCurrent(n, pathname) })}
+                  aria-current={isCurrent(n, pathname) ? "page" : undefined}
+                >
                   {n.label}
-                </NavLink>
+                </Link>
               </li>
             ))}
           </ul>
         </nav>
-        <span className="hidden rounded-full bg-canvas px-3 py-1 text-xs font-semibold text-muted-text lg:inline">
-          A fictional league run by AI managers
-        </span>
+        <div aria-hidden className="pointer-events-none ml-auto hidden h-full items-center 2xl:flex">
+          <Slashes colors={["coral", "violet", "violet"]} height={88} className="opacity-90" />
+        </div>
         <button
           type="button"
-          className="inline-flex items-center gap-2 rounded-md border border-line px-3 py-2 text-sm font-semibold md:hidden"
+          className="ml-auto inline-flex items-center gap-2 rounded-md px-2 py-2 font-display text-lg font-extrabold uppercase italic lg:hidden"
           aria-expanded={open}
           aria-controls={menuId}
           onClick={() => setOpen((v) => !v)}
         >
-          <svg aria-hidden viewBox="0 0 20 20" width="18" height="18">
+          <svg aria-hidden viewBox="0 0 24 24" width="26" height="26">
             {open ? (
-              <path d="M4 4 L16 16 M16 4 L4 16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+              <path d="M5 5 L19 19 M19 5 L5 19" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
             ) : (
-              <path d="M3 5 H17 M3 10 H17 M3 15 H17" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+              <path d="M3 6 H21 M3 12 H21 M3 18 H21" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
             )}
           </svg>
           Menu
         </button>
       </div>
-      <nav id={menuId} aria-label="Main mobile" hidden={!open} className="border-t border-line bg-surface md:hidden">
+      <nav id={menuId} aria-label="Main mobile" hidden={!open} className="border-y border-line bg-surface lg:hidden">
         <ul className="flex flex-col gap-1 px-4 py-3">
           {NAV.map((n) => (
             <li key={n.to}>
-              <NavLink to={n.to} end={"end" in n} className={(s) => `block ${linkClass(s)}`}>
+              <Link
+                to={n.to}
+                className={linkClass({ isActive: isCurrent(n, pathname) })}
+                aria-current={isCurrent(n, pathname) ? "page" : undefined}
+              >
                 {n.label}
-              </NavLink>
+              </Link>
             </li>
           ))}
         </ul>
@@ -124,11 +153,6 @@ export function SiteFooter() {
                 </Link>
               </li>
             ))}
-            <li>
-              <Link to="/journalists" className="hover:underline">
-                Journalists
-              </Link>
-            </li>
             <li>
               <a href="https://github.com/onomasticon/autosoccer-sim" className="hover:underline">
                 Simulator

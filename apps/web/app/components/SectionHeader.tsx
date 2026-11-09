@@ -1,46 +1,140 @@
+import type { ReactNode } from "react";
 import { Link } from "react-router";
+
+const FILL = {
+  coral: "var(--color-coral)",
+  violet: "var(--color-violet)",
+  yellow: "var(--color-yellow)",
+  blue: "var(--color-match-blue)",
+} as const;
+type Tone = keyof typeof FILL;
+
+/** Decorative broadcast slashes (the angular stripe motif). Never carries meaning. */
+export function Slashes({
+  colors = ["violet", "coral"],
+  height = 28,
+  className = "",
+}: {
+  colors?: Tone[];
+  height?: number;
+  className?: string;
+}) {
+  const w = 14 + colors.length * 11;
+  return (
+    <svg
+      aria-hidden
+      viewBox={`0 0 ${w} 28`}
+      height={height}
+      width={(w * height) / 28}
+      className={`shrink-0 ${className}`}
+      data-decorative
+    >
+      {colors.map((c, i) => (
+        <path key={i} d={`M${11 + i * 11} 0 H${18 + i * 11} L${7 + i * 11} 28 H${i * 11} Z`} fill={FILL[c]} />
+      ))}
+    </svg>
+  );
+}
 
 export interface SectionHeaderProps {
   title: string;
   id?: string;
   eyebrow?: string;
   action?: { to: string; label: string };
-  /** Angular slash banner, for top-level page sections only. */
+  /** Plain text shown on the right instead of (or as well as) an action. */
+  meta?: ReactNode;
+  /** Tab colour. Coral uses the deep coral so white type stays readable. */
+  tone?: "violet" | "coral";
+  /** Page title treatment (h1): oversized italic headline with an underline bar. */
   banner?: boolean;
   as?: "h1" | "h2" | "h3";
+  /** Tab sits flush against a card edge (straight left side). */
+  flush?: boolean;
+  className?: string;
 }
 
-export function SectionHeader({ title, id, eyebrow, action, banner = false, as: H = "h2" }: SectionHeaderProps) {
-  return (
-    <div
-      className={`mb-4 flex items-end justify-between gap-4 ${banner ? "relative overflow-hidden rounded-xl bg-violet px-5 py-4 text-white" : ""}`}
-    >
-      {banner && (
-        <div aria-hidden className="banner-slash pointer-events-none absolute inset-y-0 right-0 w-1/3 opacity-90" />
-      )}
-      <div className="relative">
-        {eyebrow && (
-          <p
-            className={`mb-1 text-xs font-bold uppercase tracking-[0.14em] ${banner ? "inline-block rounded bg-yellow px-1.5 py-0.5 text-ink" : "text-violet"}`}
-          >
-            {eyebrow}
-          </p>
-        )}
-        <H
-          id={id}
-          className="font-display text-3xl font-extrabold uppercase italic leading-none tracking-tight sm:text-4xl"
-        >
-          {title}
-        </H>
-      </div>
+/**
+ * Broadcast section header: a skewed colour tab with slash accents (mockup "LATEST STORIES"),
+ * or, with `banner`, the oversized page title.
+ */
+export function SectionHeader({
+  title,
+  id,
+  eyebrow,
+  action,
+  meta,
+  tone = "violet",
+  banner = false,
+  as: H = "h2",
+  className = "",
+  flush = false,
+}: SectionHeaderProps) {
+  const right = (action || meta) && (
+    <div className="ml-auto flex shrink-0 items-center gap-3 text-sm">
+      {meta && <span className="font-semibold text-muted-text">{meta}</span>}
       {action && (
         <Link
           to={action.to}
-          className={`relative shrink-0 text-sm font-semibold underline-offset-4 hover:underline ${banner ? "text-white" : "text-violet"}`}
+          className="inline-flex items-center gap-1 font-semibold text-ink underline-offset-4 hover:underline"
         >
           {action.label} <span aria-hidden>→</span>
         </Link>
       )}
     </div>
+  );
+  if (banner)
+    return (
+      <div className={`mb-6 flex flex-wrap items-end justify-between gap-4 ${className}`}>
+        <div>
+          {eyebrow && (
+            <p className="parallelogram mb-2 inline-block bg-yellow py-1 font-display text-sm font-extrabold uppercase italic tracking-wide text-ink">
+              {eyebrow}
+            </p>
+          )}
+          <div className="flex items-start gap-3">
+            <H
+              id={id}
+              className="font-display text-5xl font-extrabold uppercase italic leading-[0.9] tracking-tight sm:text-6xl"
+            >
+              {title}
+            </H>
+            <Slashes colors={["violet", "coral"]} height={40} className="mt-1" />
+          </div>
+          <div aria-hidden className="mt-2 h-1.5 w-24 -skew-x-12 rounded-sm bg-coral" />
+        </div>
+        {right}
+      </div>
+    );
+  return (
+    <div className={`mb-4 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 ${className}`}>
+      <div className="flex min-w-0 items-center gap-1">
+        <H
+          id={id}
+          className={`${flush ? "parallelogram-start pl-4 pr-[1.1em]" : "parallelogram"} py-1.5 font-display text-2xl font-extrabold uppercase italic leading-none tracking-tight text-white sm:text-[1.75rem] ${tone === "coral" ? "bg-coral-deep" : "bg-violet"}`}
+        >
+          {eyebrow && <span className="sr-only">{eyebrow}: </span>}
+          {title}
+        </H>
+        <Slashes colors={tone === "coral" ? ["coral", "yellow"] : ["violet", "coral"]} height={30} />
+      </div>
+      {right}
+    </div>
+  );
+}
+
+/**
+ * Card whose header tab sits flush on its top-left corner (mockup homepage panels).
+ */
+export function Panel({
+  children,
+  className = "",
+  bodyClassName = "p-3 sm:p-4",
+  ...header
+}: SectionHeaderProps & { children: ReactNode; bodyClassName?: string }) {
+  return (
+    <section aria-labelledby={header.id} className={`card-surface flex flex-col overflow-hidden ${className}`}>
+      <SectionHeader {...header} flush className="mb-0 pr-4 [&>div:last-child]:pl-4" />
+      <div className={`flex-1 ${bodyClassName}`}>{children}</div>
+    </section>
   );
 }

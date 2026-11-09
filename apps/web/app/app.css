@@ -57,6 +57,9 @@
   --color-violet-deep: #4a3bb8; /* hover/pressed violet */
   --color-pitch: #2f8f4e; /* match viewer turf, matches the simulator's 2D pitch */
   --color-pitch-stripe: #2a8448;
+  --color-coral-deep: #d9442f; /* coral for white text: 4.4:1 (large display type only) */
+  --color-lavender: #ece8fb; /* ticker bar, tag and chip fills */
+  --color-lavender-strong: #dcd5f7;
 
   --font-display: "Barlow Condensed", "Arial Narrow", system-ui, sans-serif;
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
@@ -98,6 +101,14 @@
     border-radius: var(--radius-card);
     box-shadow: var(--shadow-card);
   }
+  /* Broadcast parallelogram used by section tabs, the active nav item and the matchweek label. */
+  .parallelogram {
+    clip-path: polygon(0.55em 0, 100% 0, calc(100% - 0.55em) 100%, 0 100%);
+    padding-inline: 0.9em;
+  }
+  .parallelogram-start {
+    clip-path: polygon(0 0, 100% 0, calc(100% - 0.55em) 100%, 0 100%);
+  }
   /* Angular slash accent used on section banners only. */
   .banner-slash {
     background-image: repeating-linear-gradient(
@@ -120,4 +131,38 @@
       background-position: 0 50%;
     }
   }
+}
+
+/* Replay scrubber: violet progress on a dark track with a white thumb (mockup control bar). */
+.replay-range {
+  appearance: none;
+  height: 1.25rem;
+  background: transparent;
+  cursor: pointer;
+}
+.replay-range::-webkit-slider-runnable-track {
+  height: 0.5rem;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--color-violet) var(--progress, 0%), rgb(255 255 255 / 0.22) var(--progress, 0%));
+}
+.replay-range::-moz-range-track {
+  height: 0.5rem;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--color-violet) var(--progress, 0%), rgb(255 255 255 / 0.22) var(--progress, 0%));
+}
+.replay-range::-webkit-slider-thumb {
+  appearance: none;
+  margin-top: -0.375rem;
+  width: 1.25rem;
+  height: 1.25rem;
+  border-radius: 999px;
+  background: #fff;
+  box-shadow: 0 1px 4px rgb(0 0 0 / 0.35);
+}
+.replay-range::-moz-range-thumb {
+  width: 1.25rem;
+  height: 1.25rem;
+  border: 0;
+  border-radius: 999px;
+  background: #fff;
 }

@@ -1,6 +1,6 @@
 import type { OfficialEvent, Team } from "@autosoccer/contracts";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { formatClock, onColor } from "../../lib/format";
+import { formatClock, onColor, readableChip } from "../../lib/format";
 import { ErrorState } from "../States";
 import { aspect, drawFrame } from "./draw";
 import { type Frame, loadReplay, type ReplaySource } from "./replay-adapter";
@@ -27,6 +27,15 @@ function periodClock(f: Frame | null) {
   return formatClock(f.period, f.clockSec);
 }
 
+function shortClock(f: Frame | null) {
+  if (!f || f.period === "preMatch") return "KO";
+  if (f.period === "halftime") return "HT";
+  if (f.period === "fullTime") return "FT";
+  return formatClock(f.period, f.clockSec);
+}
+
+const mmss = (sec: number) => `${Math.floor(sec / 60)}:${String(Math.floor(sec % 60)).padStart(2, "0")}`;
+
 /**
  * Genuine 2D replay of an official match (autosoccer-sim replay v1), rendered client-side.
  * Keyboard: Space/K play-pause, ←/→ seek 5 s, Home/End jump to start/end.
@@ -42,6 +51,7 @@ export function MatchViewer({
 }: MatchViewerProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
+  const rootRef = useRef<HTMLElement>(null);
   const srcRef = useRef<ReplaySource | null>(null);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
   const [error, setError] = useState<string | null>(null);
@@ -51,6 +61,10 @@ export function MatchViewer({
   const [speed, setSpeed] = useState<number>(initialSpeed);
   const tickRef = useRef(0);
 
+  const chips = useMemo(
+    () => ({ home: readableChip(home.colors.primary), away: readableChip(away.colors.primary) }),
+    [home.colors.primary, away.colors.primary],
+  );
   const colors = useMemo(
     () => ({
       home: home.colors.primary,
@@ -165,120 +179,153 @@ export function MatchViewer({
   const label = frame
     ? `Match replay at ${periodClock(frame)}: ${home.name} ${frame.score.home}, ${away.name} ${frame.score.away}`
     : "Match replay";
+  const nextSpeed = SPEEDS[(SPEEDS.indexOf(speed as (typeof SPEEDS)[number]) + 1) % SPEEDS.length]!;
+  const toggleFullscreen = () => {
+    const el = rootRef.current;
+    if (!el) return;
+    if (document.fullscreenElement) void document.exitFullscreen();
+    else void el.requestFullscreen?.().catch(() => {});
+  };
+  const ctrl =
+    "inline-flex size-10 shrink-0 items-center justify-center rounded-lg text-white hover:bg-white/10 disabled:opacity-50";
 
   return (
-    <section
-      aria-label="Match replay"
-      className="overflow-hidden rounded-xl bg-ink text-white shadow-[var(--shadow-card)]"
-      data-testid="match-viewer"
-    >
-      <div className="flex items-center justify-between gap-3 px-4 py-2.5">
-        <div className="flex items-center gap-3 font-display text-xl font-extrabold">
-          <span className="inline-block size-3 rounded-full" style={{ background: colors.home }} aria-hidden />
-          <span>{home.shortName}</span>
-          <span className="tabular rounded bg-white px-2 text-ink" aria-hidden>
-            {frame ? `${frame.score.home}–${frame.score.away}` : "–"}
-          </span>
-          <span>{away.shortName}</span>
-          <span className="inline-block size-3 rounded-full" style={{ background: colors.away }} aria-hidden />
-        </div>
-        <span className="tabular text-sm font-semibold text-white/90" aria-live="off">
-          {periodClock(frame)}
-        </span>
-      </div>
-      <div
-        ref={wrapRef}
-        className="relative w-full bg-ink outline-none"
-        // biome-ignore lint/a11y/noNoninteractiveTabindex: the pitch is a keyboard-operable player (role=application)
-        tabIndex={0}
-        onKeyDown={onKey}
-        aria-label="Replay pitch. Space to play or pause, arrow keys to seek."
-        role="application"
+    <div>
+      <section
+        ref={rootRef}
+        aria-label="Match replay"
+        className="overflow-hidden rounded-2xl bg-violet p-1.5 text-white shadow-[0_10px_30px_rgb(101_82_221/0.25)] sm:p-2"
+        data-testid="match-viewer"
       >
-        <canvas
-          ref={canvasRef}
-          role="img"
-          aria-label={label}
-          className="block h-auto w-full"
-          style={{ aspectRatio: "55 / 37" }}
-        />
-        {status === "loading" && (
-          <div
-            role="status"
-            className="absolute inset-0 flex items-center justify-center text-sm font-semibold text-white"
-          >
-            Loading replay…
-          </div>
-        )}
-        {status === "error" && (
-          <div className="absolute inset-0 flex items-center justify-center p-4 text-ink">
-            <ErrorState title="Replay unavailable">{error}</ErrorState>
-          </div>
-        )}
-      </div>
-      <div
-        className={`flex flex-wrap items-center gap-3 px-4 py-3 ${status !== "ready" ? "pointer-events-none opacity-50" : ""}`}
-      >
-        <button
-          type="button"
-          onClick={() => {
-            if (src && tickRef.current >= src.finalTick) seek(0);
-            setPlaying((p) => !p);
-          }}
-          className="inline-flex min-w-24 items-center justify-center gap-2 rounded-md bg-coral px-3 py-1.5 font-semibold text-ink"
-          aria-pressed={playing}
-          disabled={status !== "ready"}
+        <div
+          ref={wrapRef}
+          className="relative w-full overflow-hidden rounded-t-xl bg-ink outline-none"
+          // biome-ignore lint/a11y/noNoninteractiveTabindex: the pitch is a keyboard-operable player (role=application)
+          tabIndex={0}
+          onKeyDown={onKey}
+          aria-label="Replay pitch. Space to play or pause, arrow keys to seek."
+          role="application"
         >
-          <svg aria-hidden viewBox="0 0 12 12" width="12" height="12">
-            {playing ? (
-              <path d="M2 1 H5 V11 H2 Z M7 1 H10 V11 H7 Z" fill="currentColor" />
-            ) : (
-              <path d="M2 1 L11 6 L2 11 Z" fill="currentColor" />
-            )}
-          </svg>
-          {playing ? "Pause" : "Play"}
-        </button>
-        <label className="flex min-w-[10rem] flex-1 items-center gap-2 text-sm">
-          <span className="sr-only">Match time</span>
-          <input
-            type="range"
-            min={0}
-            max={src?.finalTick ?? 1}
-            step={src ? src.tickRate : 60}
-            value={tick}
-            onChange={(e) => seek(Number(e.target.value))}
-            aria-valuetext={periodClock(frame)}
-            className="range range-xs w-full [--range-bg:rgb(255_255_255/0.25)] [--range-thumb:var(--color-yellow)]"
-            disabled={status !== "ready"}
+          <canvas
+            ref={canvasRef}
+            role="img"
+            aria-label={label}
+            className="block h-auto w-full"
+            style={{ aspectRatio: "55 / 37" }}
           />
-        </label>
-        {!compact && (
-          <label className="flex items-center gap-2 text-sm">
-            Speed
-            <select
-              value={speed}
-              onChange={(e) => setSpeed(Number(e.target.value))}
-              className="rounded bg-white px-1.5 py-1 text-ink"
-              disabled={status !== "ready"}
+          <div
+            aria-hidden
+            className="pointer-events-none absolute left-2 top-2 flex items-stretch font-display text-base font-extrabold uppercase italic leading-none shadow-lg sm:left-3 sm:top-3 sm:text-2xl"
+            data-testid="score-bug"
+          >
+            <span
+              className="parallelogram-start py-1.5 pl-3 pr-5"
+              style={{ background: chips.home.bg, color: chips.home.fg }}
             >
-              {SPEEDS.map((s) => (
-                <option key={s} value={s}>
-                  {s}×
-                </option>
-              ))}
-            </select>
+              {home.shortName}
+            </span>
+            <span className="parallelogram tabular -ml-2 bg-ink py-1.5 text-white">
+              {frame ? `${frame.score.home}–${frame.score.away}` : "–"}
+            </span>
+            <span className="parallelogram -ml-2 py-1.5" style={{ background: chips.away.bg, color: chips.away.fg }}>
+              {away.shortName}
+            </span>
+            <span className="parallelogram tabular -ml-2 bg-ink py-1.5 text-sm text-white sm:text-lg">
+              {shortClock(frame)}
+            </span>
+          </div>
+          {status === "loading" && (
+            <div
+              role="status"
+              className="absolute inset-0 flex items-center justify-center text-sm font-semibold text-white"
+            >
+              Loading replay…
+            </div>
+          )}
+          {status === "error" && (
+            <div className="absolute inset-0 flex items-center justify-center p-4 text-ink">
+              <ErrorState title="Replay unavailable">{error}</ErrorState>
+            </div>
+          )}
+        </div>
+        <div
+          className={`flex items-center gap-1 rounded-b-xl bg-ink px-2 py-1.5 sm:gap-3 sm:px-3 ${status !== "ready" ? "pointer-events-none opacity-60" : ""}`}
+        >
+          <button
+            type="button"
+            onClick={() => {
+              if (src && tickRef.current >= src.finalTick) seek(0);
+              setPlaying((p) => !p);
+            }}
+            className={ctrl}
+            aria-label={playing ? "Pause" : "Play"}
+            disabled={status !== "ready"}
+          >
+            <svg aria-hidden viewBox="0 0 12 12" width="18" height="18">
+              {playing ? (
+                <path d="M2 1 H5 V11 H2 Z M7 1 H10 V11 H7 Z" fill="currentColor" />
+              ) : (
+                <path d="M2 1 L11 6 L2 11 Z" fill="currentColor" />
+              )}
+            </svg>
+          </button>
+          <span className="tabular hidden shrink-0 text-sm text-white/90 sm:inline" aria-hidden>
+            {src ? `${mmss(tick / src.tickRate)} / ${mmss(src.finalTick / src.tickRate)}` : "0:00 / 0:00"}
+          </span>
+          <label className="flex min-w-0 flex-1 items-center px-1">
+            <span className="sr-only">Match time</span>
+            <input
+              type="range"
+              min={0}
+              max={src?.finalTick ?? 1}
+              step={src ? src.tickRate : 60}
+              value={tick}
+              onChange={(e) => seek(Number(e.target.value))}
+              aria-valuetext={periodClock(frame)}
+              className="replay-range w-full"
+              style={{ "--progress": `${src ? (tick / src.finalTick) * 100 : 0}%` } as React.CSSProperties}
+              disabled={status !== "ready"}
+            />
           </label>
-        )}
-      </div>
+          <button
+            type="button"
+            className={`${ctrl} w-12 font-display text-lg font-extrabold`}
+            onClick={() => setSpeed(nextSpeed)}
+            aria-label={`Playback speed ${speed}×. Change to ${nextSpeed}×`}
+            disabled={status !== "ready"}
+          >
+            {speed}×
+          </button>
+          <button
+            type="button"
+            className={ctrl}
+            onClick={toggleFullscreen}
+            aria-label="Full screen"
+            disabled={status !== "ready"}
+          >
+            <svg
+              aria-hidden
+              viewBox="0 0 20 20"
+              width="18"
+              height="18"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.2"
+            >
+              <path d="M2 7 V2 H7 M13 2 H18 V7 M18 13 V18 H13 M7 18 H2 V13" />
+            </svg>
+          </button>
+        </div>
+      </section>
       {!compact && goals.length > 0 && (
-        <div className="flex flex-wrap gap-2 border-t border-white/10 px-4 py-2.5 text-sm">
-          <span className="font-semibold text-white/80">Jump to goal:</span>
+        <div className="mt-3 flex flex-wrap items-center gap-2 text-sm">
+          <span className="font-semibold text-muted-text">Jump to goal:</span>
           {goals.map((g) => (
             <button
               key={g.tick}
               type="button"
               onClick={() => seek(g.tick - 4 * (src?.tickRate ?? 60))}
-              className="rounded-full bg-white/10 px-2.5 py-0.5 font-semibold hover:bg-white/20"
+              className="rounded-full bg-lavender px-2.5 py-0.5 font-semibold text-violet-deep hover:bg-lavender-strong"
             >
               {formatClock(g.period, g.clockSec)} · {g.side === "home" ? home.shortName : away.shortName} {g.score.home}
               –{g.score.away}
@@ -286,10 +333,10 @@ export function MatchViewer({
           ))}
         </div>
       )}
-      <p className="border-t border-white/10 px-4 py-2 text-xs text-white/75">
-        Genuine top-down replay from the autosoccer-sim engine{src ? ` v${src.engineVersion}` : ""}: players are
-        simulated as circles, exactly as the simulator models them.
+      <p className="mt-2 text-xs text-muted-text">
+        Genuine top-down replay from the autosoccer-sim engine{src ? ` v${src.engineVersion}` : ""}
+        {compact ? "." : ": players are simulated as circles, exactly as the simulator models them."}
       </p>
-    </section>
+    </div>
   );
 }

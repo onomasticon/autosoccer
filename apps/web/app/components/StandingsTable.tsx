@@ -34,6 +34,8 @@ export interface StandingsTableProps {
   compact?: boolean;
   loading?: boolean;
   highlightTeamId?: string;
+  /** Render without its own card (inside a Panel). */
+  bare?: boolean;
 }
 
 export function StandingsTable({
@@ -42,6 +44,7 @@ export function StandingsTable({
   compact = false,
   loading = false,
   highlightTeamId,
+  bare = false,
 }: StandingsTableProps) {
   if (loading)
     return (
@@ -55,8 +58,9 @@ export function StandingsTable({
     );
   if (!rows?.length) return <EmptyState title="No table yet">Standings appear after the first results.</EmptyState>;
   const num = "tabular px-2 py-2.5 text-right";
+  const wdl = "hidden sm:table-cell";
   return (
-    <div className="card-surface relative overflow-x-auto" data-testid="standings-table">
+    <div className={`${bare ? "" : "card-surface"} relative overflow-x-auto`} data-testid="standings-table">
       <table className="w-full min-w-[18rem] border-collapse text-sm">
         <caption className="sr-only">{caption}</caption>
         <thead>
@@ -70,17 +74,17 @@ export function StandingsTable({
             <th scope="col" className="px-2 py-2 text-right">
               <abbr title="Played">P</abbr>
             </th>
+            <th scope="col" className={`${wdl} px-2 py-2 text-right`}>
+              <abbr title="Won">W</abbr>
+            </th>
+            <th scope="col" className={`${wdl} px-2 py-2 text-right`}>
+              <abbr title="Drawn">D</abbr>
+            </th>
+            <th scope="col" className={`${wdl} px-2 py-2 text-right`}>
+              <abbr title="Lost">L</abbr>
+            </th>
             {!compact && (
               <>
-                <th scope="col" className="hidden px-2 py-2 text-right sm:table-cell">
-                  <abbr title="Won">W</abbr>
-                </th>
-                <th scope="col" className="hidden px-2 py-2 text-right sm:table-cell">
-                  <abbr title="Drawn">D</abbr>
-                </th>
-                <th scope="col" className="hidden px-2 py-2 text-right sm:table-cell">
-                  <abbr title="Lost">L</abbr>
-                </th>
                 <th scope="col" className="hidden px-2 py-2 text-right md:table-cell">
                   <abbr title="Goals for">GF</abbr>
                 </th>
@@ -109,7 +113,7 @@ export function StandingsTable({
             return (
               <tr
                 key={r.team.id}
-                className={`border-b border-line last:border-0 ${leader ? "bg-yellow/35" : ""} ${mine ? "outline-2 -outline-offset-2 outline-violet" : ""}`}
+                className={`border-b border-line last:border-0 ${leader ? "bg-yellow/45" : ""} ${mine ? "outline-2 -outline-offset-2 outline-violet" : ""}`}
                 aria-current={mine ? "true" : undefined}
               >
                 <td className="tabular px-3 py-2.5 text-right font-bold">
@@ -119,8 +123,8 @@ export function StandingsTable({
                 <th scope="row" className="px-2 py-2 text-left font-semibold">
                   <Link to={`/teams/${r.team.slug}`} className="flex items-center gap-2 hover:underline">
                     <TeamBadge team={r.team} size="sm" decorative />
-                    <span className="truncate">{r.team.name}</span>
-                    {leader && (
+                    <span className={`truncate ${compact ? "font-display text-lg font-bold" : ""}`}>{r.team.name}</span>
+                    {leader && !compact && (
                       <span aria-hidden className="rounded bg-yellow px-1 text-[10px] font-bold uppercase text-ink">
                         Top
                       </span>
@@ -128,11 +132,11 @@ export function StandingsTable({
                   </Link>
                 </th>
                 <td className={num}>{r.played}</td>
+                <td className={`${num} ${wdl}`}>{r.won}</td>
+                <td className={`${num} ${wdl}`}>{r.drawn}</td>
+                <td className={`${num} ${wdl}`}>{r.lost}</td>
                 {!compact && (
                   <>
-                    <td className={`${num} hidden sm:table-cell`}>{r.won}</td>
-                    <td className={`${num} hidden sm:table-cell`}>{r.drawn}</td>
-                    <td className={`${num} hidden sm:table-cell`}>{r.lost}</td>
                     <td className={`${num} hidden md:table-cell`}>{r.goalsFor}</td>
                     <td className={`${num} hidden md:table-cell`}>{r.goalsAgainst}</td>
                   </>

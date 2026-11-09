@@ -79,10 +79,10 @@ await page.evaluate(() => {
   window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - 72 });
 });
 await page.waitForTimeout(400);
-await page.getByRole("button", { name: "Play" }).click();
+await page.getByRole("button", { name: "Play", exact: true }).click();
 await caption("The replay re-steps the real engine from recorded commands: what you see is the official match", 6500);
 await page
-  .getByRole("button", { name: "Pause" })
+  .getByRole("button", { name: "Pause", exact: true })
   .click()
   .catch(() => {});
 await scroll(700, "Timeline and stats come straight from the simulator's event log, never invented");

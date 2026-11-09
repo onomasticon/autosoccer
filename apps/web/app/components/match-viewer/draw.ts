@@ -27,10 +27,10 @@ export function drawFrame(ctx: CanvasRenderingContext2D, f: Frame, o: DrawOption
   const Y = (y: number) => (y + pitch.width / 2 + MARGIN) * s;
   ctx.clearRect(0, 0, cssW, cssH);
   // run-off and stripes
-  ctx.fillStyle = "#245f28";
+  ctx.fillStyle = "#2f7d33";
   ctx.fillRect(0, 0, cssW, cssH);
   for (let i = 0; i < pitch.length / 5; i++) {
-    ctx.fillStyle = i % 2 ? "#2e7d32" : "#2a7330";
+    ctx.fillStyle = i % 2 ? "#3f9a3f" : "#3a9139";
     ctx.fillRect(X(-pitch.length / 2 + i * 5), Y(-pitch.width / 2), 5 * s, pitch.width * s);
   }
   ctx.strokeStyle = "rgba(255,255,255,0.9)";
@@ -61,7 +61,7 @@ export function drawFrame(ctx: CanvasRenderingContext2D, f: Frame, o: DrawOption
     ctx.fillStyle = p.side === "home" ? o.colors.home : o.colors.away;
     ctx.fill();
     ctx.lineWidth = p.gk ? 3 : 1.5;
-    ctx.strokeStyle = p.gk ? "#f2c94c" : "#000000";
+    ctx.strokeStyle = p.gk ? "#f2c94c" : "#ffffff";
     ctx.stroke();
     // heading tick
     ctx.beginPath();
