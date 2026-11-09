@@ -1,0 +1,13 @@
+{
+  "name": "@autosoccer/tests",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@autosoccer/sim-core": "workspace:*",
+    "@autosoccer/controller-sdk": "workspace:*",
+    "@autosoccer/controller-runtime": "workspace:*",
+    "@autosoccer/match-runner": "workspace:*",
+    "@autosoccer/telemetry": "workspace:*"
+  }
+}
