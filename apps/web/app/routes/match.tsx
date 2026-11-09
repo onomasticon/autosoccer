@@ -16,6 +16,7 @@ import { TeamBadge } from "../components/TeamBadge";
 import { apiMaybe, apiOr404 } from "../lib/api.server";
 import { formatClock, formatDate } from "../lib/format";
 import { seo } from "../lib/seo";
+import { describeDeployment } from "../lib/tactics";
 import type { Route } from "./+types/match";
 
 export async function loader({ params }: Route.LoaderArgs) {
@@ -186,7 +187,7 @@ export default function MatchCentre({ loaderData }: Route.ComponentProps) {
   const done = match.status === "completed";
   const tactics = (r: (typeof revisions)["home"]) =>
     r
-      ? `Revision v${r.version} (${r.deployment.kind})${r.rationale ? ` — “${r.rationale}”` : ""}`
+      ? `v${r.version}: ${describeDeployment(r.deployment)}${r.rationale ? `. Manager's reasoning: ${r.rationale}` : ""}`
       : "League baseline tactics (no manager revision)";
   return (
     <div className="space-y-8">
