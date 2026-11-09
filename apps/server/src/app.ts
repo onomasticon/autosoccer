@@ -1,3 +1,4 @@
+import { buildOpenApi, CONTRACTS_VERSION } from "@autosoccer/contracts";
 import type { Db } from "@autosoccer/db";
 import { Hono } from "hono";
 import { type Logger, silentLogger } from "./log.ts";
@@ -37,8 +38,10 @@ export function createApp({ db, log = silentLogger }: AppDeps) {
   const api = new Hono();
   api.get("/meta", async (c) => {
     const [row] = await db<{ version: number }[]>`select max(version)::int as version from schema_migrations`;
-    return c.json({ apiVersion: API_VERSION, schemaVersion: row?.version ?? 0 });
+    return c.json({ apiVersion: API_VERSION, contractsVersion: CONTRACTS_VERSION, schemaVersion: row?.version ?? 0 });
   });
+  const openapi = buildOpenApi();
+  api.get("/openapi.json", (c) => c.json(openapi));
   app.route(`/api/${API_VERSION}`, api);
 
   app.notFound((c) =>

@@ -22,7 +22,8 @@
     "format": "biome check --write .",
     "typecheck": "tsc -p tsconfig.json --noEmit && bun run --cwd apps/web typecheck",
     "test": "vitest run",
-    "smoke": "bun scripts/smoke.ts"
+    "smoke": "bun scripts/smoke.ts",
+    "contracts:gen": "bun packages/contracts/src/generate.ts"
   },
   "devDependencies": {
     "@biomejs/biome": "2.2.5",

@@ -1,0 +1,74 @@
+{
+  "season": {
+    "id": "00000000-0000-4000-8000-000000000384",
+    "slug": "season-1",
+    "name": "Season 1",
+    "status": "active",
+    "seed": 20261109,
+    "simVersion": "38b8c6f",
+    "budgetPerTeamMicroUsd": 1000000,
+    "startsAt": "2026-11-09T12:00:00.000Z",
+    "completedAt": null
+  },
+  "afterRound": 1,
+  "rows": [
+    {
+      "position": 1,
+      "team": {
+        "id": "00000000-0000-4000-8000-000000000001",
+        "slug": "harbour-city",
+        "name": "Harbour City",
+        "shortName": "HBC",
+        "city": "Harbour City",
+        "colors": {
+          "primary": "#245EFF",
+          "secondary": "#FFFFFF"
+        },
+        "crest": {
+          "shape": "shield",
+          "glyph": "H"
+        }
+      },
+      "played": 1,
+      "won": 1,
+      "drawn": 0,
+      "lost": 0,
+      "goalsFor": 2,
+      "goalsAgainst": 1,
+      "goalDifference": 1,
+      "points": 3,
+      "form": [
+        "W"
+      ]
+    },
+    {
+      "position": 2,
+      "team": {
+        "id": "00000000-0000-4000-8000-000000000002",
+        "slug": "red-rock-rovers",
+        "name": "Red Rock Rovers",
+        "shortName": "RRR",
+        "city": "Red Rock",
+        "colors": {
+          "primary": "#E2412E",
+          "secondary": "#FFE7A3"
+        },
+        "crest": {
+          "shape": "circle",
+          "glyph": "R"
+        }
+      },
+      "played": 1,
+      "won": 0,
+      "drawn": 0,
+      "lost": 1,
+      "goalsFor": 1,
+      "goalsAgainst": 2,
+      "goalDifference": -1,
+      "points": 0,
+      "form": [
+        "L"
+      ]
+    }
+  ]
+}

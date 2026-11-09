@@ -15,6 +15,7 @@
       "name": "@autosoccer/server",
       "version": "0.1.0",
       "dependencies": {
+        "@autosoccer/contracts": "workspace:*",
         "@autosoccer/db": "workspace:*",
         "hono": "4.9.12",
         "zod": "4.1.12",
@@ -43,6 +44,13 @@
         "vite": "7.1.9",
       },
     },
+    "packages/contracts": {
+      "name": "@autosoccer/contracts",
+      "version": "1.0.0",
+      "dependencies": {
+        "zod": "4.1.12",
+      },
+    },
     "packages/db": {
       "name": "@autosoccer/db",
       "version": "0.1.0",
@@ -60,6 +68,8 @@
     "@asamuzakjp/dom-selector": ["@asamuzakjp/dom-selector@6.8.1", "", { "dependencies": { "@asamuzakjp/nwsapi": "^2.3.9", "bidi-js": "^1.0.3", "css-tree": "^3.1.0", "is-potential-custom-element-name": "^1.0.1", "lru-cache": "^11.2.6" } }, "sha512-MvRz1nCqW0fsy8Qz4dnLIvhOlMzqDVBabZx6lH+YywFDdjXhMY37SmpV1XFX3JzG5GWHn63j6HX6QPr3lZXHvQ=="],
 
     "@asamuzakjp/nwsapi": ["@asamuzakjp/nwsapi@2.3.9", "", {}, "sha512-n8GuYSrI9bF7FFZ/SjhwevlHc8xaVlb/7HmHelnc/PZXBD2ZR49NnN9sMMuDdEGPeeRQ5d0hqlSlEpgCX3Wl0Q=="],
+
+    "@autosoccer/contracts": ["@autosoccer/contracts@workspace:packages/contracts"],
 
     "@autosoccer/db": ["@autosoccer/db@workspace:packages/db"],
 

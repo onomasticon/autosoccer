@@ -1,0 +1,30 @@
+{
+  "id": "00000000-0000-4000-8000-0000000003e8",
+  "kind": "match.play",
+  "idempotencyKey": "match.play:00000000-0000-4000-8000-00000000012c",
+  "payload": {
+    "fixtureId": "00000000-0000-4000-8000-00000000012c"
+  },
+  "status": "succeeded",
+  "attempts": 1,
+  "maxAttempts": 3,
+  "runAt": "2026-11-09T12:00:00.000Z",
+  "lockedBy": null,
+  "lockedAt": null,
+  "lastError": null,
+  "result": {
+    "matchId": "00000000-0000-4000-8000-0000000001f4"
+  },
+  "artifacts": [
+    {
+      "kind": "match",
+      "id": "00000000-0000-4000-8000-0000000001f4"
+    },
+    {
+      "kind": "replay",
+      "id": "00000000-0000-4000-8000-0000000002bc"
+    }
+  ],
+  "createdAt": "2026-11-09T12:00:00.000Z",
+  "finishedAt": "2026-11-09T12:00:00.000Z"
+}

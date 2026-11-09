@@ -1,0 +1,97 @@
+{
+  "contract": "match-request/1",
+  "fixtureId": "00000000-0000-4000-8000-00000000012c",
+  "seed": 3141592653,
+  "simVersion": "38b8c6f",
+  "home": {
+    "teamId": "00000000-0000-4000-8000-000000000001",
+    "name": "Harbour City",
+    "starters": [
+      {
+        "playerId": "00000000-0000-4000-8000-000000000065",
+        "name": "Ada Okafor",
+        "shirtNumber": 1,
+        "position": "GK"
+      },
+      {
+        "playerId": "00000000-0000-4000-8000-000000000066",
+        "name": "Bruno Lind",
+        "shirtNumber": 2,
+        "position": "DF"
+      },
+      {
+        "playerId": "00000000-0000-4000-8000-000000000067",
+        "name": "Chen Wu",
+        "shirtNumber": 3,
+        "position": "DF"
+      },
+      {
+        "playerId": "00000000-0000-4000-8000-000000000068",
+        "name": "Dara Quinn",
+        "shirtNumber": 4,
+        "position": "MF"
+      },
+      {
+        "playerId": "00000000-0000-4000-8000-000000000069",
+        "name": "Eli Moreau",
+        "shirtNumber": 5,
+        "position": "FW"
+      }
+    ],
+    "tacticalRevisionId": "00000000-0000-4000-8000-000000000190",
+    "deployment": {
+      "kind": "tactical",
+      "schemaVersion": "tactics/1",
+      "config": {
+        "formation": "2-1-1",
+        "pressing": "high"
+      }
+    }
+  },
+  "away": {
+    "teamId": "00000000-0000-4000-8000-000000000002",
+    "name": "Red Rock Rovers",
+    "starters": [
+      {
+        "playerId": "00000000-0000-4000-8000-0000000000c9",
+        "name": "Iris Kale",
+        "shirtNumber": 1,
+        "position": "GK"
+      },
+      {
+        "playerId": "00000000-0000-4000-8000-0000000000ca",
+        "name": "Jon Pike",
+        "shirtNumber": 2,
+        "position": "DF"
+      },
+      {
+        "playerId": "00000000-0000-4000-8000-0000000000cb",
+        "name": "Kofi Mensah",
+        "shirtNumber": 3,
+        "position": "DF"
+      },
+      {
+        "playerId": "00000000-0000-4000-8000-0000000000cc",
+        "name": "Lia Sorn",
+        "shirtNumber": 4,
+        "position": "MF"
+      },
+      {
+        "playerId": "00000000-0000-4000-8000-0000000000cd",
+        "name": "Max Ruiz",
+        "shirtNumber": 5,
+        "position": "FW"
+      }
+    ],
+    "tacticalRevisionId": "00000000-0000-4000-8000-000000000191",
+    "deployment": {
+      "kind": "tactical",
+      "schemaVersion": "tactics/1",
+      "config": {
+        "formation": "2-1-1",
+        "pressing": "high"
+      }
+    }
+  },
+  "config": {}
+}
