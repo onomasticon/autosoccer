@@ -73,9 +73,7 @@ export function AuthorByline({
           {publishedAt && (
             <>
               {" · "}
-              <time dateTime={publishedAt}>
-                {formatDate(publishedAt, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
-              </time>
+              <time dateTime={publishedAt}>{formatDate(publishedAt, { time: true })}</time>
             </>
           )}
         </p>

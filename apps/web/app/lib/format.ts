@@ -22,12 +22,22 @@ export function fixtureStatusLabel(f: Pick<FixtureView, "status">): { short: str
   }
 }
 
-export function formatDate(
-  iso: string | null,
-  opts: Intl.DateTimeFormatOptions = { day: "numeric", month: "short" },
-): string {
+const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+/**
+ * UTC date formatting done by hand (not Intl), so server and browser render identical
+ * text and hydration never mismatches across ICU versions.
+ */
+export function formatDate(iso: string | null, opts: { weekday?: boolean; time?: boolean } = {}): string {
   if (!iso) return "";
-  return new Intl.DateTimeFormat("en-GB", { ...opts, timeZone: "UTC" }).format(new Date(iso));
+  const d = new Date(iso);
+  const date = `${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]}`;
+  const day = opts.weekday ? `${DAYS[d.getUTCDay()]} ` : "";
+  const time = opts.time
+    ? `, ${String(d.getUTCHours()).padStart(2, "0")}:${String(d.getUTCMinutes()).padStart(2, "0")}`
+    : "";
+  return `${day}${date}${time}`;
 }
 
 /** Readable text colour (ink or white) for a solid background colour. */
