@@ -12,9 +12,10 @@ import { loadConfig } from "../apps/server/src/config.ts";
 import { buildHandlers } from "../apps/server/src/jobs/handlers.ts";
 import { createWorker } from "../apps/server/src/jobs/worker.ts";
 import { createLogger } from "../apps/server/src/log.ts";
-import { managerLlm } from "../apps/server/src/modules/agents/index.ts";
+import { editorialLlm, managerLlm } from "../apps/server/src/modules/agents/index.ts";
 import { formatUsd } from "../apps/server/src/modules/agents/pricing.ts";
 import { managerRoundHook, seedManagers } from "../apps/server/src/modules/agents/service.ts";
+import { seedJournalists } from "../apps/server/src/modules/editorial/service.ts";
 import { fixtureViews, seasonBySlug, standingRows } from "../apps/server/src/modules/league/read.ts";
 import { SEED_TEAMS } from "../apps/server/src/modules/league/seed-data.ts";
 import { advanceSeason, createSeason, seedTeams } from "../apps/server/src/modules/league/service.ts";
@@ -55,6 +56,7 @@ try {
       teamSlugs: SEED_TEAMS.map((t) => t.slug),
     });
     await seedManagers(db, seasonId, config.MANAGER_MODEL);
+    await seedJournalists(db, config.EDITORIAL_MODEL);
     const fx = await fixtureViews(db, seasonId);
     console.log(`${created ? "created" : "exists"}: ${slug} (${fx.length} fixtures)`);
     for (const f of fx) console.log(`  R${f.round}  ${f.home.name.padEnd(20)} v ${f.away.name.padEnd(20)} ${f.status}`);
@@ -66,7 +68,7 @@ try {
     const managers = !process.argv.includes("--no-managers");
     if (managers) console.log(`managers on · llm ${config.LLM_PROVIDER} · model ${config.MANAGER_MODEL}`);
     const handlers = managers
-      ? buildHandlers({ db, store, llm: managerLlm(config), log })
+      ? buildHandlers({ db, store, llm: managerLlm(config), editorialLlm: editorialLlm(config), log })
       : { [MATCH_JOB]: matchJobHandler({ db, store }) };
     const worker = createWorker({ db, log, handlers });
     const hook = managers ? managerRoundHook(db) : undefined;

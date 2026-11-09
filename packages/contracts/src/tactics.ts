@@ -40,5 +40,5 @@ export const DEFAULT_TACTICS: TacticalConfigV1 = {
 
 /** Plain-language summary used in UIs and prompts. */
 export function describeTactics(t: TacticalConfigV1): string {
-  return `${t.formation}, ${t.lineHeight} line, ${t.width} width, ${t.pressing} press, ${t.tempo} tempo, ${t.passingRisk} passing, ${t.shooting} shooting, dribbles ${t.dribbling}, keeper plays ${t.keeperDistribution}`;
+  return `${t.formation} formation, ${t.lineHeight} line, ${t.width} width, ${t.pressing} press, ${t.tempo} tempo, ${t.passingRisk} passing, ${t.shooting} shooting, dribbles ${t.dribbling}, keeper plays ${t.keeperDistribution}`;
 }

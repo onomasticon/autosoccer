@@ -1,4 +1,5 @@
 import type { ServerConfig } from "../../config.ts";
+import { offlineEditorialLlm } from "../editorial/offline.ts";
 import { AnthropicLlm, type LlmClient } from "./llm.ts";
 import { offlineManagerLlm } from "./offline.ts";
 
@@ -7,4 +8,11 @@ export function managerLlm(config: Pick<ServerConfig, "LLM_PROVIDER" | "MANAGER_
   return config.LLM_PROVIDER === "anthropic"
     ? new AnthropicLlm(config.MANAGER_MODEL)
     : offlineManagerLlm(config.MANAGER_MODEL);
+}
+
+/** The LLM used by the AI journalists, from configuration. */
+export function editorialLlm(config: Pick<ServerConfig, "LLM_PROVIDER" | "EDITORIAL_MODEL">): LlmClient {
+  return config.LLM_PROVIDER === "anthropic"
+    ? new AnthropicLlm(config.EDITORIAL_MODEL)
+    : offlineEditorialLlm(config.EDITORIAL_MODEL);
 }

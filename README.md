@@ -137,3 +137,29 @@ team can't cover a worst-case call, its manager runs are `skipped_budget` (no mo
 the team plays its last valid tactics. A new season gets a fresh grant.
 `GET /api/v1/seasons/{season}/budget` and `bun run league budget` show granted, spent,
 reserved and remaining per team; team pages show a budget meter.
+
+## AI newsroom
+
+Three persistent AI journalists (reporter, analyst, pundit; `modules/editorial`) write
+asynchronously after results, never at page render:
+- **A match report for every result.**
+- **A round piece once a round is complete**: analysis after odd rounds, an opinion column
+  after even rounds.
+
+They write only from the **EditorialFacts projection**: the official score, goals with
+platform scorer names and simulator clock, key stats, deployed tactics, lineups and the table.
+Each fact has a stable citable id (`match:<id>:score`, `match:<id>:goal:2`,
+`standing:<season>:r3:<team>`…). The manager's free-text rationale is deliberately not a fact.
+
+Every draft goes through the fact checker (`grounding.ts`):
+- citations must exist, and match reports must cite the official score
+- no quotation marks (nobody is interviewed)
+- every scoreline must be an official final or running score (formations like `2-1-1` are recognised)
+- no invented football minutes
+
+A failing draft gets one repair attempt; if it still fails, it's stored as `rejected` and
+never served. Published articles carry an AI disclosure and a Sources list linking each claim
+to its official record. Routes: `/news`, `/news/:slug`, `/journalists`, `/journalists/:slug`;
+API `/api/v1/articles`, `/api/v1/journalists`. `EDITORIAL_MODEL` defaults to `claude-opus-5-5`
+(the offline provider writes from templates). Editorial spend is recorded per run in
+`agent_runs`; the team budgets apply to managers only.

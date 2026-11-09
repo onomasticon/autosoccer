@@ -14,6 +14,7 @@ const Env = z.object({
   /** "anthropic" calls Claude; "offline" uses the deterministic rule-based stand-in. Default: anthropic if a key is set. */
   LLM_PROVIDER: z.enum(["anthropic", "offline"]).optional(),
   MANAGER_MODEL: z.string().default("claude-opus-5-5"),
+  EDITORIAL_MODEL: z.string().default("claude-opus-5-5"),
   ANTHROPIC_API_KEY: z.string().optional(),
 });
 

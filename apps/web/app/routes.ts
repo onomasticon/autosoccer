@@ -9,5 +9,8 @@ export default [
   route("matches/:id", "routes/match.tsx"),
   route("matches/:id/replay.json.gz", "routes/replay.ts"),
   route("news", "routes/news.tsx"),
+  route("news/:slug", "routes/article.tsx"),
+  route("journalists", "routes/journalists.tsx"),
+  route("journalists/:slug", "routes/journalist.tsx"),
   route("styleguide", "routes/styleguide.tsx"),
 ] satisfies RouteConfig;
