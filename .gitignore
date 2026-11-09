@@ -1,7 +1,13 @@
 node_modules/
 dist/
+build/
 out/
+.react-router/
 .DS_Store
 *.log
 .vite/
 coverage/
+.env
+.env.local
+data/replays/
+test-results/

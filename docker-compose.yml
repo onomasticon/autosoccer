@@ -1,0 +1,19 @@
+# Local Postgres for development. `bun run db:up` starts it and waits until healthy.
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: autosoccer
+      POSTGRES_PASSWORD: autosoccer
+      POSTGRES_DB: autosoccer
+    ports:
+      - "${POSTGRES_PORT:-54329}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U autosoccer -d autosoccer"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+volumes:
+  pgdata:
