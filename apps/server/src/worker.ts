@@ -5,7 +5,7 @@ import { loadConfig } from "./config.ts";
 import { buildHandlers } from "./jobs/handlers.ts";
 import { createWorker } from "./jobs/worker.ts";
 import { createLogger } from "./log.ts";
-import { managerLlm } from "./modules/agents/index.ts";
+import { editorialLlm, managerLlm } from "./modules/agents/index.ts";
 
 const config = loadConfig();
 const log = createLogger(config.LOG_LEVEL, { svc: "worker" });
@@ -17,7 +17,7 @@ const worker = createWorker({
   db,
   log,
   pollMs: config.WORKER_POLL_MS,
-  handlers: buildHandlers({ db, store, llm: managerLlm(config), log }),
+  handlers: buildHandlers({ db, store, llm: managerLlm(config), editorialLlm: editorialLlm(config), log }),
 });
 
 for (const sig of ["SIGINT", "SIGTERM"] as const) {
