@@ -3,6 +3,7 @@
  *   bun run league seed [--season season-1] [--seed 20261109] [--budget 1.00]
  *   bun run league run  [--season season-1] [--no-managers]   # plays every remaining round in-process
  *   bun run league managers [--season season-1]              # manager decisions, memory and spend
+ *   bun run league budget [--season season-1]                # compute ledger per team
  *   bun run league table [--season season-1]
  */
 import { createDb } from "@autosoccer/db";
@@ -17,6 +18,7 @@ import { managerRoundHook, seedManagers } from "../apps/server/src/modules/agent
 import { fixtureViews, seasonBySlug, standingRows } from "../apps/server/src/modules/league/read.ts";
 import { SEED_TEAMS } from "../apps/server/src/modules/league/seed-data.ts";
 import { advanceSeason, createSeason, seedTeams } from "../apps/server/src/modules/league/service.ts";
+import { budgetSummary } from "../apps/server/src/modules/ledger/service.ts";
 import { MATCH_JOB, matchJobHandler } from "../apps/server/src/modules/matches/service.ts";
 
 const [cmd = "table"] = process.argv.slice(2).filter((a) => !a.startsWith("--") && !/^\d|^season/.test(a));
@@ -98,6 +100,23 @@ try {
       console.log(`  memory: ${m.memory.summary}`);
       for (const n of m.memory.notes) console.log(`    · ${n}`);
     }
+  } else if (cmd === "budget") {
+    const s = await seasonBySlug(db, slug);
+    if (!s) throw new Error(`no season ${slug}`);
+    const names = new Map(
+      (await db<{ id: string; name: string }[]>`select id, name from teams`).map((t) => [t.id, t.name]),
+    );
+    console.log(`\n${s.name} compute budget (per team ${formatUsd(s.budget_per_team_micro_usd)})`);
+    console.log(`${"Team".padEnd(20)}${"spent".padStart(10)}${"left".padStart(10)}${"paid runs".padStart(11)}  status`);
+    for (const r of await budgetSummary(db, s.id)) {
+      console.log(
+        `${names.get(r.teamId)!.padEnd(20)}${formatUsd(r.spentMicroUsd).padStart(10)}${formatUsd(r.remainingMicroUsd).padStart(10)}${String(r.runs).padStart(11)}  ${r.exhausted ? "EXHAUSTED (last valid tactics)" : "ok"}`,
+      );
+    }
+    const st = await db<
+      { status: string; n: number }[]
+    >`select status, count(*)::int as n from agent_runs where season_id = ${s.id} group by status order by status`;
+    console.log(`agent runs: ${st.map((x) => `${x.status} ${x.n}`).join(", ")}`);
   } else if (cmd === "table") {
     await printTable();
   } else throw new Error(`unknown command ${cmd}`);

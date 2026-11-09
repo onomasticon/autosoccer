@@ -120,3 +120,20 @@ Provider: `LLM_PROVIDER=anthropic` (default when `ANTHROPIC_API_KEY` is set) cal
 `LLM_PROVIDER=offline` uses a deterministic rule-based stand-in for tests, CI and keyless demos;
 its runs are recorded as provider `offline`, with token usage estimated and priced at the
 configured model.
+
+## Compute budget
+
+Each team's AI manager has a fixed USD-equivalent budget per season (`--budget` on
+`league seed`, default $1.00). It's kept as an append-only ledger of integer micro-USD
+(`compute_transactions`):
+- **grant**: created lazily, once per team per season.
+- **reserve**: the worst case of each model call (`max_tokens` is capped to match), taken
+  before the call. One attempt can hold several reservations (call + repair).
+- **release / charge**: the hold is returned and the actual cost (tokens × price) charged, at
+  most once per attempt. A retried attempt first releases holds left by a crashed one.
+
+Reservations run under a per-team advisory lock, so concurrent runs can't overspend. When a
+team can't cover a worst-case call, its manager runs are `skipped_budget` (no model call) and
+the team plays its last valid tactics. A new season gets a fresh grant.
+`GET /api/v1/seasons/{season}/budget` and `bun run league budget` show granted, spent,
+reserved and remaining per team; team pages show a budget meter.

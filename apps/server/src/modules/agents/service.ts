@@ -158,7 +158,7 @@ async function reserveFor(
   calls = 1,
 ) {
   const estIn = Math.ceil((system.length + prompt.length) / 3) * calls;
-  const estOut = (deps.maxOutputTokens ?? 4000) * calls;
+  const estOut = maxOut(deps) * calls;
   return (deps.gate ?? unlimitedGate).reserve({
     ...ids,
     estimateMicroUsd: costMicroUsd(deps.llm.model, estIn, estOut),
@@ -197,7 +197,7 @@ export async function runPreMatch(deps: ManagerDeps, fixtureId: string, teamId: 
   const prompt = preMatchPrompt(facts);
   const audit: { system: string; user: string; repair?: string } = { system, user: prompt };
 
-  if (!(await reserveFor(deps, ids, system, prompt, 2))) {
+  if (!(await reserveFor(deps, ids, system, prompt))) {
     await finishRun(db, run.id, {
       status: "skipped_budget",
       prompt: audit,
@@ -217,6 +217,7 @@ export async function runPreMatch(deps: ManagerDeps, fixtureId: string, teamId: 
       schema: PreMatchDecision,
       task: "manager.pre_match",
       context: facts,
+      maxTokens: maxOut(deps),
     });
     usage = addUsage(usage, res);
     const propose = (d: PreMatchDecision) =>
@@ -231,8 +232,9 @@ export async function runPreMatch(deps: ManagerDeps, fixtureId: string, teamId: 
         starters: d.starters.map((n) => byShirt.get(n) ?? `unknown-shirt-${n}`),
       });
     let rev = await propose(res.output);
-    if (rev.status === "rejected") {
-      const repair = `${prompt}\n\nYour previous proposal was rejected:\n${rev.validationErrors.map((e) => `- ${e}`).join("\n")}\nFix these problems and answer again.`;
+    const repair = `${prompt}\n\nYour previous proposal was rejected:\n${rev.validationErrors.map((e) => `- ${e}`).join("\n")}\nFix these problems and answer again.`;
+    // The repair call is a second model call: it needs its own reservation (first hold still covers call one).
+    if (rev.status === "rejected" && (await reserveFor(deps, ids, system, repair))) {
       audit.repair = repair;
       res = await llm.complete({
         system,
@@ -240,6 +242,7 @@ export async function runPreMatch(deps: ManagerDeps, fixtureId: string, teamId: 
         schema: PreMatchDecision,
         task: "manager.pre_match",
         context: facts,
+        maxTokens: maxOut(deps),
       });
       usage = addUsage(usage, res);
       rev = await propose(res.output);
@@ -308,6 +311,7 @@ export async function runPostMatch(deps: ManagerDeps, fixtureId: string, teamId:
       schema: PostMatchReview,
       task: "manager.post_match",
       context: facts,
+      maxTokens: maxOut(deps),
     });
     const usage = addUsage(null, res);
     await gate.settle({ ...ids, ...usage });
@@ -381,3 +385,15 @@ export function managerJobHandlers(deps: ManagerDeps) {
     }),
   };
 }
+
+/**
+ * Output-token cap per model call. It's both sent as `max_tokens` and used for the spend
+ * reservation, so a reservation is a true worst case (thinking tokens count as output).
+ */
+export const DEFAULT_MAX_OUTPUT_TOKENS = 4000;
+function maxOut(deps: ManagerDeps) {
+  return deps.maxOutputTokens ?? DEFAULT_MAX_OUTPUT_TOKENS;
+}
+
+/** Worst-case reservation for one manager model call (~2k-token prompt, full output cap). */
+export const worstCaseDecisionMicroUsd = (model: string) => costMicroUsd(model, 2000, DEFAULT_MAX_OUTPUT_TOKENS);

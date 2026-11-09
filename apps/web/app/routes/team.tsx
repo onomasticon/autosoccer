@@ -1,6 +1,13 @@
-import type { ArticleListResponse, Position, TeamDetailResponse } from "@autosoccer/contracts";
+import type {
+  ArticleListResponse,
+  BudgetResponse,
+  Position,
+  SeasonResponse,
+  TeamDetailResponse,
+} from "@autosoccer/contracts";
 import { AgentProfileCard } from "../components/AgentProfileCard";
 import { ArticleCard } from "../components/ArticleCard";
+import { BudgetMeter } from "../components/BudgetMeter";
 import { FixtureCard } from "../components/MatchScoreCard";
 import { RouteError } from "../components/RouteError";
 import { SectionHeader } from "../components/SectionHeader";
@@ -15,7 +22,10 @@ import type { Route } from "./+types/team";
 export async function loader({ params }: Route.LoaderArgs) {
   const detail = await apiOr404<TeamDetailResponse>(`/api/v1/teams/${encodeURIComponent(params.slug)}`);
   const news = await apiMaybe<ArticleListResponse>(`/api/v1/articles?team=${encodeURIComponent(params.slug)}&limit=3`);
-  return { ...detail, news: news?.items ?? [] };
+  const season = await apiMaybe<SeasonResponse>("/api/v1/seasons/current");
+  const budget = season ? await apiMaybe<BudgetResponse>(`/api/v1/seasons/${season.season.slug}/budget`) : null;
+  const budgetRow = budget?.rows.find((r) => r.teamId === detail.team.id) ?? null;
+  return { ...detail, news: news?.items ?? [], budget: budgetRow };
 }
 
 export const meta: Route.MetaFunction = ({ data }) =>
@@ -26,7 +36,7 @@ export const meta: Route.MetaFunction = ({ data }) =>
 const POSITION_NAME: Record<Position, string> = { GK: "Goalkeeper", DF: "Defender", MF: "Midfielder", FW: "Forward" };
 
 export default function Team({ loaderData }: Route.ComponentProps) {
-  const { team, players, manager, standing, fixtures, currentRevision, news } = loaderData;
+  const { team, players, manager, standing, fixtures, currentRevision, news, budget } = loaderData;
   const results = fixtures.filter((f) => f.status === "completed");
   const upcoming = fixtures.filter((f) => f.status !== "completed");
   return (
@@ -108,6 +118,11 @@ export default function Team({ loaderData }: Route.ComponentProps) {
         <aside className="space-y-8 lg:col-span-4" aria-label={`${team.name} club details`}>
           <section aria-labelledby="manager">
             <SectionHeader id="manager" title="Manager" />
+            {manager && budget && (
+              <div className="mb-3">
+                <BudgetMeter row={budget} />
+              </div>
+            )}
             {manager ? (
               <AgentProfileCard
                 agent={{
