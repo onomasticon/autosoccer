@@ -1,6 +1,6 @@
 /**
  * Boot smoke test (used by CI): runs migrations, starts the API and the *built*
- * web app on spare ports, and checks that the homepage renders live API health.
+ * web app on spare ports, and checks that the homepage renders live league data from the API.
  */
 import { RR_SERVE, run, spawn, stopAll, waitFor } from "./proc.ts";
 
@@ -16,11 +16,19 @@ try {
   });
   const health = await (await waitFor(`http://localhost:${apiPort}/health`)).json();
   if (health.status !== "ok") throw new Error(`API unhealthy: ${JSON.stringify(health)}`);
-  const html = await (await waitFor(`http://localhost:${webPort}/`)).text();
-  const status = /data-testid="api-status"[^>]*>(.*?)<\/p>/s.exec(html)?.[1]?.replace(/<!-- -->/g, "");
-  if (!status?.startsWith("API: ok"))
-    throw new Error(`homepage did not render API health (got ${JSON.stringify(status)})`);
-  console.log("smoke: api healthy, web rendered API status — OK");
+  // The homepage must show live league data fetched from the API: the current season's name,
+  // or the empty state when no season exists yet.
+  const current = await fetch(`http://localhost:${apiPort}/api/v1/seasons/current`);
+  const expected = current.ok
+    ? `Auto Soccer — ${((await current.json()) as { season: { name: string } }).season.name}`
+    : "The league hasn&#x27;t kicked off";
+  const page = await waitFor(`http://localhost:${webPort}/`);
+  const html = (await page.text()).replace(/<!-- -->/g, "");
+  if (page.status !== 200 || !html.includes(expected))
+    throw new Error(
+      `homepage (HTTP ${page.status}) did not render live league data: expected ${JSON.stringify(expected)}`,
+    );
+  console.log(`smoke: api healthy, web rendered "${expected}" — OK`);
   ok = true;
 } catch (e) {
   console.error(`smoke failed: ${(e as Error).message}`);

@@ -3,8 +3,7 @@
  * unless disabled, the leader-elected round scheduler. Run several for throughput/HA.
  */
 import { createDb } from "@autosoccer/db";
-import { FileReplayStore } from "@autosoccer/sim-adapter";
-import { loadConfig } from "./config.ts";
+import { loadConfig, replayStore } from "./config.ts";
 import { buildHandlers } from "./jobs/handlers.ts";
 import { createWorker } from "./jobs/worker.ts";
 import { createLogger } from "./log.ts";
@@ -13,8 +12,9 @@ import { heartbeat, startScheduler } from "./modules/ops/scheduler.ts";
 
 const config = loadConfig();
 const log = createLogger(config.LOG_LEVEL, { svc: "worker" });
-const db = createDb(config.DATABASE_URL, { max: 6 });
-const store = new FileReplayStore(config.REPLAY_DIR);
+const db = createDb(config.DATABASE_URL, { max: config.WORKER_DB_POOL_MAX, caFile: config.DATABASE_CA_CERT_FILE });
+const store = replayStore(config);
+log.info("replay store", { kind: config.REPLAY_STORE });
 log.info("llm provider", {
   provider: config.LLM_PROVIDER,
   manager: config.MANAGER_MODEL,

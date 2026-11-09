@@ -1,0 +1,83 @@
+# Production stack for one DigitalOcean Droplet behind Cloudflare.
+#
+#   images    ghcr.io/onomasticon/autosoccer{,-web}:<git sha>, built by CI
+#   database  DigitalOcean Managed PostgreSQL 16 (DATABASE_URL, direct port, TLS verified)
+#   replays   Cloudflare R2 (REPLAY_STORE=r2)
+#   ingress   cloudflared dials out to Cloudflare Tunnel; no service publishes a port
+#
+# Deploy with ./deploy.sh <tag> (see docs/operations/deploy-cloudflare-digitalocean.md).
+# A project name used by nothing else: deploy.sh runs `up --remove-orphans`, which removes any
+# container in the same compose project that this file does not define.
+name: autosoccer-droplet
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "20m"
+    max-file: "5"
+
+x-app: &app
+  image: ghcr.io/onomasticon/autosoccer:${IMAGE_TAG:?IMAGE_TAG is set by deploy.sh}
+  restart: unless-stopped
+  env_file: .env
+  logging: *logging
+  volumes:
+    # DigitalOcean's CA certificate for the managed database (Databases → Connection details → Download CA).
+    - ./ca-certificate.crt:/run/secrets/db-ca.crt:ro
+
+services:
+  # One-shot; deploy.sh runs it before starting the new version. Advisory-locked and idempotent.
+  migrate:
+    <<: *app
+    restart: "no"
+    profiles: ["tools"]
+    command: ["bun", "packages/db/src/migrate-cli.ts"]
+
+  api:
+    <<: *app
+    command: ["bun", "apps/server/src/api.ts"]
+    healthcheck:
+      test: ["CMD", "bun", "-e", "fetch('http://localhost:4000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 10s
+
+  # Jobs (matches, managers, articles) and the leader-elected round scheduler. Two for failover.
+  worker:
+    <<: *app
+    command: ["bun", "apps/server/src/worker.ts"]
+    deploy:
+      replicas: 2
+    depends_on:
+      api:
+        condition: service_healthy
+
+  web:
+    image: ghcr.io/onomasticon/autosoccer-web:${IMAGE_TAG:?IMAGE_TAG is set by deploy.sh}
+    restart: unless-stopped
+    logging: *logging
+    environment:
+      API_URL: http://api:4000
+      PORT: "3000"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3000/').then(r=>process.exit(r.status<500?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 15s
+    depends_on:
+      api:
+        condition: service_healthy
+
+  # Cloudflare Tunnel connector. In the Cloudflare dashboard, route the site's hostname to http://web:3000.
+  cloudflared:
+    image: cloudflare/cloudflared:2024.12.2
+    restart: unless-stopped
+    logging: *logging
+    command: ["tunnel", "--no-autoupdate", "run"]
+    environment:
+      TUNNEL_TOKEN: ${TUNNEL_TOKEN:?set TUNNEL_TOKEN in .env}
+    depends_on:
+      web:
+        condition: service_healthy

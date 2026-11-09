@@ -15,7 +15,7 @@ const cmd = process.argv[2] ?? "status";
 const flag = (n: string) => process.argv.includes(`--${n}`);
 const opt = (n: string) => (flag(n) ? process.argv[process.argv.indexOf(`--${n}`) + 1] : undefined);
 const config = loadConfig();
-const db = createDb(config.DATABASE_URL, { max: 2 });
+const db = createDb(config.DATABASE_URL, { max: 2, caFile: config.DATABASE_CA_CERT_FILE });
 try {
   if (cmd === "status") {
     const s = await opsStatus(db);

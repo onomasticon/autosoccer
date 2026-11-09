@@ -9,11 +9,14 @@
 | `worker` | `bun apps/server/src/worker.ts` | ≥2 | Runs jobs (matches, managers, articles) **and** the scheduler. One scheduler leader per tick (advisory lock). |
 | `web` | `node …/react-router-serve ./build/server/index.js` | ≥1 | SSR on Node. Reads the API only and never calls an LLM. |
 
-Replays are written to `REPLAY_DIR` (a shared volume in `docker-compose.prod.yml`). Workers write
-replays and the API serves them, so both must mount the same volume. For multiple hosts, use shared
-storage behind the `ReplayStore` interface.
+Replays are written by workers and served by the API. With `REPLAY_STORE=file` they live in `REPLAY_DIR`
+(a shared volume in `docker-compose.prod.yml`), so both must mount it. With `REPLAY_STORE=r2` they live in
+Cloudflare R2 (or any S3-compatible store) and no shared disk is needed.
 
 ## Deploy
+For production on DigitalOcean behind Cloudflare (Tunnel, R2 replays, managed Postgres), see
+[deploy-cloudflare-digitalocean.md](deploy-cloudflare-digitalocean.md). The self-contained stack below
+(Postgres in a container, replays on a volume) is for single-host trials:
 ```sh
 git submodule update --init                 # pinned autosoccer-sim
 cp .env.example .env                        # set POSTGRES_PASSWORD, OPS_TOKEN, ANTHROPIC_API_KEY (or LLM_PROVIDER=offline)

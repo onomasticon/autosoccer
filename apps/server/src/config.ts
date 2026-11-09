@@ -1,5 +1,6 @@
 import { existsSync, readFileSync } from "node:fs";
 import { isAbsolute, resolve } from "node:path";
+import { FileReplayStore, R2ReplayStore, type ReplayStore } from "@autosoccer/sim-adapter";
 import { z } from "zod";
 
 /** Repository root; relative paths in the environment resolve against it. */
@@ -9,7 +10,18 @@ const Env = z.object({
   DATABASE_URL: z.string().url(),
   API_PORT: z.coerce.number().int().positive().default(4000),
   LOG_LEVEL: z.enum(["debug", "info", "warn", "error"]).default("info"),
+  /** CA certificate (PEM file) to verify the database's TLS certificate; use with ?sslmode=verify-full. */
+  DATABASE_CA_CERT_FILE: z.string().optional(),
+  /** Connection pool sizes. Keep api + workers × worker pool under the database limit. The scheduler lock holds one worker connection, so worker pools need ≥ 2. */
+  API_DB_POOL_MAX: z.coerce.number().int().min(1).max(100).default(10),
+  WORKER_DB_POOL_MAX: z.coerce.number().int().min(2).max(100).default(6),
+  /** Where replays are stored: "file" (REPLAY_DIR, shared volume) or "r2" (Cloudflare R2 / any S3-compatible store). */
+  REPLAY_STORE: z.enum(["file", "r2"]).default("file"),
   REPLAY_DIR: z.string().default("data/replays"),
+  R2_ENDPOINT: z.string().url().optional(),
+  R2_BUCKET: z.string().optional(),
+  R2_ACCESS_KEY_ID: z.string().optional(),
+  R2_SECRET_ACCESS_KEY: z.string().optional(),
   WORKER_POLL_MS: z.coerce.number().int().positive().default(1000),
   /** "anthropic" calls Claude; "offline" uses the deterministic rule-based stand-in. Default: anthropic if a key is set. */
   LLM_PROVIDER: z.enum(["anthropic", "offline"]).optional(),
@@ -45,7 +57,27 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     throw new Error(`Invalid server environment:\n${issues}\nSee .env.example.`);
   }
   const data = parsed.data;
+  if (data.REPLAY_STORE === "r2") {
+    const missing = (["R2_ENDPOINT", "R2_BUCKET", "R2_ACCESS_KEY_ID", "R2_SECRET_ACCESS_KEY"] as const).filter(
+      (k) => !data[k],
+    );
+    if (missing.length) throw new Error(`REPLAY_STORE=r2 needs ${missing.join(", ")}. See .env.example.`);
+  }
   data.LLM_PROVIDER ??= data.ANTHROPIC_API_KEY ? "anthropic" : "offline";
   if (!isAbsolute(data.REPLAY_DIR)) data.REPLAY_DIR = resolve(REPO_ROOT, data.REPLAY_DIR);
+  if (data.DATABASE_CA_CERT_FILE && !isAbsolute(data.DATABASE_CA_CERT_FILE))
+    data.DATABASE_CA_CERT_FILE = resolve(REPO_ROOT, data.DATABASE_CA_CERT_FILE);
   return data;
+}
+
+/** The configured replay store (shared by the API, which reads, and workers, which write). */
+export function replayStore(config: ServerConfig): ReplayStore {
+  if (config.REPLAY_STORE === "r2")
+    return new R2ReplayStore({
+      endpoint: config.R2_ENDPOINT!,
+      bucket: config.R2_BUCKET!,
+      accessKeyId: config.R2_ACCESS_KEY_ID!,
+      secretAccessKey: config.R2_SECRET_ACCESS_KEY!,
+    });
+  return new FileReplayStore(config.REPLAY_DIR);
 }
