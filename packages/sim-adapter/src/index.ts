@@ -11,4 +11,5 @@ export {
 export { officialEvents } from "./events.ts";
 export { FileReplayStore, MemoryReplayStore, type ReplayStore } from "./replay-store.ts";
 export { type RunMatchOptions, type RunMatchOutput, requestHash, runMatch, SimVersionMismatchError } from "./run.ts";
+export { resolveTactics, tacticalParams } from "./tactics.ts";
 export { ADAPTER_VERSION, SIM_COMMIT, SIM_VERSION, VERSIONS } from "./version.ts";
