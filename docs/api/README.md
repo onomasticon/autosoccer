@@ -49,6 +49,9 @@ Invariants enforced in the database (tested in `packages/db/src/schema.test.ts`)
 | `GET /matches/{match}/replay` | gzip replay file |
 | `GET /articles`, `GET /articles/{article}` | `ArticleListResponse`, `ArticleDetailResponse` |
 | `GET /journalists`, `GET /journalists/{journalist}` | `JournalistListResponse`, `JournalistDetailResponse` |
+| `GET /seasons/{season}/dugout`, `GET /teams/{team}/dugout` | `DugoutResponse`, `TeamDugoutResponse` (contract `dugout/1`) |
+
+**Inside the Dugout (`dugout/1`).** Each manager's season as chapters: *decision* (the tactical revision the match actually used, changes vs. the previous match, lineup in/out, and the manager's stated rationale only when they gave one for that match), *result* (official score, possession, shots) and *reflection* (the post-match lesson). Statuses make gaps explicit: `opening`, `kept`, `new`, `skipped_budget`, `rejected`, `failed`, `pending`; reflections `reviewed`, `skipped_budget`, `failed`, `pending`. Built only from `tactical_revisions`, `matches` and the `lesson`/`summary` strings of manager runs; prompts and other run payloads are never read.
 
 Handlers are implemented by the feature issues (#18 matches/replays, #19 league, #24 budget,
 #25 editorial) and must return data that parses with these schemas.

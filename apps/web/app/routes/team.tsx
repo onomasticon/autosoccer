@@ -4,15 +4,17 @@ import type {
   Position,
   SeasonResponse,
   TeamDetailResponse,
+  TeamDugoutResponse,
 } from "@autosoccer/contracts";
 import { AgentProfileCard } from "../components/AgentProfileCard";
 import { ArticleCard } from "../components/ArticleCard";
 import { BudgetMeter } from "../components/BudgetMeter";
+import { DugoutTimeline } from "../components/Dugout";
 import { FixtureCard } from "../components/MatchScoreCard";
 import { RouteError } from "../components/RouteError";
 import { SectionHeader } from "../components/SectionHeader";
 import { FormGuide } from "../components/StandingsTable";
-import { EmptyState } from "../components/States";
+import { EmptyState, ErrorState } from "../components/States";
 import { TeamBadge } from "../components/TeamBadge";
 import { apiMaybe, apiOr404 } from "../lib/api.server";
 import { seo } from "../lib/seo";
@@ -25,7 +27,10 @@ export async function loader({ params }: Route.LoaderArgs) {
   const season = await apiMaybe<SeasonResponse>("/api/v1/seasons/current");
   const budget = season ? await apiMaybe<BudgetResponse>(`/api/v1/seasons/${season.season.slug}/budget`) : null;
   const budgetRow = budget?.rows.find((r) => r.teamId === detail.team.id) ?? null;
-  return { ...detail, news: news?.items ?? [], budget: budgetRow };
+  const dugout = season
+    ? await apiMaybe<TeamDugoutResponse>(`/api/v1/teams/${encodeURIComponent(params.slug)}/dugout`)
+    : null;
+  return { ...detail, news: news?.items ?? [], budget: budgetRow, dugout: dugout?.story ?? null, hasSeason: !!season };
 }
 
 export const meta: Route.MetaFunction = ({ data }) =>
@@ -36,7 +41,7 @@ export const meta: Route.MetaFunction = ({ data }) =>
 const POSITION_NAME: Record<Position, string> = { GK: "Goalkeeper", DF: "Defender", MF: "Midfielder", FW: "Forward" };
 
 export default function Team({ loaderData }: Route.ComponentProps) {
-  const { team, players, manager, standing, fixtures, currentRevision, news, budget } = loaderData;
+  const { team, players, manager, standing, fixtures, currentRevision, news, budget, dugout, hasSeason } = loaderData;
   const results = fixtures.filter((f) => f.status === "completed");
   const upcoming = fixtures.filter((f) => f.status !== "completed");
   return (
@@ -80,6 +85,22 @@ export default function Team({ loaderData }: Route.ComponentProps) {
 
       <div className="grid gap-8 lg:grid-cols-12">
         <div className="space-y-8 lg:col-span-8">
+          <section aria-labelledby="dugout" className="scroll-mt-24">
+            <SectionHeader
+              id="dugout"
+              title="Inside the Dugout"
+              meta={manager ? `${manager.name}'s decisions and lessons` : undefined}
+            />
+            {dugout ? (
+              <DugoutTimeline story={dugout} />
+            ) : hasSeason ? (
+              <ErrorState title="The manager's story is unavailable">
+                Decisions and lessons couldn't be loaded just now.
+              </ErrorState>
+            ) : (
+              <EmptyState title="No season yet">The manager's decisions appear here once the season starts.</EmptyState>
+            )}
+          </section>
           <section aria-labelledby="results">
             <SectionHeader id="results" title="Results" />
             {results.length ? (
