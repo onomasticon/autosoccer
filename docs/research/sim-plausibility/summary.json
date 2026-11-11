@@ -1,0 +1,94 @@
+{
+  "simVersion": "38b8c6f",
+  "matches": 1200,
+  "seedRange": [
+    1,
+    1200
+  ],
+  "goalsPerMatch": 1.6866666666666668,
+  "goalsPerMatchSd": 1.3070917675851492,
+  "shotsPerMatch": 3.3375,
+  "shotsOnTargetRate": 0.9722846441947566,
+  "matchesWhereEveryShotWasOnTarget": 1093,
+  "matchesWithAtLeastOneShot": 1114,
+  "goalsPerShotOnTarget": 0.519774011299435,
+  "ownGoals": 632,
+  "ownGoalShareOfGoals": 0.31225296442687744,
+  "matchesWithAnOwnGoal": 462,
+  "drawRate": 0.2833333333333333,
+  "nilNilRate": 0.18,
+  "homeWinRate": 0.36583333333333334,
+  "awayWinRate": 0.35083333333333333,
+  "homePossessionMean": 0.4987844166666662,
+  "homePossessionSd": 0.053156873015879964,
+  "moreBallSideWinsDecidedMatches": 0.45790816326530615,
+  "foulsPerMatch": 6.208333333333333,
+  "goalHistogram": {
+    "0": 216,
+    "1": 389,
+    "2": 311,
+    "3": 178,
+    "4": 68,
+    "5": 23,
+    "6": 13,
+    "7": 2
+  },
+  "homePossessionHistogram": {
+    "30–40%": 48,
+    "40–50%": 556,
+    "50–60%": 562,
+    "60–70%": 34
+  },
+  "presets": [
+    {
+      "preset": "harbour-city",
+      "appearances": 480,
+      "winRate": 0.24166666666666667,
+      "drawRate": 0.2916666666666667,
+      "goalsFor": 0.625,
+      "goalsAgainst": 1.1145833333333333,
+      "shots": 1.1520833333333333,
+      "possession": 0.5148641666666669
+    },
+    {
+      "preset": "red-rock-rovers",
+      "appearances": 480,
+      "winRate": 0.69375,
+      "drawRate": 0.23541666666666666,
+      "goalsFor": 1.4541666666666666,
+      "goalsAgainst": 0.1375,
+      "shots": 3.4208333333333334,
+      "possession": 0.4993297916666668
+    },
+    {
+      "preset": "northgate-comets",
+      "appearances": 480,
+      "winRate": 0.39375,
+      "drawRate": 0.25833333333333336,
+      "goalsFor": 1.0041666666666667,
+      "goalsAgainst": 0.99375,
+      "shots": 1.9104166666666667,
+      "possession": 0.45483770833333387
+    },
+    {
+      "preset": "saltmarsh-athletic",
+      "appearances": 480,
+      "winRate": 0.16875,
+      "drawRate": 0.32708333333333334,
+      "goalsFor": 0.4125,
+      "goalsAgainst": 0.9458333333333333,
+      "shots": 0.53125,
+      "possession": 0.5238737499999992
+    },
+    {
+      "preset": "baseline",
+      "appearances": 480,
+      "winRate": 0.29375,
+      "drawRate": 0.30416666666666664,
+      "goalsFor": 0.7208333333333333,
+      "goalsAgainst": 1.025,
+      "shots": 1.3291666666666666,
+      "possession": 0.5070945833333328
+    }
+  ]
+}
