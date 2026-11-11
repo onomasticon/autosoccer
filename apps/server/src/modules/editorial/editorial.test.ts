@@ -148,6 +148,35 @@ describe("AI newsroom over a season", () => {
     expect((await matchFacts(t.db, m!.id)).facts.map((x) => x.id)).toEqual(f.facts.map((x) => x.id));
   });
 
+  it("continuity facts come only from stored history: earlier meetings and runs of form", async () => {
+    const [first] = await t.db<{ id: string }[]>`
+      select m.id from matches m join fixtures f on f.id = m.fixture_id where f.round = 1 limit 1`;
+    const f1 = await matchFacts(t.db, first!.id);
+    expect(f1.facts.filter((x) => x.statement.startsWith("Earlier meeting"))).toEqual([]); // no history yet
+    expect(f1.facts.filter((x) => x.kind === "form")).toEqual([]);
+    const [second] = await t.db<{ id: string; home: string; away: string }[]>`
+      select m.id, f.home_team_id as home, f.away_team_id as away from matches m join fixtures f on f.id = m.fixture_id
+      where f.round = 6 limit 1`;
+    const f6 = await matchFacts(t.db, second!.id);
+    const earlier = f6.facts.filter((x) => x.statement.startsWith("Earlier meeting"));
+    expect(earlier).toHaveLength(1);
+    const prevId = earlier[0]!.id.split(":")[1]!;
+    const [prev] = await t.db<{ home_score: number; away_score: number; home: string; away: string }[]>`
+      select m.home_score, m.away_score, f.home_team_id as home, f.away_team_id as away
+      from matches m join fixtures f on f.id = m.fixture_id where m.id = ${prevId}`;
+    expect(new Set([prev!.home, prev!.away])).toEqual(new Set([second!.home, second!.away]));
+    expect(earlier[0]!.value).toMatchObject({ home: prev!.home_score, away: prev!.away_score });
+    for (const x of f6.facts.filter((y) => y.kind === "form")) {
+      const v = x.value as { recentFirst: string[] };
+      const n = Number(/last (\d+)/.exec(x.statement)![1]);
+      const head = v.recentFirst.slice(0, n);
+      if (/have won/.test(x.statement)) expect(head.every((r) => r === "W")).toBe(true);
+      if (/unbeaten/.test(x.statement)) expect(head.every((r) => r !== "L")).toBe(true);
+      if (/without a win/.test(x.statement)) expect(head.every((r) => r !== "W")).toBe(true);
+      expect(n).toBeGreaterThanOrEqual(2);
+    }
+  });
+
   it("publishes one grounded match report per match and one round piece per round", async () => {
     const rows = await t.db<
       { kind: string; status: string; n: number }[]

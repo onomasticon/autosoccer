@@ -195,7 +195,7 @@ describe("mockup homepage components", () => {
     expect(screen.getByRole("link", { name: /Matchweek 1: Harbour City 2, Red Rock Rovers 1/ })).toBeTruthy();
     const upcoming = screen.getByRole("group", { name: "Matchweek 3: Saltmarsh Athletic versus Harbour City" });
     expect(upcoming.textContent).toContain("MW03");
-    expect(upcoming.querySelector("time")?.textContent).toBe("Mon 12:00");
+    expect(upcoming.querySelector("time")?.textContent).toBe("Mon 12:00 UTC");
     await expectNoAxeViolations(container);
   });
   it("VoicesStrip lists every journalist with a portrait, role and AI disclosure", async () => {

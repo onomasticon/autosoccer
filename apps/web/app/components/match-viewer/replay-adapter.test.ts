@@ -44,7 +44,7 @@ describe("formatting", () => {
   it("shows simulator clocks per half and stable UTC dates", () => {
     expect(formatClock("firstHalf", 0)).toBe("1H 0:00");
     expect(formatClock("secondHalf", 98.4)).toBe("2H 1:38");
-    expect(formatDate("2026-11-09T12:05:00.000Z", { weekday: true, time: true })).toBe("Mon 9 Nov, 12:05");
+    expect(formatDate("2026-11-09T12:05:00.000Z", { weekday: true, time: true })).toBe("Mon 9 Nov, 12:05 UTC");
     expect(formatDate(null)).toBe("");
   });
 });

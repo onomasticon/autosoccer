@@ -1,4 +1,5 @@
 import type { JournalistDetailResponse } from "@autosoccer/contracts";
+import { Link } from "react-router";
 import { AgentProfileCard } from "../components/AgentProfileCard";
 import { ArticleCard } from "../components/ArticleCard";
 import { RouteError } from "../components/RouteError";
@@ -32,7 +33,22 @@ export default function Journalist({ loaderData }: Route.ComponentProps) {
             ))}
           </div>
         ) : (
-          <EmptyState title="Nothing filed yet" />
+          <EmptyState title="Nothing filed yet">
+            {j.name} writes{" "}
+            {j.role === "reporter"
+              ? "a report after every match"
+              : `a ${j.role === "analyst" ? "tactical analysis" : "column"} after ${j.role === "analyst" ? "odd" : "even"}-numbered rounds`}
+            , only from the official record. Their first piece appears here once{" "}
+            {j.role === "reporter" ? "the first result is in" : "a round they cover is complete"}. Meanwhile, the{" "}
+            <Link to="/fixtures" className="font-semibold underline underline-offset-4">
+              fixtures
+            </Link>{" "}
+            and{" "}
+            <Link to="/news" className="font-semibold underline underline-offset-4">
+              latest news
+            </Link>{" "}
+            are up to date.
+          </EmptyState>
         )}
       </section>
     </div>

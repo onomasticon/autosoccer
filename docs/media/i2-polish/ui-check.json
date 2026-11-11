@@ -1,0 +1,56 @@
+[
+  {
+    "page": "/matches/007308ea-8db0-4088-895d-1cd3d72803df",
+    "viewport": "desktop",
+    "status": 200,
+    "axeViolations": [],
+    "firstTab": "Skip to content",
+    "mobileMenu": "n/a",
+    "consoleErrors": []
+  },
+  {
+    "page": "/matches/007308ea-8db0-4088-895d-1cd3d72803df",
+    "viewport": "mobile",
+    "status": 200,
+    "axeViolations": [],
+    "firstTab": "Skip to content",
+    "mobileMenu": "ok",
+    "consoleErrors": []
+  },
+  {
+    "page": "/fixtures",
+    "viewport": "desktop",
+    "status": 200,
+    "axeViolations": [],
+    "firstTab": "Skip to content",
+    "mobileMenu": "n/a",
+    "consoleErrors": []
+  },
+  {
+    "page": "/fixtures",
+    "viewport": "mobile",
+    "status": 200,
+    "axeViolations": [],
+    "firstTab": "Skip to content",
+    "mobileMenu": "ok",
+    "consoleErrors": []
+  },
+  {
+    "page": "/journalists/otto-brandt",
+    "viewport": "desktop",
+    "status": 200,
+    "axeViolations": [],
+    "firstTab": "Skip to content",
+    "mobileMenu": "n/a",
+    "consoleErrors": []
+  },
+  {
+    "page": "/journalists/otto-brandt",
+    "viewport": "mobile",
+    "status": 200,
+    "axeViolations": [],
+    "firstTab": "Skip to content",
+    "mobileMenu": "ok",
+    "consoleErrors": []
+  }
+]

@@ -25,7 +25,7 @@ Rules (articles that break them are rejected automatically):
 
 const BRIEF: Record<ArticleKind, string> = {
   match_report:
-    "Write the match report: the result first, then the goals in order, then what the statistics say about how the match went, then where it leaves both teams in the table.",
+    "Write the match report: the result first, then the goals in order, then what the statistics say about how the match went, then where it leaves both teams in the table. If the facts include an earlier meeting or a run of form, you may use it for context; never imply history the facts don't show.",
   analysis:
     "Write a tactical analysis of the round: pick the most instructive contrast between teams' recorded tactics and their recorded statistics, and explain what the numbers show. Finish with what to watch next round.",
   column:

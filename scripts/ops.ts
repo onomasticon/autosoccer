@@ -3,11 +3,16 @@
  *   bun run ops status                       # seasons, queue, failures, workers, spend
  *   bun run ops requeue [--kind match.play]  # retry permanently failed jobs (after fixing the cause)
  *   bun run ops tick [--ignore-kickoff]      # run one scheduler tick by hand
+ *   bun run ops reschedule --cadence weekly [--season season-1] [--from ISO] [--dry-run]
+ *                                            # move rounds that haven't started onto a cadence (UTC);
+ *                                            # started rounds keep their recorded kickoffs
  */
 import { createDb } from "@autosoccer/db";
 import { loadConfig } from "../apps/server/src/config.ts";
 import { createLogger } from "../apps/server/src/log.ts";
 import { formatUsd } from "../apps/server/src/modules/agents/pricing.ts";
+import { parseCadence, rescheduleUnplayed } from "../apps/server/src/modules/league/cadence.ts";
+import { seasonBySlug } from "../apps/server/src/modules/league/read.ts";
 import { schedulerTick } from "../apps/server/src/modules/ops/scheduler.ts";
 import { opsStatus, requeueFailed } from "../apps/server/src/modules/ops/status.ts";
 
@@ -49,6 +54,22 @@ try {
   } else if (cmd === "tick") {
     const r = await schedulerTick(db, { respectSchedule: !flag("ignore-kickoff"), log: createLogger("info") });
     console.log(JSON.stringify(r, null, 2));
+  } else if (cmd === "reschedule") {
+    const season = await seasonBySlug(db, opt("season") ?? "season-1");
+    if (!season) throw new Error("no such season");
+    const r = await rescheduleUnplayed(
+      db,
+      season.id,
+      parseCadence(opt("cadence") ?? "weekly", Number(opt("interval") ?? 60)),
+      {
+        from: opt("from") ? new Date(opt("from")!) : undefined,
+        dryRun: flag("dry-run"),
+      },
+    );
+    console.log(
+      `${flag("dry-run") ? "would move" : "moved"} ${r.changes.length} round(s); untouched (started): ${r.untouchedRounds.join(", ") || "none"}`,
+    );
+    for (const c of r.changes) console.log(`  R${c.round}: ${c.from ?? "unscheduled"} → ${c.to}`);
   } else throw new Error(`unknown command ${cmd}`);
 } finally {
   await db.end();
