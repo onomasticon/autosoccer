@@ -16,6 +16,7 @@ import { offlineManagerLlm } from "../agents/offline.ts";
 import { managerRoundHook, seedManagers } from "../agents/service.ts";
 import { SEED_TEAMS } from "../league/seed-data.ts";
 import { advanceSeason, createSeason, seedTeams } from "../league/service.ts";
+import { auditPublishedArticles } from "./audit.ts";
 import { matchFacts, roundFacts } from "./facts.ts";
 import { type ArticleDraft, checkGrounding } from "./grounding.ts";
 import { offlineEditorialLlm } from "./offline.ts";
@@ -141,11 +142,21 @@ describe("AI newsroom over a season", () => {
     >`select id, home_score, away_score from matches limit 1`;
     const f = EditorialFacts.parse(await matchFacts(t.db, m!.id));
     const score = f.facts.find((x) => x.id === `match:${m!.id}:score`)!;
-    expect(score.value).toEqual({ home: m!.home_score, away: m!.away_score });
+    expect(score.value).toMatchObject({ home: m!.home_score, away: m!.away_score });
     expect(f.facts.filter((x) => x.id.includes(":goal:"))).toHaveLength(m!.home_score + m!.away_score);
     expect(f.facts.filter((x) => x.kind === "standing")).toHaveLength(4);
     for (const x of f.facts.filter((y) => y.kind === "tactics")) expect(x.statement).not.toMatch(/reasoning|rationale/);
     expect((await matchFacts(t.db, m!.id)).facts.map((x) => x.id)).toEqual(f.facts.map((x) => x.id));
+  });
+
+  it("standings facts are a snapshot as of the article's round, even when built after the season", async () => {
+    const [m] = await t.db<{ id: string }[]>`
+      select m.id from matches m join fixtures f on f.id = m.fixture_id where f.round = 1 limit 1`;
+    const standings = (await matchFacts(t.db, m!.id)).facts.filter((f) => f.kind === "standing");
+    expect(standings.map((f) => (f.value as { played: number }).played)).toEqual([1, 1, 1, 1]);
+    expect(standings.every((f) => f.id.includes(":r1:"))).toBe(true);
+    const r3 = (await roundFacts(t.db, seasonId, 3)).facts.filter((f) => f.kind === "standing");
+    expect(r3.map((f) => (f.value as { played: number }).played)).toEqual([3, 3, 3, 3]);
   });
 
   it("continuity facts come only from stored history: earlier meetings and runs of form", async () => {
@@ -210,6 +221,29 @@ describe("AI newsroom over a season", () => {
     expect(runs!.n).toBe(18);
   });
 
+  it("the published-content audit passes the season's articles and flags a contradicting one, read-only", async () => {
+    expect(await auditPublishedArticles(t.db)).toEqual([]);
+    const [a] = await t.db<{ id: string; body: string; match_id: string }[]>`
+      select a.id, a.body, a.match_id from articles a where kind = 'match_report' order by a.id limit 1`;
+    const f = await matchFacts(t.db, a!.match_id);
+    const { home, away } = f.match!;
+    const loser = home.score < away.score ? home : away;
+    const winner = loser === home ? away : home;
+    const planted = `${a!.body}\n\n${loser.name} beat ${winner.name}.`;
+    await t.db`update articles set body = ${planted} where id = ${a!.id}`;
+    try {
+      const findings = await auditPublishedArticles(t.db);
+      expect(findings).toHaveLength(1);
+      expect(findings[0]!.errors.join()).toMatch(/contradiction|cannot verify/);
+      const [still] = await t.db<
+        { status: string; body: string }[]
+      >`select status, body from articles where id = ${a!.id}`;
+      expect(still).toEqual({ status: "published", body: planted });
+    } finally {
+      await t.db`update articles set body = ${a!.body} where id = ${a!.id}`;
+    }
+  });
+
   it("is idempotent: rewriting a report returns the existing one", async () => {
     const [m] = await t.db<{ match_id: string }[]>`select match_id from articles where kind = 'match_report' limit 1`;
     const { llm, calls } = newsroom();
@@ -260,6 +294,40 @@ describe("AI newsroom over a season", () => {
       await t.db`select status, error from agent_runs where idempotency_key = ${`article.match_report:${m!.id}`}`;
     expect(run!.status).toBe("failed");
     expect(run!.error).toMatch(/9–9 is not an official score/);
+  });
+
+  it("a model draft with a false inference that survives the repair is replaced by the free template writer", async () => {
+    const [m] = await t.db<{ id: string }[]>`select id from matches order by id limit 1 offset 1`;
+    await t.db`delete from articles where match_id = ${m!.id}`;
+    await t.db`delete from agent_runs where idempotency_key = ${`article.match_report:${m!.id}`}`;
+    const f = await matchFacts(t.db, m!.id);
+    const { home, away } = f.match!;
+    // Every citation is real; the inference is not: the loser (or, in a draw, either side) "beat" the other.
+    const loser = home.score < away.score ? home : away;
+    const winner = loser === home ? away : home;
+    const liar = newsroom((_n, d) => ({ ...d, standfirst: `${loser.name} beat ${winner.name}.` }));
+    const reserves: number[] = [];
+    const gate = {
+      reserve: async ({ estimateMicroUsd }: { estimateMicroUsd: number }) => {
+        reserves.push(estimateMicroUsd);
+        return true;
+      },
+      settle: async () => {},
+      release: async () => {},
+    };
+    const out = await writeMatchReport(
+      { db: t.db, llm: liar.llm, gate: gate as never, fallback: offlineEditorialLlm(MODEL) },
+      m!.id,
+    );
+    expect(out.status).toBe("published");
+    expect(liar.calls()).toBe(2); // first draft + one repair; the template writer is not metered
+    expect(reserves).toHaveLength(2);
+    const [run] = await t.db<{ status: string; prompt: { rejected?: { errors: string[] } } }[]>`
+      select status, prompt from agent_runs where idempotency_key = ${`article.match_report:${m!.id}`}`;
+    expect(run!.status).toBe("succeeded");
+    expect(run!.prompt.rejected?.errors.join()).toMatch(/contradiction|cannot verify/);
+    const [a] = await t.db<{ standfirst: string }[]>`select standfirst from articles where match_id = ${m!.id}`;
+    expect(a!.standfirst).not.toContain(`${loser.name} beat`);
   });
 
   it("a draft fixed on the repair attempt is published", async () => {

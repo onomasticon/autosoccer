@@ -20,7 +20,8 @@ Rules (articles that break them are rejected automatically):
 - Never invent results, scores, statistics, events or players. Write scores with an en dash, e.g. 2–1, and only scores that appear in the facts. Write formations with hyphens, e.g. 2-1-1.
 - No quotations of any kind: nobody was interviewed, so there is nothing to quote. Don't use quotation marks.
 - Times are simulator clocks within a half (e.g. "1:28 into the second half"), never football minutes.
-- Players are simulated agents; don't describe emotions, injuries or crowds that aren't in the record.`;
+- Players are simulated agents; don't describe emotions, injuries or crowds that aren't in the record.
+- Inferences are checked against the facts taken together. A generalisation ("the side with less of the ball won both matches", "both winners…", "home sides won every match") must hold for every match it covers; results, possession and shot comparisons, table positions, points, records and round numbers are verified. If a pattern only holds for some matches, say which.`;
 }
 
 const BRIEF: Record<ArticleKind, string> = {

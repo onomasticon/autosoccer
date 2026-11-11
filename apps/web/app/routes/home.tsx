@@ -1,5 +1,6 @@
 import type {
   ArticleListResponse,
+  DugoutResponse,
   FixturesResponse,
   FixtureView,
   JournalistListResponse,
@@ -10,13 +11,15 @@ import type {
 import { Link } from "react-router";
 import { VoicesStrip } from "../components/AgentProfileCard";
 import { ArticleCard } from "../components/ArticleCard";
+import { InsideTheDugout } from "../components/Dugout";
+import { YourClub } from "../components/FollowClub";
 import { LeadStory } from "../components/LeadStory";
 import { FixtureRow } from "../components/MatchScoreCard";
 import { MatchViewer } from "../components/match-viewer/MatchViewer";
 import { RouteError } from "../components/RouteError";
 import { Panel, SectionHeader } from "../components/SectionHeader";
 import { StandingsTable } from "../components/StandingsTable";
-import { EmptyState } from "../components/States";
+import { EmptyState, ErrorState } from "../components/States";
 import { apiMaybe, apiOptional } from "../lib/api.server";
 import { seo } from "../lib/seo";
 import type { Route } from "./+types/home";
@@ -35,13 +38,16 @@ export async function loader() {
       featured: null,
       articles: [],
       journalists: [],
+      dugout: null,
+      fixtures: [],
     };
   const slug = current.season.slug;
-  const [standings, fixtures, articles, journalists] = await Promise.all([
+  const [standings, fixtures, articles, journalists, dugout] = await Promise.all([
     apiMaybe<StandingsResponse>(`/api/v1/seasons/${slug}/standings`),
     apiMaybe<FixturesResponse>(`/api/v1/seasons/${slug}/fixtures`),
     apiMaybe<ArticleListResponse>("/api/v1/articles?limit=8"),
     apiMaybe<JournalistListResponse>("/api/v1/journalists"),
+    apiMaybe<DugoutResponse>(`/api/v1/seasons/${slug}/dugout`),
   ]);
   const all: FixtureView[] = fixtures?.rounds.flatMap((r) => r.fixtures) ?? [];
   const completed = all.filter((f) => f.status === "completed" && f.matchId);
@@ -58,6 +64,8 @@ export async function loader() {
     featured,
     articles: articles?.items ?? [],
     journalists: journalists?.items ?? [],
+    dugout,
+    fixtures: all,
   };
 }
 
@@ -65,10 +73,11 @@ const pad2 = (n: number) => String(n).padStart(2, "0");
 
 /**
  * Homepage, laid out after the approved mockup (docs/design/assets/homepage-reference.png):
- * lead story + genuine replay, then stories / table / schedule panels, then league voices.
+ * lead story + genuine replay, then Inside the Dugout (the AI managers' decision → match → lesson
+ * loop, the league's point of difference), then stories / table / schedule panels, then league voices.
  */
 export default function Home({ loaderData }: Route.ComponentProps) {
-  const { season, teams, standings, results, upcoming, featured, articles, journalists } = loaderData;
+  const { season, teams, standings, results, upcoming, featured, articles, journalists, dugout, fixtures } = loaderData;
   if (!season)
     return (
       <EmptyState title="The league hasn't kicked off">
@@ -83,6 +92,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
   return (
     <div className="space-y-6">
       <h1 className="sr-only">Auto Soccer — {season.name}</h1>
+      <YourClub teams={teams} fixtures={fixtures} stories={dugout?.stories ?? null} articles={articles} />
       <div className="grid items-stretch gap-6 lg:grid-cols-2">
         {lead ? (
           <LeadStory article={lead} teams={teams} />
@@ -116,6 +126,14 @@ export default function Home({ loaderData }: Route.ComponentProps) {
           <EmptyState title="No replay yet">The latest match replay appears here after the first result.</EmptyState>
         )}
       </div>
+
+      {dugout ? (
+        <InsideTheDugout featured={dugout.featured} stories={dugout.stories} />
+      ) : (
+        <ErrorState title="Inside the Dugout is unavailable">
+          The managers' decisions couldn't be loaded just now. Results and stories below are unaffected.
+        </ErrorState>
+      )}
 
       <div className="grid gap-6 lg:grid-cols-2 xl:grid-cols-3">
         <Panel

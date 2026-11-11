@@ -4,6 +4,7 @@ import type { ReplayStore } from "@autosoccer/sim-adapter";
 import { Hono } from "hono";
 import { type Logger, silentLogger } from "./log.ts";
 import { agentRoutes } from "./modules/agents/routes.ts";
+import { dugoutRoutes } from "./modules/dugout/routes.ts";
 import { editorialRoutes } from "./modules/editorial/routes.ts";
 import { leagueRoutes } from "./modules/league/routes.ts";
 import { ledgerRoutes } from "./modules/ledger/routes.ts";
@@ -59,6 +60,7 @@ export function createApp({ db, store, log = silentLogger, opsToken }: AppDeps) 
   api.route("/", agentRoutes({ db }));
   api.route("/", ledgerRoutes({ db }));
   api.route("/", editorialRoutes({ db }));
+  api.route("/", dugoutRoutes({ db }));
   api.route("/", opsRoutes({ db, token: opsToken }));
   app.route(`/api/${API_VERSION}`, api);
 

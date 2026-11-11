@@ -2,6 +2,7 @@ export * from "./api.ts";
 export * from "./common.ts";
 export * from "./deployment.ts";
 export * from "./domain.ts";
+export * from "./dugout.ts";
 export * from "./editorial.ts";
 export * from "./jobs.ts";
 export * from "./match.ts";

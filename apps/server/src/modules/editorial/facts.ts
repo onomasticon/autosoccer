@@ -63,14 +63,20 @@ async function loadMatch(db: Db, matchId: string): Promise<MatchRow> {
   return m;
 }
 
-/** Standings facts after a round (computed from official results). */
+/**
+ * Standings facts after a round: a snapshot computed only from official results up to and
+ * including that round, so an article about round N never cites a later table.
+ */
 async function standingFacts(db: Db, seasonId: string, round: number): Promise<Fact[]> {
-  const { rows } = await standingRows(db, seasonId);
+  const { rows } = await standingRows(db, seasonId, { throughRound: round });
   return rows.map((r) => ({
     id: `standing:${seasonId}:r${round}:${r.team.slug}`,
     kind: "standing" as const,
     statement: `${r.team.name} are ${ordinal(r.position)} with ${r.points} point${r.points === 1 ? "" : "s"} from ${r.played} match${r.played === 1 ? "" : "es"} (W${r.won} D${r.drawn} L${r.lost}, goal difference ${r.goalDifference >= 0 ? "+" : ""}${r.goalDifference}); form ${r.form.join("") || "–"}`,
     value: {
+      team: { id: r.team.id, name: r.team.name },
+      afterRound: round,
+      teams: rows.length,
       position: r.position,
       points: r.points,
       played: r.played,
@@ -98,7 +104,13 @@ export async function matchFacts(db: Db, matchId: string): Promise<EditorialFact
     id: `match:${m.id}:score`,
     kind: "score",
     statement: `Final score (round ${m.round}): ${m.home_name} ${m.home_score}–${m.away_score} ${m.away_name}${winner ? `; ${side(winner)} won` : "; a draw"}`,
-    value: { home: m.home_score, away: m.away_score },
+    value: {
+      home: m.home_score,
+      away: m.away_score,
+      round: m.round,
+      homeTeam: { id: m.home_team_id, name: m.home_name },
+      awayTeam: { id: m.away_team_id, name: m.away_name },
+    },
     source: src,
   });
   let n = 0;
