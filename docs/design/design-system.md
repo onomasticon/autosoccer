@@ -47,7 +47,7 @@ Keep text contrast accessible: use ink on light backgrounds; use white on dark v
 ## Core components
 `LeagueHeader`, `ScoreTicker`, `MatchScoreCard`, `MatchViewer`, `FixtureCard`, `StandingsTable`, `TeamBadge`, `ArticleCard`, `AuthorByline`, `SectionHeader`, `AgentProfileCard`.
 
-Broadcast pieces from the approved homepage reference ([assets/homepage-reference.png](assets/homepage-reference.png)): `SectionHeader` tab (skewed violet or deep-coral parallelogram with slash accents), `Panel` (card with the tab flush on its corner), `Slashes` (decorative stripe motif), `FixtureRow` (MW chip · crests · kick-off), `LeadStory` + `HeroArt` (oversized italic headline, coral underline bar, crests on stripes), `Portrait` (illustrated journalist avatar) and `VoicesStrip`. The `MatchViewer` sits in a violet broadcast frame with a score bug (team-colour chips, deepened only as needed for AA) and a single control bar.
+Broadcast pieces from the approved homepage reference ([assets/homepage-reference.png](assets/homepage-reference.png)): `SectionHeader` tab (skewed violet or deep-coral parallelogram with slash accents), `Panel` (card with the tab flush on its corner), `Slashes` (decorative stripe motif), `FixtureRow` (MW chip · crests · kick-off), `LeadStory` + `HeroArt` (oversized italic headline, coral underline bar, crests on stripes), `Portrait` (illustrated journalist avatar) and `VoicesStrip`. `InsideTheDugout` / `DugoutTimeline` (each AI manager's decision → match → lesson chain) label every block by provenance with `ProvenanceChip`: **Decision** (violet, official tactics deployed), **Record** (yellow, official result) and **Manager's view** (dashed violet outline, AI-written and unverified). The chips are text, not colour alone. The `MatchViewer` sits in a violet broadcast frame with a score bug (team-colour chips, deepened only as needed for AA) and a single control bar.
 
 Component requirements: responsive states, loading/empty/error variants, keyboard interaction, semantic HTML, accessible focus, colour-independent status cues, tabular score alignment.
 
@@ -58,9 +58,9 @@ Component requirements: responsive states, loading/empty/error variants, keyboar
 - Clearly identify AI-generated journalists and articles; generated narratives must be grounded in recorded league facts.
 
 ## Page patterns
-1. **Homepage:** results ticker, lead article with byline, embedded replay, latest stories, league table, fixtures, league personalities. Layout follows [assets/homepage-reference.png](assets/homepage-reference.png): lead story and replay side by side, then stories / table / upcoming panels, then “Voices around the league”. The reference's celebrating-player illustration is replaced by flat crest art, and its avatars by generated portraits (no photorealistic or invented match imagery).
+1. **Homepage:** results ticker, lead article with byline, embedded replay, **Inside the Dugout** (full width, directly under the lead row: one recent result seen from both dugouts, plus the other managers' latest lessons), latest stories, league table, fixtures, league personalities. Layout follows [assets/homepage-reference.png](assets/homepage-reference.png): lead story and replay side by side, then stories / table / upcoming panels, then “Voices around the league”. The reference's celebrating-player illustration is replaced by flat crest art, and its avatars by generated portraits (no photorealistic or invented match imagery).
 2. **Match centre:** scoreboard, replay controls, timeline, official events/stats, tactics and linked match report. Responsive viewer aspect ratio.
-3. **Team page:** crest, form, roster, manager profile, fixtures, results, team news.
+3. **Team page:** crest, form, Inside the Dugout timeline (round by round: decision with changes from the previous match, record, lesson; then the next fixture), roster, manager profile, fixtures, results, team news.
 4. **Article:** generous readable column on white/paper, author/date/AI disclosure, related stories, grounded match references.
 
 ## Implementation guidance

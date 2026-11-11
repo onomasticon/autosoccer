@@ -16,6 +16,7 @@ import {
   TacticalRevision,
   Team,
 } from "./domain.ts";
+import { DugoutResponse, TeamDugoutResponse } from "./dugout.ts";
 import { Match, OfficialEvent, TeamMatchStats } from "./match.ts";
 
 export const FormResult = z.enum(["W", "D", "L"]);
@@ -281,3 +282,25 @@ ROUTES.push({
   response: AgentRunListResponse,
   responseName: "AgentRunListResponse",
 });
+
+ROUTES.push(
+  {
+    method: "get",
+    path: "/seasons/{season}/dugout",
+    operationId: "getDugout",
+    summary:
+      "Inside the Dugout: each AI manager's decision → match → reflection chain, and two managers' readings of the same result",
+    params: SeasonSlugParam,
+    response: DugoutResponse,
+    responseName: "DugoutResponse",
+  },
+  {
+    method: "get",
+    path: "/teams/{team}/dugout",
+    operationId: "getTeamDugout",
+    summary: "One club's manager story for the current season (decisions, results, lessons, next fixture)",
+    params: { team: Slug },
+    response: TeamDugoutResponse,
+    responseName: "TeamDugoutResponse",
+  },
+);
