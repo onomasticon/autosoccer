@@ -5,6 +5,7 @@ import { PermanentJobError } from "../../jobs/worker.ts";
 import type { Logger } from "../../log.ts";
 import type { LlmClient } from "../agents/llm.ts";
 import { costMicroUsd } from "../agents/pricing.ts";
+import type { EditorialGate } from "../ledger/service.ts";
 import { matchFacts, roundFacts } from "./facts.ts";
 import { ArticleDraft, checkGrounding } from "./grounding.ts";
 import { SEED_JOURNALISTS } from "./journalists.ts";
@@ -18,7 +19,17 @@ export interface EditorialDeps {
   llm: LlmClient;
   log?: Logger;
   maxOutputTokens?: number;
+  /** Meters model calls against the season's editorial budget. Without it, spend is unlimited. */
+  gate?: EditorialGate;
+  /**
+   * Writes the piece when the budget can't cover a model call (the offline template writer:
+   * grounded in the same facts, no model, no cost). Without it, the article is skipped.
+   */
+  fallback?: LlmClient;
 }
+
+/** Output-token cap per journalist call; also the worst case reserved against the budget. */
+export const EDITORIAL_MAX_OUTPUT_TOKENS = 8000;
 
 /** Creates the league's AI journalists. Idempotent. */
 export async function seedJournalists(db: Db, model: string) {
@@ -50,6 +61,7 @@ const slugify = (s: string) =>
 
 export type ArticleOutcome =
   | { status: "already-done" }
+  | { status: "skipped-budget" }
   | { status: "published"; articleId: string; slug: string }
   | { status: "rejected"; errors: string[] };
 
@@ -88,23 +100,38 @@ async function writeArticle(deps: EditorialDeps, t: WriteTarget): Promise<Articl
   const prompt = editorialPrompt(ctx);
   const audit: { system: string; user: string; repair?: string } = { system, user: prompt };
   const task = `editorial.${t.kind}`;
+  const maxTokens = deps.maxOutputTokens ?? EDITORIAL_MAX_OUTPUT_TOKENS;
   let inTok = 0;
   let outTok = 0;
   let model = llm.model;
   let provider = llm.provider;
+  // What the metered model calls really cost (fallback calls are free and never charged).
+  const metered = { calls: 0, cost: 0, inTok: 0, outTok: 0, model: llm.model, provider: llm.provider };
+  let fellBack = false;
   const call = async (p: string) => {
-    const r = await llm.complete({
-      system,
-      prompt: p,
-      schema: ArticleDraft,
-      task,
-      context: ctx,
-      maxTokens: deps.maxOutputTokens ?? 8000,
-    });
+    let client = llm;
+    if (deps.gate) {
+      // Worst case: the whole prompt (≈3 chars per token, generous) plus the full output cap.
+      const estimate = costMicroUsd(llm.model, Math.ceil((system.length + p.length) / 3), maxTokens);
+      if (!(await deps.gate.reserve({ seasonId: t.seasonId, runId: run!.id, estimateMicroUsd: estimate }))) {
+        if (!deps.fallback) throw new BudgetExhausted();
+        client = deps.fallback;
+        fellBack = true;
+      }
+    }
+    const r = await client.complete({ system, prompt: p, schema: ArticleDraft, task, context: ctx, maxTokens });
     inTok += r.inputTokens;
     outTok += r.outputTokens;
     model = r.model;
     provider = r.provider;
+    if (client === llm) {
+      metered.calls += 1;
+      metered.cost += costMicroUsd(r.model, r.inputTokens, r.outputTokens);
+      metered.inTok += r.inputTokens;
+      metered.outTok += r.outputTokens;
+      metered.model = r.model;
+      metered.provider = r.provider;
+    }
     return r.output;
   };
   try {
@@ -117,7 +144,19 @@ async function writeArticle(deps: EditorialDeps, t: WriteTarget): Promise<Articl
     }
     const status = errors.length ? "rejected" : "published";
     const slug = `${slugify(draft.headline) || t.kind}-${run!.id.slice(0, 6)}`;
-    const cost = costMicroUsd(model, inTok, outTok);
+    const cost = metered.cost;
+    if (deps.gate && metered.calls > 0) {
+      await deps.gate.settle({
+        seasonId: t.seasonId,
+        runId: run!.id,
+        costMicroUsd: metered.cost,
+        provider: metered.provider,
+        model: metered.model,
+        inputTokens: metered.inTok,
+        outputTokens: metered.outTok,
+      });
+    }
+    if (fellBack) deps.log?.info("editorial budget exhausted; template writer used", { kind: t.kind });
     const [article] = await db.begin(async (tx) => {
       const rows = await tx<{ id: string; slug: string }[]>`
         insert into articles (season_id, slug, kind, status, editorial_agent_id, headline, standfirst, body, citations, match_id, fixture_id, team_ids, agent_run_id, published_at)
@@ -136,8 +175,20 @@ async function writeArticle(deps: EditorialDeps, t: WriteTarget): Promise<Articl
       ? { status: "rejected", errors }
       : { status: "published", articleId: article!.id, slug: article!.slug };
   } catch (e) {
+    await deps.gate?.release({ seasonId: t.seasonId, runId: run!.id });
+    if (e instanceof BudgetExhausted) {
+      await db`update agent_runs set status = 'skipped_budget', error = ${e.message}, finished_at = now() where id = ${run!.id}`;
+      deps.log?.info("article skipped: editorial budget exhausted", { kind: t.kind });
+      return { status: "skipped-budget" };
+    }
     await db`update agent_runs set status = 'failed', error = ${(e as Error).message}, finished_at = now() where id = ${run!.id}`;
     throw e;
+  }
+}
+
+class BudgetExhausted extends Error {
+  constructor() {
+    super("season editorial budget exhausted");
   }
 }
 

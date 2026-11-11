@@ -97,7 +97,7 @@ docker compose -f compose.yml exec -T db pg_restore -U autosoccer -d autosoccer 
 
 ## Starting a season
 ```sh
-docker compose -f compose.yml exec api bun scripts/league.ts seed --budget 1.00 --interval 10080   # weekly rounds
+docker compose -f compose.yml exec api bun scripts/league.ts seed --budget 1.00 --editorial-budget 3.00 --interval 10080   # weekly rounds
 ```
 After that the workers run everything. Monitoring and failure handling are the same as in [runbook.md](runbook.md):
 ```sh

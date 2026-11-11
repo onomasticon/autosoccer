@@ -20,7 +20,7 @@ import { checkGrounding } from "../apps/server/src/modules/editorial/grounding.t
 import { seedJournalists } from "../apps/server/src/modules/editorial/service.ts";
 import { SEED_TEAMS } from "../apps/server/src/modules/league/seed-data.ts";
 import { createSeason, seasonResults, seasonStandings, seedTeams } from "../apps/server/src/modules/league/service.ts";
-import { budgetSummary } from "../apps/server/src/modules/ledger/service.ts";
+import { budgetSummary, editorialBudgetSummary } from "../apps/server/src/modules/ledger/service.ts";
 import { opsStatus } from "../apps/server/src/modules/ops/status.ts";
 import { RR_SERVE, spawn, stopAll, waitFor } from "./proc.ts";
 
@@ -207,7 +207,7 @@ try {
   const budgetRows = await budgetSummary(db, seasonId);
   const [charges] = await db<
     { c: number }[]
-  >`select (-coalesce(sum(amount_micro_usd), 0))::bigint as c from compute_transactions where kind = 'charge'`;
+  >`select (-coalesce(sum(amount_micro_usd), 0))::bigint as c from compute_transactions where kind = 'charge' and pool = 'team'`;
   const [costs] = await db<
     { c: number }[]
   >`select coalesce(sum(cost_micro_usd), 0)::bigint as c from agent_runs where agent_kind = 'manager'`;
@@ -216,6 +216,15 @@ try {
     budgetRows.every((r) => r.spentMicroUsd <= r.grantedMicroUsd && r.reservedMicroUsd === 0) &&
       Number(charges!.c) === Number(costs!.c),
     budgetRows.map((r) => formatUsd(r.spentMicroUsd)).join(" / "),
+  );
+  const ed = await editorialBudgetSummary(db, seasonId);
+  const [edCosts] = await db<
+    { c: number }[]
+  >`select coalesce(sum(cost_micro_usd), 0)::bigint as c from agent_runs where agent_kind = 'editorial'`;
+  check(
+    "editorial budget enforced: journalists within the cap, ledger reconciles with run costs",
+    ed.spentMicroUsd <= ed.grantedMicroUsd && ed.reservedMicroUsd === 0 && ed.spentMicroUsd === Number(edCosts!.c),
+    `${formatUsd(ed.spentMicroUsd)} of ${formatUsd(ed.grantedMicroUsd)}`,
   );
 
   const arts = await db<

@@ -1,5 +1,5 @@
 /**
- * Contract-shaped mock data for the component gallery and component tests.
+ * Contract-shaped mock data for the component tests.
  * Mirrors the four seeded clubs; scores here are illustrative fixtures for UI states only
  * and are never shown on public league pages.
  */

@@ -4,7 +4,7 @@
  *  - axe-core WCAG 2.1 A/AA scan (including colour contrast) on every page
  *  - keyboard: first Tab reaches the skip link; mobile menu opens/closes with keyboard
  *
- *   node scripts/ui-check.mjs --base http://localhost:3000 --out docs/media/p1-20 /styleguide /
+ *   node scripts/ui-check.mjs --base http://localhost:3000 --out docs/media/p1-20 / /news /table
  */
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";

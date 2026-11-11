@@ -1,7 +1,7 @@
 /**
  * Annotated design screenshots for PR review (Chromium via Playwright).
  *
- * Pages and components: numbered callouts are drawn on the live page around real elements,
+ * Pages: numbered callouts are drawn on the live page around real elements,
  * then the screenshot is composed next to a numbered legend. Flows: each step is captured after
  * performing the real interaction and laid out as a numbered storyboard.
  *
@@ -254,94 +254,6 @@ const PAGES = [
   },
 ];
 
-const COMPONENTS = [
-  {
-    name: "10-component-tabs-panels",
-    title: "SectionHeader, Panel, Slashes, FixtureRow, ArticleCard row",
-    section: "header-tabs",
-    notes: [
-      {
-        sel: '[data-section="header-tabs"] h2[class*="grad-violet"]',
-        text: "Tab header: violet gradient parallelogram, white italic Barlow Semi Condensed, lighter trailing slashes.",
-      },
-      {
-        sel: '[data-section="header-tabs"] h2[class*="grad-coral"]',
-        text: "Coral tone: coral-deep to warm coral gradient, kept at ≥3:1 for the large white type.",
-      },
-      {
-        sel: '[data-section="header-tabs"] .flex.items-center.gap-4',
-        text: "Slashes: the decorative broadcast stripe motif (aria-hidden).",
-      },
-      {
-        sel: 'section[aria-labelledby="sg-upcoming"]',
-        text: "Panel: tinted ground, tab flush on the corner, white inner box. FixtureRow: result vs upcoming.",
-      },
-      { sel: 'section[aria-labelledby="sg-stories"] [data-testid="article-card"]', text: "ArticleCard “row” variant." },
-    ],
-  },
-  {
-    name: "11-component-ticker",
-    title: "ScoreTicker states",
-    section: "ticker",
-    notes: [
-      { sel: '[data-section="ticker"] section[aria-label="Scores"]', text: "Results round with NEXT fixture." },
-      {
-        sel: '[data-section="ticker"] section[aria-label="Scores"]:nth-of-type(2) [data-testid="score-ticker"]',
-        text: "Round in progress: LIVE and NEXT chips; status always has a text label.",
-      },
-      { sel: '[data-section="ticker"] [role="status"]', text: "Loading skeleton." },
-      { sel: '[data-section="ticker"] [data-testid="empty-state"]', text: "Empty state." },
-    ],
-  },
-  {
-    name: "12-component-lead-story",
-    title: "LeadStory & hero art",
-    section: "lead",
-    notes: [
-      {
-        sel: '[data-section="lead"] [data-testid="lead-story"]',
-        text: "Story about two clubs: their crests on broadcast stripes.",
-      },
-      {
-        sel: '[data-section="lead"] [data-testid="lead-story"]:nth-child(2) > div:first-child',
-        text: "Story with no club (opinion/analysis): falls back to the editorial illustration.",
-      },
-    ],
-  },
-  {
-    name: "13-component-voices",
-    title: "Portrait & VoicesStrip",
-    section: "voices",
-    notes: [
-      {
-        sel: '[data-section="voices"] [data-testid="portrait"]',
-        text: "Illustrated portrait: deterministic from the journalist's avatar data, crisp at 36–96 px.",
-      },
-      {
-        sel: '[data-section="voices"] [data-testid="voices-strip"] > div:first-child',
-        text: "“Voices around the league” block.",
-      },
-      {
-        sel: '[data-section="voices"] [data-testid="voices-strip"] li',
-        text: "Journalist entry: portrait, name, role, AI badge, bio.",
-      },
-    ],
-  },
-  {
-    name: "14-component-tokens",
-    title: "Tokens (new: coral-deep, lavender, lavender-strong)",
-    section: "tokens",
-    notes: [
-      {
-        sel: '[data-section="tokens"] li:nth-child(7)',
-        text: "coral-deep: coral for white text (4.4:1, large type only).",
-      },
-      { sel: '[data-section="tokens"] li:nth-child(11)', text: "lavender: ticker bar, report tags, MW chips." },
-      { sel: '[data-section="tokens"] li:nth-child(12)', text: "lavender-strong: FT chip and time chips on lavender." },
-    ],
-  },
-];
-
 const FLOWS = [
   {
     name: "20-flow-result-to-story",
@@ -577,33 +489,6 @@ for (const pg of PAGES) {
   });
   report.push(
     `${pg.name}: ${
-      legend
-        .filter((l) => l.missing)
-        .map((l) => `missing #${l.n}`)
-        .join(", ") || "ok"
-    }`,
-  );
-  await ctx.close();
-}
-
-for (const c of COMPONENTS) {
-  if (only && !c.name.includes(only)) continue;
-  const ctx = await browser.newContext({ viewport: DESKTOP, reducedMotion: "reduce" });
-  const page = await ctx.newPage();
-  await page.goto(`${base}/styleguide`, { waitUntil: "networkidle" });
-  await page.evaluate(() => document.fonts.ready);
-  const legend = await drawNotes(page, c.notes);
-  const shot = join(tmp, `${c.name}.png`);
-  const sec = page.locator(`[data-section="${c.section}"]`);
-  const box = await sec.boundingBox();
-  await page.screenshot({
-    path: shot,
-    fullPage: true,
-    clip: { x: Math.max(0, box.x - 24), y: Math.max(0, box.y - 8), width: box.width + 48, height: box.height + 32 },
-  });
-  await compose(join(out, `${c.name}.png`), c.title, shot, legend);
-  report.push(
-    `${c.name}: ${
       legend
         .filter((l) => l.missing)
         .map((l) => `missing #${l.n}`)

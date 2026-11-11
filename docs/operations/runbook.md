@@ -21,7 +21,7 @@ For production on an exe.dev VM behind Cloudflare (Tunnel, R2 replays and backup
 git submodule update --init                 # pinned autosoccer-sim
 cp .env.example .env                        # set POSTGRES_PASSWORD, OPS_TOKEN, ANTHROPIC_API_KEY (or LLM_PROVIDER=offline)
 docker compose -f docker-compose.prod.yml up -d --build
-docker compose -f docker-compose.prod.yml exec api bun scripts/league.ts seed --budget 1.00 --interval 60
+docker compose -f docker-compose.prod.yml exec api bun scripts/league.ts seed --budget 1.00 --editorial-budget 3.00 --interval 60
 ```
 `--interval` is the number of minutes between rounds. Round 1 kicks off at seed time and later
 rounds follow on that schedule.
@@ -55,11 +55,12 @@ For each round, at its kickoff time, the scheduler:
   - job counts by kind/status, retries in flight, permanently failed jobs with their last error
   - worker and scheduler heartbeats (alive if seen within 60 s)
   - agent runs and spend
-  - the current season's budget
+  - the current season's budgets: per team (managers) and the editorial budget (journalists)
 - Logs are JSON lines on stdout/stderr with `svc`, `worker`, `job`, `kind`, `key` and `attempt`. Alert on:
   - `"season blocked"` (error): a match failed permanently.
   - `"job attempt failed"` with `next: "failed"`: a job exhausted its retries.
   - `"pre-match skipped: budget"` (info): expected once a team's budget runs out.
+  - `"editorial budget exhausted; template writer used"` (info): expected once the season's journalist budget runs out.
 
 ## Failure handling
 | Symptom | Cause | Action |
@@ -70,6 +71,7 @@ For each round, at its kickoff time, the scheduler:
 | Failed `manager.*` jobs | LLM unavailable after retries | Nothing blocks: the team plays its last valid tactics. Optionally `ops requeue --kind manager.pre_match` before kickoff. |
 | Article `rejected` | Draft failed the fact checker twice | Stored for audit and never published. Review via `agent_runs.error`. |
 | Budget exhausted | Team spent its season allowance | Expected. The manager is skipped and keeps its last valid tactics. |
+| Articles written by `provider = offline` mid-season | The season's editorial budget is spent | Expected. Reports keep publishing from templates at no cost. Seed the next season with a larger `--editorial-budget` if wanted. |
 | `"fixture pinned to sim X, worker runs Y"` | Simulator upgraded mid-season | Roll the workers back to the season's sim, or finish the season before upgrading. |
 
 ## Upgrading the simulator
