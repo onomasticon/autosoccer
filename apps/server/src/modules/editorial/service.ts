@@ -98,7 +98,13 @@ async function writeArticle(deps: EditorialDeps, t: WriteTarget): Promise<Articl
   const ctx: EditorialContext = { kind: t.kind, journalist: j, facts: t.facts, round: t.round };
   const system = editorialSystem(j);
   const prompt = editorialPrompt(ctx);
-  const audit: { system: string; user: string; repair?: string } = { system, user: prompt };
+  const audit: {
+    system: string;
+    user: string;
+    repair?: string;
+    /** The model's last draft, when it failed the fact check and the template writer stood in. */
+    rejected?: { draft: ArticleDraft; errors: string[] };
+  } = { system, user: prompt };
   const task = `editorial.${t.kind}`;
   const maxTokens = deps.maxOutputTokens ?? EDITORIAL_MAX_OUTPUT_TOKENS;
   let inTok = 0;
@@ -141,6 +147,24 @@ async function writeArticle(deps: EditorialDeps, t: WriteTarget): Promise<Articl
       audit.repair = `${prompt}\n\nYour draft was rejected by the fact checker:\n${errors.map((e) => `- ${e}`).join("\n")}\nFix every problem and answer again.`;
       draft = await call(audit.repair);
       errors = checkGrounding(draft, t.facts, { requireScoreFact: t.requireScoreFact });
+    }
+    // Still failing after the repair: the template writer (same facts, no model, no cost, never
+    // metered) writes the piece instead. It's checked like any draft; if it fails too, nothing is
+    // published. The model's draft and the checker's errors stay in the run audit.
+    if (errors.length && deps.fallback && !fellBack) {
+      const r = await deps.fallback.complete({ system, prompt, schema: ArticleDraft, task, context: ctx, maxTokens });
+      const alt = r.output;
+      const altErrors = checkGrounding(alt, t.facts, { requireScoreFact: t.requireScoreFact });
+      if (!altErrors.length) {
+        audit.rejected = { draft, errors };
+        deps.log?.warn("draft failed the fact check after repair; template writer used", { kind: t.kind, errors });
+        draft = alt;
+        errors = [];
+        inTok += r.inputTokens;
+        outTok += r.outputTokens;
+        model = r.model;
+        provider = r.provider;
+      }
     }
     const status = errors.length ? "rejected" : "published";
     const slug = `${slugify(draft.headline) || t.kind}-${run!.id.slice(0, 6)}`;

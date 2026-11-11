@@ -4,10 +4,13 @@
  *    and match reports cite the official score;
  *  - it contains no quotations (no invented quotes — nobody is interviewed);
  *  - every scoreline it mentions (e.g. "2–1") is an official final or running score;
- *  - it doesn't present invented football minutes ("in the 63rd minute").
+ *  - it doesn't present invented football minutes ("in the 63rd minute");
+ *  - every recognised claim (results, comparisons, aggregates across fixtures, table positions,
+ *    chronology) is consistent with the facts taken together, not just individually (claims.ts).
  */
 import type { EditorialFacts } from "@autosoccer/contracts";
 import { z } from "zod";
+import { checkCitationClaims, checkClaims } from "./claims.ts";
 
 export const ArticleDraft = z
   .object({
@@ -30,15 +33,15 @@ const QUOTES = /["“”«»]|(?:^|\s)'[^']{3,}'(?=\s|[.,;!?]|$)/;
 const MINUTES = /\b\d{1,3}(?:st|nd|rd|th)[ -]minute\b|\bminute \d{1,3}\b/i;
 
 /**
- * A hyphenated number pair is a formation, not a score, when it's part of a three-part
- * shape ("2-1-1") or a two-part shape followed by "formation/shape/system/setup".
- * Scores must be written with an en dash ("2–1"), which is always checked.
+ * A number pair is a formation, not a score, when it's part of a three-part shape ("2-1-1",
+ * or "2–1–1" typed with dashes) or a hyphenated pair followed by "formation/shape/system/setup".
+ * A two-part pair written with an en dash ("2–1") is always a score and always checked.
  */
 function isFormation(text: string, index: number, token: string): boolean {
-  if (!token.includes("-")) return false;
   const before = text.slice(Math.max(0, index - 2), index);
   const after = text.slice(index + token.length, index + token.length + 16);
-  return /\d-$/.test(before) || /^-\d/.test(after) || /^\s+(formation|shape|system|setup)\b/i.test(after);
+  if (/\d[–—-]$/.test(before) || /^[–—-]\d/.test(after)) return true;
+  return token.includes("-") && /^\s+(formation|shape|system|setup)\b/i.test(after);
 }
 
 export function allowedScorelines(facts: EditorialFacts): Set<string> {
@@ -80,5 +83,6 @@ export function checkGrounding(
     errors.push(`scoreline ${m[1]}–${m[2]} is not an official score`);
   }
   if (!draft.headline.trim() || draft.headline.length > 140) errors.push("headline must be 1–140 characters");
+  errors.push(...checkClaims(text, facts), ...checkCitationClaims(draft.citations, facts));
   return [...new Set(errors)];
 }

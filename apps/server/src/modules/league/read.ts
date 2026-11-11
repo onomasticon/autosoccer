@@ -57,9 +57,13 @@ export async function fixtureViews(db: Db, seasonId: string, teamId?: string): P
   return rows.map((r) => toFixtureView(r, teams));
 }
 
-export async function standingRows(db: Db, seasonId: string): Promise<{ rows: StandingRow[]; afterRound: number }> {
+export async function standingRows(
+  db: Db,
+  seasonId: string,
+  opts: { throughRound?: number } = {},
+): Promise<{ rows: StandingRow[]; afterRound: number }> {
   const teams = await seasonTeams(db, seasonId);
-  const { rows, afterRound } = await seasonStandings(db, seasonId);
+  const { rows, afterRound } = await seasonStandings(db, seasonId, opts);
   return {
     afterRound,
     rows: rows.map(({ team, ...r }) => ({ ...r, team: teams.get(team)! })),
