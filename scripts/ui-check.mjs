@@ -5,6 +5,8 @@
  *  - keyboard: first Tab reaches the skip link; mobile menu opens/closes with keyboard
  *
  *   node scripts/ui-check.mjs --base http://localhost:3000 --out docs/media/p1-20 / /news /table
+ *   --local-storage key=value   seed browser storage first (e.g. a followed club); repeatable
+ *   --suffix followed           appended to screenshot names
  */
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
@@ -21,6 +23,10 @@ const opt = (n, d) => (args.includes(`--${n}`) ? args[args.indexOf(`--${n}`) + 1
 const base = opt("base", "http://localhost:3000");
 const out = opt("out", "out/ui-check");
 const pages = args.filter((a, i) => a.startsWith("/") && !args[i - 1]?.startsWith("--"));
+const seeded = args
+  .flatMap((a, i) => (args[i - 1] === "--local-storage" ? [a] : []))
+  .map((kv) => [kv.slice(0, kv.indexOf("=")), kv.slice(kv.indexOf("=") + 1)]);
+const suffix = opt("suffix", "");
 mkdirSync(out, { recursive: true });
 
 const VIEWPORTS = { desktop: { width: 1440, height: 900 }, mobile: { width: 390, height: 844 } };
@@ -35,6 +41,10 @@ for (const path of pages.length ? pages : ["/"]) {
       deviceScaleFactor: vp === "mobile" ? 2 : 1,
       reducedMotion: "reduce",
     });
+    if (seeded.length)
+      await ctx.addInitScript((pairs) => {
+        for (const [k, v] of pairs) window.localStorage.setItem(k, v);
+      }, seeded);
     const page = await ctx.newPage();
     const errors = [];
     page.on("pageerror", (e) => errors.push(e.message));
@@ -43,7 +53,7 @@ for (const path of pages.length ? pages : ["/"]) {
     await page.evaluate(() => document.fonts.ready);
     const scrollWidth = await page.evaluate(() => document.documentElement.scrollWidth);
     if (scrollWidth > size.width) errors.push(`horizontal overflow: page is ${scrollWidth}px wide at ${size.width}px`);
-    const name = `${path === "/" ? "home" : path.slice(1).replaceAll("/", "_")}-${vp}`;
+    const name = `${path === "/" ? "home" : path.slice(1).replaceAll("/", "_")}${suffix ? `-${suffix}` : ""}-${vp}`;
     await page.screenshot({ path: join(out, `${name}.png`), fullPage: true });
 
     await page.addScriptTag({ content: axeSource });

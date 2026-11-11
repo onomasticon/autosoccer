@@ -12,6 +12,7 @@ import { Link } from "react-router";
 import { VoicesStrip } from "../components/AgentProfileCard";
 import { ArticleCard } from "../components/ArticleCard";
 import { InsideTheDugout } from "../components/Dugout";
+import { YourClub } from "../components/FollowClub";
 import { LeadStory } from "../components/LeadStory";
 import { FixtureRow } from "../components/MatchScoreCard";
 import { MatchViewer } from "../components/match-viewer/MatchViewer";
@@ -38,6 +39,7 @@ export async function loader() {
       articles: [],
       journalists: [],
       dugout: null,
+      fixtures: [],
     };
   const slug = current.season.slug;
   const [standings, fixtures, articles, journalists, dugout] = await Promise.all([
@@ -63,6 +65,7 @@ export async function loader() {
     articles: articles?.items ?? [],
     journalists: journalists?.items ?? [],
     dugout,
+    fixtures: all,
   };
 }
 
@@ -74,7 +77,7 @@ const pad2 = (n: number) => String(n).padStart(2, "0");
  * loop, the league's point of difference), then stories / table / schedule panels, then league voices.
  */
 export default function Home({ loaderData }: Route.ComponentProps) {
-  const { season, teams, standings, results, upcoming, featured, articles, journalists, dugout } = loaderData;
+  const { season, teams, standings, results, upcoming, featured, articles, journalists, dugout, fixtures } = loaderData;
   if (!season)
     return (
       <EmptyState title="The league hasn't kicked off">
@@ -89,6 +92,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
   return (
     <div className="space-y-6">
       <h1 className="sr-only">Auto Soccer — {season.name}</h1>
+      <YourClub teams={teams} fixtures={fixtures} stories={dugout?.stories ?? null} articles={articles} />
       <div className="grid items-stretch gap-6 lg:grid-cols-2">
         {lead ? (
           <LeadStory article={lead} teams={teams} />

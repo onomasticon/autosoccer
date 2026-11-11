@@ -10,6 +10,7 @@ import { AgentProfileCard } from "../components/AgentProfileCard";
 import { ArticleCard } from "../components/ArticleCard";
 import { BudgetMeter } from "../components/BudgetMeter";
 import { DugoutTimeline } from "../components/Dugout";
+import { FollowButton } from "../components/FollowClub";
 import { FixtureCard } from "../components/MatchScoreCard";
 import { RouteError } from "../components/RouteError";
 import { SectionHeader } from "../components/SectionHeader";
@@ -30,7 +31,14 @@ export async function loader({ params }: Route.LoaderArgs) {
   const dugout = season
     ? await apiMaybe<TeamDugoutResponse>(`/api/v1/teams/${encodeURIComponent(params.slug)}/dugout`)
     : null;
-  return { ...detail, news: news?.items ?? [], budget: budgetRow, dugout: dugout?.story ?? null, hasSeason: !!season };
+  return {
+    ...detail,
+    news: news?.items ?? [],
+    budget: budgetRow,
+    dugout: dugout?.story ?? null,
+    hasSeason: !!season,
+    teams: season?.teams ?? [],
+  };
 }
 
 export const meta: Route.MetaFunction = ({ data }) =>
@@ -41,7 +49,8 @@ export const meta: Route.MetaFunction = ({ data }) =>
 const POSITION_NAME: Record<Position, string> = { GK: "Goalkeeper", DF: "Defender", MF: "Midfielder", FW: "Forward" };
 
 export default function Team({ loaderData }: Route.ComponentProps) {
-  const { team, players, manager, standing, fixtures, currentRevision, news, budget, dugout, hasSeason } = loaderData;
+  const { team, players, manager, standing, fixtures, currentRevision, news, budget, dugout, hasSeason, teams } =
+    loaderData;
   const results = fixtures.filter((f) => f.status === "completed");
   const upcoming = fixtures.filter((f) => f.status !== "completed");
   return (
@@ -53,6 +62,9 @@ export default function Team({ loaderData }: Route.ComponentProps) {
           <div className="min-w-0 flex-1">
             <p className="text-xs font-bold uppercase tracking-[0.14em] text-violet">{team.city}</p>
             <h1 className="font-display text-5xl font-extrabold uppercase italic leading-none">{team.name}</h1>
+            <div className="mt-3">
+              <FollowButton team={team} teams={teams.length ? teams : [team]} />
+            </div>
             {standing ? (
               <dl className="mt-4 flex flex-wrap gap-x-6 gap-y-2 text-sm">
                 {[
