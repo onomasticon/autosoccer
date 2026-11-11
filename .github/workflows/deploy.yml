@@ -1,12 +1,15 @@
 name: Deploy
 
-# Builds both images after CI passes on main, pushes them to GHCR tagged with the commit SHA,
-# then deploys that tag to the exe.dev VM (docs/operations/deploy-cloudflare-exe.md).
+# Builds both images, pushes them to GHCR tagged with the commit SHA, then deploys that tag to
+# the exe.dev VM (docs/operations/deploy-cloudflare-exe.md). CI calls this on every push to main
+# once validation passes; it can also be started by hand to redeploy or roll back a commit.
 on:
-  workflow_run:
-    workflows: [CI]
-    types: [completed]
-    branches: [main]
+  workflow_call:
+    inputs:
+      ref:
+        description: Commit to deploy (default the triggering commit)
+        type: string
+        required: false
   workflow_dispatch:
     inputs:
       ref:
@@ -17,14 +20,9 @@ permissions:
   contents: read
   packages: write
 
-concurrency:
-  group: deploy-production
-  cancel-in-progress: false
-
 jobs:
   images:
     name: Build and push images
-    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     outputs:
@@ -32,7 +30,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.workflow_run.head_sha || inputs.ref || 'main' }}
+          ref: ${{ inputs.ref || github.sha }}
           submodules: true
       - id: sha
         run: echo "tag=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
@@ -67,6 +65,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     environment: production
+    # One deploy at a time; a newer push waits rather than cancelling one mid-flight.
+    concurrency:
+      group: deploy-production
+      cancel-in-progress: false
     env:
       TAG: ${{ needs.images.outputs.tag }}
       # exe.dev routes SSH by the vm+<name> user; this destination form always works.
