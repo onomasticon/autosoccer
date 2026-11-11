@@ -38,6 +38,12 @@ try {
       console.log(
         `  ${a.kind.padEnd(10)} ${a.status.padEnd(15)} ${String(a.runs).padStart(4)} runs  ${formatUsd(a.costMicroUsd)}`,
       );
+    if (s.budget) {
+      const e = s.budget.editorial;
+      console.log(
+        `\neditorial budget (${s.budget.season}): ${formatUsd(e.spentMicroUsd)} spent of ${formatUsd(e.grantedMicroUsd)} · ${formatUsd(e.remainingMicroUsd)} left${e.reservedMicroUsd ? ` · ${formatUsd(e.reservedMicroUsd)} reserved` : ""}`,
+      );
+    }
   } else if (cmd === "requeue") {
     console.log(`requeued ${await requeueFailed(db, { kind: opt("kind") })} failed job(s)`);
   } else if (cmd === "tick") {

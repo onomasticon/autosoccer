@@ -1,6 +1,6 @@
 /** Operational status: season progress, job queue, failures, worker liveness and spend. */
 import type { Db } from "@autosoccer/db";
-import { budgetSummary } from "../ledger/service.ts";
+import { budgetSummary, editorialBudgetSummary } from "../ledger/service.ts";
 
 export async function opsStatus(db: Db, opts: { staleAfterSec?: number } = {}) {
   const stale = opts.staleAfterSec ?? 60;
@@ -76,7 +76,13 @@ export async function opsStatus(db: Db, opts: { staleAfterSec?: number } = {}) {
       lastJobKind: w.last_job_kind,
     })),
     agents: agents.map((a) => ({ kind: a.agent_kind, status: a.status, runs: a.n, costMicroUsd: Number(a.cost) })),
-    budget: current ? { season: current.slug, rows: await budgetSummary(db, current.id) } : null,
+    budget: current
+      ? {
+          season: current.slug,
+          rows: await budgetSummary(db, current.id),
+          editorial: await editorialBudgetSummary(db, current.id),
+        }
+      : null,
     healthy: failed.length === 0 && workers.some((w) => w.age <= stale),
   };
 }

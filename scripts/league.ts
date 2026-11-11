@@ -1,9 +1,10 @@
 /**
  * League operations against the configured DATABASE_URL.
- *   bun run league seed [--season season-1] [--seed 20261109] [--budget 1.00] [--interval 60]   # minutes between rounds
+ *   bun run league seed [--season season-1] [--seed 20261109] [--budget 1.00] [--editorial-budget 3.00] [--interval 60]
+ *        --budget: per-team manager budget (USD); --editorial-budget: season cap on journalist spend; --interval: minutes between rounds
  *   bun run league run  [--season season-1] [--no-managers] [--rounds N]   # plays every remaining round in-process (or only the next N)
  *   bun run league managers [--season season-1]              # manager decisions, memory and spend
- *   bun run league budget [--season season-1]                # compute ledger per team
+ *   bun run league budget [--season season-1]                # compute ledger per team, and the editorial budget
  *   bun run league table [--season season-1]
  */
 import { createDb } from "@autosoccer/db";
@@ -18,7 +19,7 @@ import { seedJournalists } from "../apps/server/src/modules/editorial/service.ts
 import { fixtureViews, seasonBySlug, standingRows } from "../apps/server/src/modules/league/read.ts";
 import { SEED_TEAMS } from "../apps/server/src/modules/league/seed-data.ts";
 import { advanceSeason, createSeason, seedTeams } from "../apps/server/src/modules/league/service.ts";
-import { budgetSummary } from "../apps/server/src/modules/ledger/service.ts";
+import { budgetSummary, editorialBudgetSummary } from "../apps/server/src/modules/ledger/service.ts";
 import { MATCH_JOB, matchJobHandler } from "../apps/server/src/modules/matches/service.ts";
 
 const [cmd = "table"] = process.argv.slice(2).filter((a) => !a.startsWith("--") && !/^\d|^season/.test(a));
@@ -52,6 +53,7 @@ try {
       name: opt("name", "Season 1"),
       seed: Number(opt("seed", "20261109")),
       budgetPerTeamMicroUsd: Math.round(Number(opt("budget", "1.00")) * 1_000_000),
+      editorialBudgetMicroUsd: Math.round(Number(opt("editorial-budget", "3.00")) * 1_000_000),
       teamSlugs: SEED_TEAMS.map((t) => t.slug),
       roundIntervalMinutes: Number(opt("interval", "60")),
     });
@@ -127,6 +129,10 @@ try {
         `${names.get(r.teamId)!.padEnd(20)}${formatUsd(r.spentMicroUsd).padStart(10)}${formatUsd(r.remainingMicroUsd).padStart(10)}${String(r.runs).padStart(11)}  ${r.exhausted ? "EXHAUSTED (last valid tactics)" : "ok"}`,
       );
     }
+    const ed = await editorialBudgetSummary(db, s.id);
+    console.log(
+      `${"Journalists".padEnd(20)}${formatUsd(ed.spentMicroUsd).padStart(10)}${formatUsd(ed.remainingMicroUsd).padStart(10)}${String(ed.runs).padStart(11)}  of ${formatUsd(ed.grantedMicroUsd)}; template writer once spent`,
+    );
     const st = await db<
       { status: string; n: number }[]
     >`select status, count(*)::int as n from agent_runs where season_id = ${s.id} group by status order by status`;

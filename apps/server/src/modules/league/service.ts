@@ -25,11 +25,16 @@ export async function seedTeams(db: Db, teams: readonly SeedTeam[] = SEED_TEAMS)
   return ids;
 }
 
+/** Default season cap on journalist spend: about 18 articles at ~$0.10 each, plus headroom. */
+export const DEFAULT_EDITORIAL_BUDGET_MICRO_USD = 3_000_000;
+
 export interface CreateSeasonInput {
   slug: string;
   name: string;
   seed: number;
   budgetPerTeamMicroUsd: number;
+  /** Season cap on journalist (editorial) model spend; defaults to the schema default ($3.00). */
+  editorialBudgetMicroUsd?: number;
   teamSlugs: string[];
   simVersion?: string;
   startsAt?: Date;
@@ -51,9 +56,9 @@ export async function createSeason(db: Db, input: CreateSeasonInput): Promise<{ 
     if (teams.length !== input.teamSlugs.length) throw new Error(`unknown team in ${input.teamSlugs.join(", ")}`);
     const startsAt = input.startsAt ?? new Date();
     const [season] = await tx<{ id: string }[]>`
-      insert into seasons (slug, name, status, seed, sim_version, budget_per_team_micro_usd, starts_at)
+      insert into seasons (slug, name, status, seed, sim_version, budget_per_team_micro_usd, editorial_budget_micro_usd, starts_at)
       values (${input.slug}, ${input.name}, 'scheduled', ${input.seed}, ${input.simVersion ?? SIM_VERSION},
-        ${input.budgetPerTeamMicroUsd}, ${startsAt}) returning id`;
+        ${input.budgetPerTeamMicroUsd}, ${input.editorialBudgetMicroUsd ?? DEFAULT_EDITORIAL_BUDGET_MICRO_USD}, ${startsAt}) returning id`;
     for (const t of teams) await tx`insert into season_teams (season_id, team_id) values (${season!.id}, ${t.id})`;
     const order = seededOrder(teams, input.seed);
     const bySlug = new Map(teams.map((t) => [t.slug, t.id]));

@@ -1,11 +1,12 @@
 /**
- * Compute ledger: a per-team, per-season USD-equivalent budget kept as an append-only
- * list of integer micro-USD transactions. Balance = Σ amount.
- *   grant   +budget          once per (season, team), created lazily
+ * Compute ledger: USD-equivalent budgets kept as an append-only list of integer micro-USD
+ * transactions. Each season has one account per team (managers, pool 'team') and one for the
+ * newsroom (journalists, pool 'editorial', no team). Balance = Σ amount.
+ *   grant   +budget          once per account, created lazily
  *   reserve −estimate        before a model call (worst case)
  *   release +unused hold     when the call finishes or fails
  *   charge  −actual cost     what the call really cost (tokens × price)
- * All mutations for a team run under a Postgres advisory lock, so concurrent agent runs
+ * All mutations for an account run under a Postgres advisory lock, so concurrent agent runs
  * can't overspend: a reservation succeeds only if the balance covers it.
  */
 import type { Db } from "@autosoccer/db";
@@ -14,21 +15,34 @@ import { type ComputeGate, worstCaseDecisionMicroUsd } from "../agents/service.t
 
 type Tx = postgres.TransactionSql;
 
-const lockTeam = (tx: Tx, seasonId: string, teamId: string) =>
-  tx`select pg_advisory_xact_lock(hashtext(${`ledger:${seasonId}:${teamId}`}))`;
+/** A ledger account: one team's season budget, or the season's editorial (journalist) budget. */
+type Account = { seasonId: string; teamId: string } | { seasonId: string; teamId: null };
+const poolOf = (a: Account) => (a.teamId === null ? "editorial" : "team");
 
-async function ensureGrant(tx: Tx, seasonId: string, teamId: string) {
+const lockAccount = (tx: Tx, a: Account) =>
+  tx`select pg_advisory_xact_lock(hashtext(${`ledger:${a.seasonId}:${a.teamId ?? "editorial"}`}))`;
+
+async function ensureGrant(tx: Tx, a: Account) {
+  if (a.teamId === null) {
+    await tx`
+      insert into compute_transactions (season_id, team_id, pool, kind, amount_micro_usd)
+      select ${a.seasonId}, null, 'editorial', 'grant', s.editorial_budget_micro_usd from seasons s
+      where s.id = ${a.seasonId} and s.editorial_budget_micro_usd > 0
+      on conflict do nothing`;
+    return;
+  }
   await tx`
     insert into compute_transactions (season_id, team_id, kind, amount_micro_usd)
-    select ${seasonId}, ${teamId}, 'grant', s.budget_per_team_micro_usd from seasons s
-    where s.id = ${seasonId} and s.budget_per_team_micro_usd > 0
+    select ${a.seasonId}, ${a.teamId}, 'grant', s.budget_per_team_micro_usd from seasons s
+    where s.id = ${a.seasonId} and s.budget_per_team_micro_usd > 0
     on conflict do nothing`;
 }
 
-async function balance(tx: Tx, seasonId: string, teamId: string): Promise<number> {
+async function balance(tx: Tx, a: Account): Promise<number> {
   const [r] = await tx<{ b: number }[]>`
     select coalesce(sum(amount_micro_usd), 0)::bigint as b from compute_transactions
-    where season_id = ${seasonId} and team_id = ${teamId}`;
+    where season_id = ${a.seasonId}
+      and ${a.teamId === null ? tx`pool = 'editorial'` : tx`team_id = ${a.teamId}`}`;
   return Number(r!.b);
 }
 
@@ -37,7 +51,7 @@ async function balance(tx: Tx, seasonId: string, teamId: string): Promise<number
  * only holds left by earlier attempts are released (a crashed attempt's reservation), so a
  * live attempt can hold several reservations (one per model call).
  */
-async function releaseHolds(tx: Tx, seasonId: string, teamId: string, runId: string, beforeAttempt?: number) {
+async function releaseHolds(tx: Tx, a: Account, runId: string, beforeAttempt?: number) {
   const holds = await tx<{ attempt: number; held: number }[]>`
     select attempt,
       (coalesce(-sum(amount_micro_usd) filter (where kind = 'reserve'), 0)
@@ -46,8 +60,8 @@ async function releaseHolds(tx: Tx, seasonId: string, teamId: string, runId: str
     group by attempt`;
   for (const h of holds) {
     if (Number(h.held) <= 0 || (beforeAttempt !== undefined && h.attempt >= beforeAttempt)) continue;
-    await tx`insert into compute_transactions (season_id, team_id, agent_run_id, kind, amount_micro_usd, attempt)
-      values (${seasonId}, ${teamId}, ${runId}, 'release', ${Number(h.held)}, ${h.attempt})`;
+    await tx`insert into compute_transactions (season_id, team_id, pool, agent_run_id, kind, amount_micro_usd, attempt)
+      values (${a.seasonId}, ${a.teamId}, ${poolOf(a)}, ${runId}, 'release', ${Number(h.held)}, ${h.attempt})`;
   }
 }
 
@@ -56,40 +70,117 @@ const attemptOf = async (tx: Tx, runId: string) => {
   return r?.attempt ?? 0;
 };
 
-/** The ComputeGate used by managers (and editorial agents): enforces each team's season budget. */
-export function ledgerGate(db: Db): ComputeGate {
+interface Usage {
+  runId: string;
+  costMicroUsd: number;
+  provider: string;
+  model: string;
+  inputTokens: number;
+  outputTokens: number;
+}
+
+/** Reserve / settle / release against one account, each under the account's advisory lock. */
+function accountLedger(db: Db) {
   return {
     /** Holds the worst-case cost of one model call; false if the balance can't cover it. */
-    async reserve({ seasonId, teamId, runId, estimateMicroUsd }) {
-      return db.begin(async (tx) => {
-        await lockTeam(tx, seasonId, teamId);
-        await ensureGrant(tx, seasonId, teamId);
+    reserve: (a: Account, runId: string, estimateMicroUsd: number) =>
+      db.begin(async (tx) => {
+        await lockAccount(tx, a);
+        await ensureGrant(tx, a);
         const attempt = await attemptOf(tx, runId);
         // A retried run first returns holds left by a crashed earlier attempt.
-        await releaseHolds(tx, seasonId, teamId, runId, attempt);
-        if ((await balance(tx, seasonId, teamId)) < estimateMicroUsd) return false;
-        await tx`insert into compute_transactions (season_id, team_id, agent_run_id, kind, amount_micro_usd, attempt)
-          values (${seasonId}, ${teamId}, ${runId}, 'reserve', ${-estimateMicroUsd}, ${attempt})`;
+        await releaseHolds(tx, a, runId, attempt);
+        if ((await balance(tx, a)) < estimateMicroUsd) return false;
+        await tx`insert into compute_transactions (season_id, team_id, pool, agent_run_id, kind, amount_micro_usd, attempt)
+          values (${a.seasonId}, ${a.teamId}, ${poolOf(a)}, ${runId}, 'reserve', ${-estimateMicroUsd}, ${attempt})`;
         return true;
-      });
-    },
-    async settle({ seasonId, teamId, runId, costMicroUsd, provider, model, inputTokens, outputTokens }) {
+      }),
+    settle: async (a: Account, u: Usage) => {
       await db.begin(async (tx) => {
-        await lockTeam(tx, seasonId, teamId);
-        await releaseHolds(tx, seasonId, teamId, runId);
+        await lockAccount(tx, a);
+        await releaseHolds(tx, a, u.runId);
         await tx`insert into compute_transactions
-            (season_id, team_id, agent_run_id, kind, amount_micro_usd, provider, model, input_tokens, output_tokens, attempt)
-          values (${seasonId}, ${teamId}, ${runId}, 'charge', ${-costMicroUsd}, ${provider}, ${model}, ${inputTokens}, ${outputTokens},
-            ${await attemptOf(tx, runId)})
+            (season_id, team_id, pool, agent_run_id, kind, amount_micro_usd, provider, model, input_tokens, output_tokens, attempt)
+          values (${a.seasonId}, ${a.teamId}, ${poolOf(a)}, ${u.runId}, 'charge', ${-u.costMicroUsd}, ${u.provider}, ${u.model},
+            ${u.inputTokens}, ${u.outputTokens}, ${await attemptOf(tx, u.runId)})
           on conflict do nothing`;
       });
     },
-    async release({ seasonId, teamId, runId }) {
+    release: async (a: Account, runId: string) => {
       await db.begin(async (tx) => {
-        await lockTeam(tx, seasonId, teamId);
-        await releaseHolds(tx, seasonId, teamId, runId);
+        await lockAccount(tx, a);
+        await releaseHolds(tx, a, runId);
       });
     },
+  };
+}
+
+/** The ComputeGate used by managers: enforces each team's season budget. */
+export function ledgerGate(db: Db): ComputeGate {
+  const l = accountLedger(db);
+  return {
+    reserve: ({ seasonId, teamId, runId, estimateMicroUsd }) =>
+      l.reserve({ seasonId, teamId }, runId, estimateMicroUsd),
+    settle: ({ seasonId, teamId, ...usage }) => l.settle({ seasonId, teamId }, usage),
+    release: ({ seasonId, teamId, runId }) => l.release({ seasonId, teamId }, runId),
+  };
+}
+
+/** Meters the AI journalists against the season's editorial budget. */
+export interface EditorialGate {
+  reserve(a: { seasonId: string; runId: string; estimateMicroUsd: number }): Promise<boolean>;
+  settle(a: { seasonId: string } & Usage): Promise<void>;
+  release(a: { seasonId: string; runId: string }): Promise<void>;
+}
+
+export function editorialGate(db: Db): EditorialGate {
+  const l = accountLedger(db);
+  return {
+    reserve: ({ seasonId, runId, estimateMicroUsd }) => l.reserve({ seasonId, teamId: null }, runId, estimateMicroUsd),
+    settle: ({ seasonId, ...usage }) => l.settle({ seasonId, teamId: null }, usage),
+    release: ({ seasonId, runId }) => l.release({ seasonId, teamId: null }, runId),
+  };
+}
+
+export interface EditorialBudget {
+  grantedMicroUsd: number;
+  spentMicroUsd: number;
+  reservedMicroUsd: number;
+  remainingMicroUsd: number;
+  runs: number;
+}
+
+/** The season's editorial budget position (before the first article, the full budget). */
+export async function editorialBudgetSummary(db: Db, seasonId: string): Promise<EditorialBudget> {
+  const [r] = await db<
+    {
+      budget: number;
+      granted: number | null;
+      spent: number | null;
+      reserve: number | null;
+      released: number | null;
+      total: number | null;
+      runs: number;
+    }[]
+  >`
+    select s.editorial_budget_micro_usd as budget,
+      sum(c.amount_micro_usd) filter (where c.kind = 'grant')::bigint as granted,
+      (-sum(c.amount_micro_usd) filter (where c.kind = 'charge'))::bigint as spent,
+      (-sum(c.amount_micro_usd) filter (where c.kind = 'reserve'))::bigint as reserve,
+      sum(c.amount_micro_usd) filter (where c.kind = 'release')::bigint as released,
+      sum(c.amount_micro_usd)::bigint as total,
+      count(distinct c.agent_run_id) filter (where c.kind = 'charge')::int as runs
+    from seasons s
+    left join compute_transactions c on c.season_id = s.id and c.pool = 'editorial'
+    where s.id = ${seasonId}
+    group by s.editorial_budget_micro_usd`;
+  if (!r) throw new Error(`no season ${seasonId}`);
+  return {
+    grantedMicroUsd: r.granted === null ? Number(r.budget) : Number(r.granted),
+    spentMicroUsd: Number(r.spent ?? 0),
+    reservedMicroUsd: Math.max(0, Number(r.reserve ?? 0) - Number(r.released ?? 0)),
+    remainingMicroUsd: r.granted === null ? Number(r.budget) : Number(r.total ?? 0),
+    runs: r.runs,
   };
 }
 

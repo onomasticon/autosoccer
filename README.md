@@ -91,8 +91,8 @@ Matches are played by durable `match.play` jobs:
 
 Pop Arcade v0.2 lives in `apps/web/app/app.css` as the DaisyUI `autosoccer-pop` theme plus Tailwind
 tokens (`bg-canvas`, `text-ink`, `text-violet`, `font-display`…). Components never hard-code
-colours. Shared components are in `apps/web/app/components`, and `/styleguide` renders each one
-and its loading, empty and error states on mock data.
+colours. Shared components are in `apps/web/app/components`; their states are covered by
+`components.test.tsx` on contract-shaped mock data (`app/lib/mocks.ts`).
 
 One addition to the spec: `muted-text` (#66647A). Spec `muted` (#77758C) is only 3.9:1 on canvas,
 so `muted-text` is used for secondary text to meet WCAG AA. Coral and yellow always carry ink
@@ -163,8 +163,15 @@ A failing draft gets one repair attempt; if it still fails, it's stored as `reje
 never served. Published articles carry an AI disclosure and a Sources list linking each claim
 to its official record. Routes: `/news`, `/news/:slug`, `/journalists`, `/journalists/:slug`;
 API `/api/v1/articles`, `/api/v1/journalists`. `EDITORIAL_MODEL` defaults to `claude-opus-5-5`
-(the offline provider writes from templates). Editorial spend is recorded per run in
-`agent_runs`; the team budgets apply to managers only.
+(the offline provider writes from templates).
+
+**Journalist spend cap.** Each season has an editorial budget (`--editorial-budget` on
+`league seed`, default $3.00; a full season costs roughly $2 at Opus prices). It's metered in
+the same ledger as the team budgets, as a separate `editorial` pool with the same reserve →
+charge mechanics (worst case: the prompt plus the 8000-token output cap). Once the budget can't
+cover a call, the piece is written by the offline template writer instead: same facts, same
+fact checker, no model call, no cost. So the newsroom never goes quiet and never overspends.
+`bun run ops status` and `bun run league budget` show the editorial budget.
 
 ## Running a season unattended
 

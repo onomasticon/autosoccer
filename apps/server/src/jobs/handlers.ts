@@ -4,8 +4,9 @@ import type { ReplayStore } from "@autosoccer/sim-adapter";
 import type { Logger } from "../log.ts";
 import type { LlmClient } from "../modules/agents/llm.ts";
 import { type ComputeGate, enqueueManagerJobs, managerJobHandlers } from "../modules/agents/service.ts";
+import { offlineEditorialLlm } from "../modules/editorial/offline.ts";
 import { editorialJobHandlers, enqueueEditorial } from "../modules/editorial/service.ts";
-import { ledgerGate } from "../modules/ledger/service.ts";
+import { type EditorialGate, editorialGate, ledgerGate } from "../modules/ledger/service.ts";
 import { MATCH_JOB, matchJobHandler } from "../modules/matches/service.ts";
 import type { JobHandler } from "./worker.ts";
 
@@ -17,6 +18,8 @@ export interface PlatformDeps {
   /** Model client for the AI journalists; without it no articles are written. */
   editorialLlm?: LlmClient;
   gate?: ComputeGate;
+  /** Meters the journalists against the season's editorial budget (default: the ledger). */
+  editorialGate?: EditorialGate;
   log?: Logger;
   halfDurationSec?: number;
 }
@@ -36,6 +39,16 @@ export function buildHandlers(d: PlatformDeps): Record<string, JobHandler> {
     }),
     // Every manager call is metered against the team's season budget unless a gate is injected.
     ...managerJobHandlers({ db: d.db, llm: d.llm, gate: d.gate ?? ledgerGate(d.db), log: d.log }),
-    ...(d.editorialLlm ? editorialJobHandlers({ db: d.db, llm: d.editorialLlm, log: d.log }) : {}),
+    // Journalist calls are metered against the season's editorial budget; once it can't cover a
+    // call, the offline template writer (same facts, no model, no cost) writes the piece instead.
+    ...(d.editorialLlm
+      ? editorialJobHandlers({
+          db: d.db,
+          llm: d.editorialLlm,
+          log: d.log,
+          gate: d.editorialGate ?? editorialGate(d.db),
+          fallback: offlineEditorialLlm(d.editorialLlm.model.replace(/^offline:/, "")),
+        })
+      : {}),
   };
 }
