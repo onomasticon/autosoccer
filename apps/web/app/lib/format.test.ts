@@ -2,11 +2,11 @@ import { describe, expect, it } from "vitest";
 import { formatDate, onColor, readableChip } from "./format";
 
 describe("format", () => {
-  it("formats dates in UTC, with an optional weekday + time-only form", () => {
+  it("formats dates in UTC, labelling every time with its zone", () => {
     const iso = "2026-11-15T14:00:00.000Z";
     expect(formatDate(iso)).toBe("15 Nov");
-    expect(formatDate(iso, { weekday: true, time: true })).toBe("Sun 15 Nov, 14:00");
-    expect(formatDate(iso, { weekday: true, time: true, date: false })).toBe("Sun 14:00");
+    expect(formatDate(iso, { weekday: true, time: true })).toBe("Sun 15 Nov, 14:00 UTC");
+    expect(formatDate(iso, { weekday: true, time: true, date: false })).toBe("Sun 14:00 UTC");
   });
   it("readableChip keeps passing colours and deepens failing ones just enough for AA", () => {
     expect(readableChip("#245EFF")).toEqual({ bg: "#245EFF", fg: "#FFFFFF" });

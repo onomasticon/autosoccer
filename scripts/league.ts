@@ -1,7 +1,8 @@
 /**
  * League operations against the configured DATABASE_URL.
- *   bun run league seed [--season season-1] [--seed 20261109] [--budget 1.00] [--editorial-budget 3.00] [--interval 60]
- *        --budget: per-team manager budget (USD); --editorial-budget: season cap on journalist spend; --interval: minutes between rounds
+ *   bun run league seed [--season season-1] [--seed 20261109] [--budget 1.00] [--editorial-budget 3.00] [--cadence demo|weekly|twice-weekly] [--interval 60] [--start ISO]
+ *        --budget: per-team manager budget (USD); --editorial-budget: season cap on journalist spend;
+ *        --cadence: demo (a round every --interval minutes, default) or a reader-friendly real-season calendar (UTC)
  *   bun run league run  [--season season-1] [--no-managers] [--rounds N]   # plays every remaining round in-process (or only the next N)
  *   bun run league managers [--season season-1]              # manager decisions, memory and spend
  *   bun run league budget [--season season-1]                # compute ledger per team, and the editorial budget
@@ -16,6 +17,7 @@ import { editorialLlm, managerLlm } from "../apps/server/src/modules/agents/inde
 import { formatUsd } from "../apps/server/src/modules/agents/pricing.ts";
 import { managerRoundHook, seedManagers } from "../apps/server/src/modules/agents/service.ts";
 import { seedJournalists } from "../apps/server/src/modules/editorial/service.ts";
+import { parseCadence } from "../apps/server/src/modules/league/cadence.ts";
 import { fixtureViews, seasonBySlug, standingRows } from "../apps/server/src/modules/league/read.ts";
 import { SEED_TEAMS } from "../apps/server/src/modules/league/seed-data.ts";
 import { advanceSeason, createSeason, seedTeams } from "../apps/server/src/modules/league/service.ts";
@@ -56,6 +58,8 @@ try {
       editorialBudgetMicroUsd: Math.round(Number(opt("editorial-budget", "3.00")) * 1_000_000),
       teamSlugs: SEED_TEAMS.map((t) => t.slug),
       roundIntervalMinutes: Number(opt("interval", "60")),
+      cadence: parseCadence(opt("cadence", "demo"), Number(opt("interval", "60"))),
+      startsAt: process.argv.includes("--start") ? new Date(opt("start", "")) : undefined,
     });
     await seedManagers(db, seasonId, config.MANAGER_MODEL);
     await seedJournalists(db, config.EDITORIAL_MODEL);

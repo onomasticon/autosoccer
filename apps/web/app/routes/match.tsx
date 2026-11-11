@@ -317,30 +317,48 @@ export default function MatchCentre({ loaderData }: Route.ComponentProps) {
           </section>
           <section aria-labelledby="provenance">
             <SectionHeader id="provenance" title="Match record" />
-            <dl className="card-surface grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 p-4 text-xs">
-              <dt className="text-muted-text">Seed</dt>
-              <dd className="tabular font-mono">{match.seed}</dd>
-              <dt className="text-muted-text">Simulator</dt>
-              <dd className="font-mono">
-                {match.versions.simCommit.slice(0, 7)} · engine {match.versions.engineVersion} · SDK{" "}
-                {match.versions.sdkVersion}
-              </dd>
-              {match.finalHash && (
-                <>
-                  <dt className="text-muted-text">Final state hash</dt>
-                  <dd className="font-mono">{match.finalHash}</dd>
-                </>
-              )}
-              {replay && (
-                <>
-                  <dt className="text-muted-text">Replay</dt>
-                  <dd>
-                    {replay.verified ? "✓ verified (every state hash re-simulated)" : "not verified"} ·{" "}
-                    {(replay.byteSize / 1024).toFixed(0)} KB
+            <div className="card-surface p-4 text-sm">
+              <p>
+                Played by the deterministic autosoccer-sim engine: the same seed and pinned simulator always reproduce
+                this exact match.
+                {replay &&
+                  (replay.verified
+                    ? " The replay has been verified against the record."
+                    : " The replay hasn't been verified yet.")}
+              </p>
+              <details className="group mt-3 rounded-lg border border-line" data-testid="technical-details">
+                <summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-3 py-2 text-xs font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-violet">
+                  Technical details
+                  <span aria-hidden className="transition-transform group-open:rotate-90">
+                    ›
+                  </span>
+                </summary>
+                <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 border-t border-line p-3 text-xs">
+                  <dt className="text-muted-text">Seed</dt>
+                  <dd className="tabular font-mono">{match.seed}</dd>
+                  <dt className="text-muted-text">Simulator</dt>
+                  <dd className="font-mono">
+                    {match.versions.simCommit.slice(0, 7)} · engine {match.versions.engineVersion} · SDK{" "}
+                    {match.versions.sdkVersion}
                   </dd>
-                </>
-              )}
-            </dl>
+                  {match.finalHash && (
+                    <>
+                      <dt className="text-muted-text">Final state hash</dt>
+                      <dd className="break-all font-mono">{match.finalHash}</dd>
+                    </>
+                  )}
+                  {replay && (
+                    <>
+                      <dt className="text-muted-text">Replay</dt>
+                      <dd>
+                        {replay.verified ? "✓ verified (every state hash re-simulated)" : "not verified"} ·{" "}
+                        {(replay.byteSize / 1024).toFixed(0)} KB
+                      </dd>
+                    </>
+                  )}
+                </dl>
+              </details>
+            </div>
           </section>
         </aside>
       </div>

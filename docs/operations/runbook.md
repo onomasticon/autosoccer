@@ -23,8 +23,25 @@ cp .env.example .env                        # set POSTGRES_PASSWORD, OPS_TOKEN, 
 docker compose -f docker-compose.prod.yml up -d --build
 docker compose -f docker-compose.prod.yml exec api bun scripts/league.ts seed --budget 1.00 --editorial-budget 3.00 --interval 60
 ```
-`--interval` is the number of minutes between rounds. Round 1 kicks off at seed time and later
+`--interval` is the number of minutes between rounds (the **demo** cadence). Round 1 kicks off at seed time and later
 rounds follow on that schedule.
+
+For a reader-friendly season, use a calendar cadence instead (all times UTC, shown with "UTC" on the site):
+
+| `--cadence` | Rounds |
+| --- | --- |
+| `demo` (default) | every `--interval` minutes from `--start` (default: now) |
+| `weekly` | Saturdays 15:00 UTC |
+| `twice-weekly` | Wednesdays and Saturdays 19:00 UTC |
+
+To move a running season onto a cadence without touching anything already played:
+
+```sh
+bun run ops reschedule --cadence weekly --dry-run   # preview
+bun run ops reschedule --cadence weekly             # apply
+```
+
+Only rounds where no fixture is playing, completed or failed are moved. Started rounds keep their recorded kickoff times, and no open round is placed before the last started round. It is idempotent.
 
 Key settings (see `.env.example`):
 

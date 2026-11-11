@@ -27,7 +27,8 @@ const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "
 
 /**
  * UTC date formatting done by hand (not Intl), so server and browser render identical
- * text and hydration never mismatches across ICU versions.
+ * text and hydration never mismatches across ICU versions. Any output that includes a time
+ * says "UTC", so kickoff times are never ambiguous.
  */
 export function formatDate(
   iso: string | null,
@@ -36,11 +37,11 @@ export function formatDate(
   if (!iso) return "";
   const d = new Date(iso);
   if (opts.date === false && opts.weekday && opts.time)
-    return `${DAYS[d.getUTCDay()]} ${String(d.getUTCHours()).padStart(2, "0")}:${String(d.getUTCMinutes()).padStart(2, "0")}`;
+    return `${DAYS[d.getUTCDay()]} ${String(d.getUTCHours()).padStart(2, "0")}:${String(d.getUTCMinutes()).padStart(2, "0")} UTC`;
   const date = `${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]}`;
   const day = opts.weekday ? `${DAYS[d.getUTCDay()]} ` : "";
   const time = opts.time
-    ? `, ${String(d.getUTCHours()).padStart(2, "0")}:${String(d.getUTCMinutes()).padStart(2, "0")}`
+    ? `, ${String(d.getUTCHours()).padStart(2, "0")}:${String(d.getUTCMinutes()).padStart(2, "0")} UTC`
     : "";
   return `${day}${date}${time}`;
 }

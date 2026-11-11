@@ -1,6 +1,7 @@
 import type { Db } from "@autosoccer/db";
 import { SIM_VERSION } from "@autosoccer/sim-adapter";
 import { enqueueFixture } from "../matches/service.ts";
+import { type Cadence, kickoffs } from "./cadence.ts";
 import { doubleRoundRobin, fixtureSeed, seededOrder } from "./schedule.ts";
 import { SEED_TEAMS, type SeedTeam } from "./seed-data.ts";
 import { computeStandings, type Result, type Standing } from "./standings.ts";
@@ -38,8 +39,10 @@ export interface CreateSeasonInput {
   teamSlugs: string[];
   simVersion?: string;
   startsAt?: Date;
-  /** Spacing between rounds on the published calendar. */
+  /** Spacing between rounds on the published calendar (demo cadence). */
   roundIntervalMinutes?: number;
+  /** Calendar cadence; overrides roundIntervalMinutes (see cadence.ts). Default: demo, hourly. */
+  cadence?: Cadence;
 }
 
 /**
@@ -62,12 +65,17 @@ export async function createSeason(db: Db, input: CreateSeasonInput): Promise<{ 
     for (const t of teams) await tx`insert into season_teams (season_id, team_id) values (${season!.id}, ${t.id})`;
     const order = seededOrder(teams, input.seed);
     const bySlug = new Map(teams.map((t) => [t.slug, t.id]));
-    const interval = (input.roundIntervalMinutes ?? 60) * 60_000;
-    for (const f of doubleRoundRobin(order.map((t) => t.slug))) {
+    const calendar = doubleRoundRobin(order.map((t) => t.slug));
+    const times = kickoffs(
+      startsAt,
+      Math.max(...calendar.map((f) => f.round)),
+      input.cadence ?? { kind: "interval", minutes: input.roundIntervalMinutes ?? 60 },
+    );
+    for (const f of calendar) {
       await tx`
         insert into fixtures (season_id, round, home_team_id, away_team_id, seed, scheduled_at)
         values (${season!.id}, ${f.round}, ${bySlug.get(f.home)!}, ${bySlug.get(f.away)!},
-          ${fixtureSeed(input.seed, f.round, f.home, f.away)}, ${new Date(startsAt.getTime() + (f.round - 1) * interval)})`;
+          ${fixtureSeed(input.seed, f.round, f.home, f.away)}, ${times[f.round - 1]!})`;
     }
     return { seasonId: season!.id, created: true };
   });

@@ -172,6 +172,7 @@ export async function matchFacts(db: Db, matchId: string): Promise<EditorialFact
       source: src,
     });
   }
+  facts.push(...(await continuityFacts(db, m)));
   facts.push(...(await standingFacts(db, m.season_id, m.round)));
   return {
     contract: "editorial-facts/1",
@@ -191,6 +192,88 @@ export async function matchFacts(db: Db, matchId: string): Promise<EditorialFact
     },
     facts,
   };
+}
+
+/**
+ * Continuity from stored official history only (never more than the record shows):
+ * earlier meetings between the two clubs this season, and each club's current run of form
+ * going into and including this match. Nothing is emitted when there's no history.
+ */
+async function continuityFacts(db: Db, m: MatchRow): Promise<Fact[]> {
+  const facts: Fact[] = [];
+  const earlier = await db<
+    {
+      id: string;
+      round: number;
+      home_id: string;
+      away_id: string;
+      home_name: string;
+      away_name: string;
+      home_score: number;
+      away_score: number;
+    }[]
+  >`
+    select m.id, f.round, f.home_team_id as home_id, f.away_team_id as away_id, h.name as home_name, a.name as away_name,
+      m.home_score, m.away_score
+    from matches m join fixtures f on f.id = m.fixture_id
+    join teams h on h.id = f.home_team_id join teams a on a.id = f.away_team_id
+    where f.season_id = ${m.season_id} and m.status = 'completed' and f.round < ${m.round}
+      and ((f.home_team_id = ${m.home_team_id} and f.away_team_id = ${m.away_team_id})
+        or (f.home_team_id = ${m.away_team_id} and f.away_team_id = ${m.home_team_id}))
+    order by f.round`;
+  for (const e of earlier)
+    facts.push({
+      id: `match:${e.id}:score`,
+      kind: "score",
+      statement: `Earlier meeting this season (round ${e.round}): ${e.home_name} ${e.home_score}–${e.away_score} ${e.away_name}`,
+      value: {
+        home: e.home_score,
+        away: e.away_score,
+        round: e.round,
+        homeTeam: { id: e.home_id, name: e.home_name },
+        awayTeam: { id: e.away_id, name: e.away_name },
+      },
+      source: { table: "matches", id: e.id },
+    });
+  for (const [teamId, name] of [
+    [m.home_team_id, m.home_name],
+    [m.away_team_id, m.away_name],
+  ] as const) {
+    const results = await db<{ gf: number; ga: number }[]>`
+      select case when f.home_team_id = ${teamId} then m.home_score else m.away_score end as gf,
+             case when f.home_team_id = ${teamId} then m.away_score else m.home_score end as ga
+      from matches m join fixtures f on f.id = m.fixture_id
+      where f.season_id = ${m.season_id} and m.status = 'completed' and f.round <= ${m.round}
+        and ${teamId}::uuid in (f.home_team_id, f.away_team_id)
+      order by f.round desc`;
+    if (results.length < 2) continue;
+    const res = results.map((r) => (r.gf > r.ga ? "W" : r.gf === r.ga ? "D" : "L"));
+    const run = (pred: (x: string) => boolean) => {
+      let n = 0;
+      while (n < res.length && pred(res[n]!)) n++;
+      return n;
+    };
+    const wins = run((x) => x === "W");
+    const unbeaten = run((x) => x !== "L");
+    const winless = run((x) => x !== "W");
+    const statement =
+      wins >= 2
+        ? `${name} have won their last ${wins} league matches`
+        : unbeaten >= 2
+          ? `${name} are unbeaten in their last ${unbeaten} league matches`
+          : winless >= 2
+            ? `${name} are without a win in their last ${winless} league matches`
+            : null;
+    if (statement)
+      facts.push({
+        id: `form:${m.season_id}:r${m.round}:${teamId}`,
+        kind: "form",
+        statement,
+        value: { team: { id: teamId, name }, throughRound: m.round, recentFirst: res },
+        source: { table: "matches", id: `season:${m.season_id}` },
+      });
+  }
+  return facts;
 }
 
 /** Facts for a whole round: each match's score and key stats, plus the table afterwards. */
