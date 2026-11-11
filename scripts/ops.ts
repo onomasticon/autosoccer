@@ -3,11 +3,13 @@
  *   bun run ops status                       # seasons, queue, failures, workers, spend
  *   bun run ops requeue [--kind match.play]  # retry permanently failed jobs (after fixing the cause)
  *   bun run ops tick [--ignore-kickoff]      # run one scheduler tick by hand
+ *   bun run ops editorial:audit [--json]     # re-check published articles against the fact checker (read-only)
  */
 import { createDb } from "@autosoccer/db";
 import { loadConfig } from "../apps/server/src/config.ts";
 import { createLogger } from "../apps/server/src/log.ts";
 import { formatUsd } from "../apps/server/src/modules/agents/pricing.ts";
+import { auditPublishedArticles } from "../apps/server/src/modules/editorial/audit.ts";
 import { schedulerTick } from "../apps/server/src/modules/ops/scheduler.ts";
 import { opsStatus, requeueFailed } from "../apps/server/src/modules/ops/status.ts";
 
@@ -49,6 +51,16 @@ try {
   } else if (cmd === "tick") {
     const r = await schedulerTick(db, { respectSchedule: !flag("ignore-kickoff"), log: createLogger("info") });
     console.log(JSON.stringify(r, null, 2));
+  } else if (cmd === "editorial:audit") {
+    const findings = await auditPublishedArticles(db);
+    if (flag("json")) console.log(JSON.stringify(findings, null, 2));
+    else {
+      for (const f of findings) {
+        console.log(`✗ ${f.slug} [${f.kind}] ${f.headline}`);
+        for (const e of f.errors) console.log(`    - ${e}`);
+      }
+      console.log(`${findings.length} published article(s) fail the current checks`);
+    }
   } else throw new Error(`unknown command ${cmd}`);
 } finally {
   await db.end();

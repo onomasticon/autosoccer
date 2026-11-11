@@ -154,11 +154,20 @@ export async function seasonResults(db: Db, seasonId: string): Promise<Result[]>
   }));
 }
 
-export async function seasonStandings(db: Db, seasonId: string): Promise<{ rows: Standing[]; afterRound: number }> {
+/**
+ * The table from official results. With `throughRound`, only results up to and including that
+ * round count — a historical snapshot, so facts about round N never include later results.
+ */
+export async function seasonStandings(
+  db: Db,
+  seasonId: string,
+  opts: { throughRound?: number } = {},
+): Promise<{ rows: Standing[]; afterRound: number }> {
   const teams = await db<{ id: string; name: string }[]>`
     select t.id, t.name from season_teams st join teams t on t.id = st.team_id where st.season_id = ${seasonId}`;
   const names = new Map(teams.map((t) => [t.id, t.name]));
-  const results = await seasonResults(db, seasonId);
+  const all = await seasonResults(db, seasonId);
+  const results = opts.throughRound === undefined ? all : all.filter((r) => r.round <= opts.throughRound!);
   const [done] = await db<{ round: number | null }[]>`
     select max(round)::int as round from fixtures f where season_id = ${seasonId}
       and not exists (select 1 from fixtures g where g.season_id = f.season_id and g.round <= f.round and g.status <> 'completed')`;
@@ -168,6 +177,6 @@ export async function seasonStandings(db: Db, seasonId: string): Promise<{ rows:
       results,
       (id) => names.get(id) ?? id,
     ),
-    afterRound: done?.round ?? 0,
+    afterRound: Math.min(done?.round ?? 0, opts.throughRound ?? Number.POSITIVE_INFINITY),
   };
 }
