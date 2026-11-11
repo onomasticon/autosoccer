@@ -1,0 +1,12 @@
+matches: 1200 (seeds 1–1200), simulator 38b8c6f
+goals/match 1.69 (sd 1.31) · 0–0 18.0% · draws 28.3% · home 36.6% · away 35.1%
+shots/match 3.34 · on target 97.2% · every shot on target in 1093/1114 matches with a shot · goals per shot on target 0.52
+own goals 632 = 31.2% of goals · matches with an own goal 38.5%
+home possession mean 49.9% sd 5.32 pts · side with more of the ball wins 45.8% of decided matches
+goals histogram {"0":216,"1":389,"2":311,"3":178,"4":68,"5":23,"6":13,"7":2}
+preset            apps  win   draw  GF    GA    shots poss
+harbour-city       480  24.2% 29.2%  0.63  1.11  1.15 51.5%
+red-rock-rovers    480  69.4% 23.5%  1.45  0.14  3.42 49.9%
+northgate-comets   480  39.4% 25.8%  1.00  0.99  1.91 45.5%
+saltmarsh-athletic 480  16.9% 32.7%  0.41  0.95  0.53 52.4%
+baseline           480  29.4% 30.4%  0.72  1.02  1.33 50.7%
