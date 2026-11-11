@@ -190,9 +190,19 @@ export async function matchFacts(db: Db, matchId: string): Promise<EditorialFact
 async function continuityFacts(db: Db, m: MatchRow): Promise<Fact[]> {
   const facts: Fact[] = [];
   const earlier = await db<
-    { id: string; round: number; home_name: string; away_name: string; home_score: number; away_score: number }[]
+    {
+      id: string;
+      round: number;
+      home_id: string;
+      away_id: string;
+      home_name: string;
+      away_name: string;
+      home_score: number;
+      away_score: number;
+    }[]
   >`
-    select m.id, f.round, h.name as home_name, a.name as away_name, m.home_score, m.away_score
+    select m.id, f.round, f.home_team_id as home_id, f.away_team_id as away_id, h.name as home_name, a.name as away_name,
+      m.home_score, m.away_score
     from matches m join fixtures f on f.id = m.fixture_id
     join teams h on h.id = f.home_team_id join teams a on a.id = f.away_team_id
     where f.season_id = ${m.season_id} and m.status = 'completed' and f.round < ${m.round}
@@ -204,7 +214,13 @@ async function continuityFacts(db: Db, m: MatchRow): Promise<Fact[]> {
       id: `match:${e.id}:score`,
       kind: "score",
       statement: `Earlier meeting this season (round ${e.round}): ${e.home_name} ${e.home_score}–${e.away_score} ${e.away_name}`,
-      value: { home: e.home_score, away: e.away_score, round: e.round },
+      value: {
+        home: e.home_score,
+        away: e.away_score,
+        round: e.round,
+        homeTeam: { id: e.home_id, name: e.home_name },
+        awayTeam: { id: e.away_id, name: e.away_name },
+      },
       source: { table: "matches", id: e.id },
     });
   for (const [teamId, name] of [
