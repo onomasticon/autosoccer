@@ -7,8 +7,7 @@
  *   bun run league table [--season season-1]
  */
 import { createDb } from "@autosoccer/db";
-import { FileReplayStore } from "@autosoccer/sim-adapter";
-import { loadConfig } from "../apps/server/src/config.ts";
+import { loadConfig, replayStore } from "../apps/server/src/config.ts";
 import { buildHandlers } from "../apps/server/src/jobs/handlers.ts";
 import { createWorker } from "../apps/server/src/jobs/worker.ts";
 import { createLogger } from "../apps/server/src/log.ts";
@@ -29,7 +28,7 @@ const opt = (name: string, def: string) => {
 };
 const slug = opt("season", "season-1");
 const config = loadConfig();
-const db = createDb(config.DATABASE_URL, { max: 4 });
+const db = createDb(config.DATABASE_URL, { max: 4, caFile: config.DATABASE_CA_CERT_FILE });
 
 async function printTable() {
   const s = await seasonBySlug(db, slug);
@@ -65,7 +64,7 @@ try {
     const s = await seasonBySlug(db, slug);
     if (!s) throw new Error(`no season ${slug}; run \`bun run league seed\``);
     const log = createLogger("warn");
-    const store = new FileReplayStore(config.REPLAY_DIR);
+    const store = replayStore(config);
     const managers = !process.argv.includes("--no-managers");
     if (managers) console.log(`managers on · llm ${config.LLM_PROVIDER} · model ${config.MANAGER_MODEL}`);
     const handlers = managers

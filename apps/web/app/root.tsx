@@ -5,7 +5,11 @@ import "./app.css";
 import { LeagueHeader, SiteFooter } from "./components/LeagueHeader";
 import { ScoreTicker } from "./components/ScoreTicker";
 import { apiGet } from "./lib/api.server";
+import { pageHeaders } from "./lib/cache";
 import { tickerFixtures } from "./lib/ticker";
+
+/** Edge caching for every page (routes may override, e.g. search). */
+export const headers: Route.HeadersFunction = ({ errorHeaders }) => pageHeaders({ errorHeaders });
 
 export const links: Route.LinksFunction = () => [
   { rel: "preconnect", href: "https://fonts.googleapis.com" },

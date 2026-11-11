@@ -20,6 +20,7 @@ COPY . .
 RUN bun run --cwd apps/web build
 
 FROM oven/bun:1.2.19 AS runtime
+LABEL org.opencontainers.image.source="https://github.com/onomasticon/autosoccer"
 WORKDIR /app
 ENV NODE_ENV=production REPLAY_DIR=/data/replays
 COPY --from=build /app /app
@@ -31,6 +32,7 @@ CMD ["bun", "apps/server/src/api.ts"]
 
 # The SSR web server runs on Node (react-dom's streaming server build is Node-specific).
 FROM node:22-slim AS web
+LABEL org.opencontainers.image.source="https://github.com/onomasticon/autosoccer"
 WORKDIR /app/apps/web
 ENV NODE_ENV=production PORT=3000
 COPY --from=build /app /app

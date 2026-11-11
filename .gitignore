@@ -12,3 +12,9 @@ coverage/
 data/replays/
 test-results/
 docs/media/**/*.mp4
+
+# VM-only files (deploy/exe)
+deploy/exe/.env
+deploy/exe/.deployed-tag
+deploy/exe/.previous-tag
+deploy/exe/backup.log

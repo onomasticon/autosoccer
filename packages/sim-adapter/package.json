@@ -11,6 +11,7 @@
     "@autosoccer/controller-sdk": "workspace:*",
     "@autosoccer/match-runner": "workspace:*",
     "@autosoccer/sim-core": "workspace:*",
-    "@autosoccer/telemetry": "workspace:*"
+    "@autosoccer/telemetry": "workspace:*",
+    "aws4fetch": "1.0.20"
   }
 }

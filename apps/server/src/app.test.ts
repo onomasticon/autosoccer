@@ -6,7 +6,8 @@ import { createApp } from "./app.ts";
 
 const store = new MemoryReplayStore();
 
-import { loadConfig } from "./config.ts";
+import { FileReplayStore, R2ReplayStore } from "@autosoccer/sim-adapter";
+import { loadConfig, replayStore } from "./config.ts";
 
 let t: TestDatabase;
 beforeAll(async () => {
@@ -62,5 +63,37 @@ describe("config", () => {
     expect(cfg.REPLAY_DIR.endsWith("/data/replays")).toBe(true);
     expect(cfg.REPLAY_DIR.startsWith("/")).toBe(true);
     expect(() => loadConfig({})).toThrow(/DATABASE_URL/);
+  });
+  it("selects the replay store and requires R2 settings when REPLAY_STORE=r2", () => {
+    const base = { DATABASE_URL: "postgres://a:b@h:1/d" };
+    expect(replayStore(loadConfig(base))).toBeInstanceOf(FileReplayStore);
+    expect(() => loadConfig({ ...base, REPLAY_STORE: "r2", R2_BUCKET: "replays" })).toThrow(
+      /R2_ENDPOINT, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY/,
+    );
+    const r2 = replayStore(
+      loadConfig({
+        ...base,
+        REPLAY_STORE: "r2",
+        R2_ENDPOINT: "https://acct.r2.cloudflarestorage.com",
+        R2_BUCKET: "replays",
+        R2_ACCESS_KEY_ID: "id",
+        R2_SECRET_ACCESS_KEY: "secret",
+      }),
+    );
+    expect(r2).toBeInstanceOf(R2ReplayStore);
+    expect((r2 as R2ReplayStore).bucket).toBe("replays");
+  });
+  it("reads pool sizes and resolves the database CA path from the repo root", () => {
+    const cfg = loadConfig({
+      DATABASE_URL: "postgres://a:b@h:1/d?sslmode=verify-full",
+      API_DB_POOL_MAX: "4",
+      WORKER_DB_POOL_MAX: "3",
+      DATABASE_CA_CERT_FILE: "certs/do-ca.crt",
+    });
+    expect(cfg).toMatchObject({ API_DB_POOL_MAX: 4, WORKER_DB_POOL_MAX: 3 });
+    expect(cfg.DATABASE_CA_CERT_FILE!.endsWith("/certs/do-ca.crt")).toBe(true);
+    expect(() => loadConfig({ DATABASE_URL: "postgres://a:b@h:1/d", WORKER_DB_POOL_MAX: "1" })).toThrow(
+      /WORKER_DB_POOL_MAX/,
+    );
   });
 });

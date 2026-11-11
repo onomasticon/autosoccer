@@ -7,6 +7,7 @@ import { SectionHeader } from "../components/SectionHeader";
 import { EmptyState } from "../components/States";
 import { TeamBadge } from "../components/TeamBadge";
 import { apiMaybe, apiOptional } from "../lib/api.server";
+import { NO_STORE } from "../lib/cache";
 import { searchLeague } from "../lib/search";
 import { seo } from "../lib/seo";
 import type { Route } from "./+types/search";
@@ -28,6 +29,9 @@ export async function loader({ request }: Route.LoaderArgs) {
     }),
   };
 }
+
+/** Results depend on the query string: never cache at the edge. */
+export const headers: Route.HeadersFunction = () => ({ "Cache-Control": NO_STORE });
 
 export const meta: Route.MetaFunction = ({ data }) => seo(data?.q ? `Search: ${data.q}` : "Search");
 
