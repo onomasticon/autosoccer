@@ -10,7 +10,7 @@ export type Db = postgres.Sql;
 export interface CreateDbOptions {
   max?: number;
   /**
-   * PEM CA file for verifying the server certificate (managed Postgres, e.g. DigitalOcean).
+   * PEM CA file for verifying the server certificate (e.g. a managed Postgres service).
    * TLS mode itself comes from the URL's sslmode (require, verify-full, ...).
    */
   caFile?: string;

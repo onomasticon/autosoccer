@@ -1,14 +1,14 @@
-# Production stack for one DigitalOcean Droplet behind Cloudflare.
+# Production stack for one exe.dev VM behind Cloudflare.
 #
 #   images    ghcr.io/onomasticon/autosoccer{,-web}:<git sha>, built by CI
-#   database  DigitalOcean Managed PostgreSQL 16 (DATABASE_URL, direct port, TLS verified)
+#   database  PostgreSQL 16 in this stack, on the VM's disk (volume pgdata); nightly dumps to R2
 #   replays   Cloudflare R2 (REPLAY_STORE=r2)
 #   ingress   cloudflared dials out to Cloudflare Tunnel; no service publishes a port
 #
-# Deploy with ./deploy.sh <tag> (see docs/operations/deploy-cloudflare-digitalocean.md).
+# Deploy with ./deploy.sh <tag> (see docs/operations/deploy-cloudflare-exe.md).
 # A project name used by nothing else: deploy.sh runs `up --remove-orphans`, which removes any
 # container in the same compose project that this file does not define.
-name: autosoccer-droplet
+name: autosoccer-exe
 
 x-logging: &logging
   driver: json-file
@@ -20,12 +20,34 @@ x-app: &app
   image: ghcr.io/onomasticon/autosoccer:${IMAGE_TAG:?IMAGE_TAG is set by deploy.sh}
   restart: unless-stopped
   env_file: .env
+  environment:
+    # Same VM, private Docker network: no TLS. POSTGRES_PASSWORD must be URL-safe (openssl rand -hex 24).
+    DATABASE_URL: postgresql://autosoccer:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@db:5432/autosoccer
   logging: *logging
-  volumes:
-    # DigitalOcean's CA certificate for the managed database (Databases → Connection details → Download CA).
-    - ./ca-certificate.crt:/run/secrets/db-ca.crt:ro
+  depends_on:
+    db:
+      condition: service_healthy
 
 services:
+  db:
+    image: postgres:16.6-alpine
+    restart: unless-stopped
+    logging: *logging
+    environment:
+      POSTGRES_USER: autosoccer
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: autosoccer
+    # Sized for a 4 GB VM shared with the app. api + 2 workers use 5 + 2×4 = 13 connections.
+    command: ["postgres", "-c", "shared_buffers=512MB", "-c", "effective_cache_size=1536MB", "-c", "max_connections=40"]
+    shm_size: 256mb
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U autosoccer -d autosoccer"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
   # One-shot; deploy.sh runs it before starting the new version. Advisory-locked and idempotent.
   migrate:
     <<: *app
@@ -81,3 +103,6 @@ services:
     depends_on:
       web:
         condition: service_healthy
+
+volumes:
+  pgdata:

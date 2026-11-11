@@ -13,8 +13,8 @@ data/replays/
 test-results/
 docs/media/**/*.mp4
 
-# Droplet-only files (deploy/droplet)
-deploy/droplet/.env
-deploy/droplet/ca-certificate.crt
-deploy/droplet/.deployed-tag
-deploy/droplet/.previous-tag
+# VM-only files (deploy/exe)
+deploy/exe/.env
+deploy/exe/.deployed-tag
+deploy/exe/.previous-tag
+deploy/exe/backup.log

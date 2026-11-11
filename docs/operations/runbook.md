@@ -14,8 +14,8 @@ Replays are written by workers and served by the API. With `REPLAY_STORE=file` t
 Cloudflare R2 (or any S3-compatible store) and no shared disk is needed.
 
 ## Deploy
-For production on DigitalOcean behind Cloudflare (Tunnel, R2 replays, managed Postgres), see
-[deploy-cloudflare-digitalocean.md](deploy-cloudflare-digitalocean.md). The self-contained stack below
+For production on an exe.dev VM behind Cloudflare (Tunnel, R2 replays and backups), see
+[deploy-cloudflare-exe.md](deploy-cloudflare-exe.md). The self-contained stack below
 (Postgres in a container, replays on a volume) is for single-host trials:
 ```sh
 git submodule update --init                 # pinned autosoccer-sim
