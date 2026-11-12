@@ -47,6 +47,8 @@ interface StandingRec {
   won: number;
   drawn: number;
   lost: number;
+  /** Last (up to five) results, oldest first. */
+  form: Array<"W" | "D" | "L">;
   teams: number;
   factId: string;
 }
@@ -123,6 +125,9 @@ export function buildLedger(ef: EditorialFacts): Ledger {
       won: Number(v.won),
       drawn: Number(v.drawn),
       lost: Number(v.lost),
+      form: Array.isArray(v.form)
+        ? (v.form as unknown[]).filter((x): x is "W" | "D" | "L" => x === "W" || x === "D" || x === "L")
+        : [],
       teams: num(v.teams) ? v.teams : 0,
       factId: f.id,
     });
@@ -521,17 +526,38 @@ function checkTable(sentence: string, ms: Mention[], ledger: Ledger, errors: str
       );
     if (rec && row) {
       const k = rec[1]!.toLowerCase();
-      const ok = /unbeaten|undefeated|yet to lose/.test(k)
-        ? row.lost === 0
-        : /perfect|maximum|100%/.test(k)
-          ? row.won === row.played && row.played > 0
-          : /winless|without a win|yet to win/.test(k)
-            ? row.won === 0
-            : row.points === 0;
-      if (!ok)
-        errors.push(
-          `contradiction: "${short(sentence)}" — ${a.team} record after round ${ledger.afterRound ?? "?"}: W${row.won} D${row.drawn} L${row.lost} (${row.factId})`,
+      // "unbeaten in their last two" is about the recent run (form), not the whole season.
+      const win =
+        /\b(?:in|from|over|across)\s+(?:their|its|the|his|her)\s+(?:last|past|previous)\s+(\d|one|two|three|four|five|six)\b/i.exec(
+          rest,
         );
+      const n = win ? (WORDS[win[1]!.toLowerCase()] ?? Number(win[1])) : null;
+      let results: Array<"W" | "D" | "L"> | null = null;
+      let label = `record after round ${ledger.afterRound ?? "?"}: W${row.won} D${row.drawn} L${row.lost}`;
+      if (n === null || n >= row.played) {
+        results = [
+          ...Array<"W">(row.won).fill("W"),
+          ...Array<"D">(row.drawn).fill("D"),
+          ...Array<"L">(row.lost).fill("L"),
+        ];
+      } else if (n <= row.form.length) {
+        results = row.form.slice(-n);
+        label = `last ${n} result${n === 1 ? "" : "s"} after round ${ledger.afterRound ?? "?"}: ${results.join("")}`;
+      }
+      if (!results) {
+        errors.push(
+          `cannot verify "${short(sentence)}": form only covers the last ${row.form.length} results (${row.factId})`,
+        );
+      } else {
+        const ok = /unbeaten|undefeated|yet to lose/.test(k)
+          ? !results.includes("L")
+          : /perfect|maximum|100%/.test(k)
+            ? results.length > 0 && results.every((r) => r === "W")
+            : /winless|without a win|yet to win/.test(k)
+              ? !results.includes("W")
+              : results.every((r) => r === "L");
+        if (!ok) errors.push(`contradiction: "${short(sentence)}" — ${a.team} ${label} (${row.factId})`);
+      }
     }
   }
 }

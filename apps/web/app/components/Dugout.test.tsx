@@ -5,7 +5,7 @@ import axe from "axe-core";
 import { createRoutesStub } from "react-router";
 import { afterEach, describe, expect, it } from "vitest";
 import { mockTeams } from "../lib/mocks";
-import { DugoutTimeline, InsideTheDugout } from "./Dugout";
+import { DugoutTimeline, firstSentence, InsideTheDugout } from "./Dugout";
 
 afterEach(cleanup);
 
@@ -153,5 +153,14 @@ describe("DugoutTimeline", () => {
     expect(screen.getByText("Season complete.")).toBeTruthy();
     expect(screen.getByRole("list", { name: "Changes from the previous match" }).textContent).toMatch(/Pressing/);
     await noAxe(container);
+  });
+});
+
+describe("long reasoning", () => {
+  it("leads with the first sentence and keeps decimals intact", () => {
+    expect(firstSentence("Our 0–3 loss at 1.2 m height hurt. So we push up. Again.")).toBe(
+      "Our 0–3 loss at 1.2 m height hurt.",
+    );
+    expect(firstSentence("Single sentence without a stop")).toBe("Single sentence without a stop");
   });
 });

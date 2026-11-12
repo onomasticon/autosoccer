@@ -315,3 +315,30 @@ describe("ledger", () => {
     ]);
   });
 });
+
+describe("record claims over a recent run use form, not the season record", () => {
+  // Season 2, after round 5: Saltmarsh W3 D1 L1 with form W L D W W; Northgate W1 D2 L2 with form D W D L L.
+  const withForm = (f: Fact, form: string): Fact => ({
+    ...f,
+    value: { ...(f.value as Record<string, unknown>), form: form.split("") },
+  });
+  const after5: EditorialFacts = {
+    ...round1,
+    generatedFrom: { resultFinalHash: null, standingsAfterRound: 5 },
+    facts: [withForm(standing(5, SMA, 1, 10, 3, 1, 1), "WLDWW"), withForm(standing(5, NGC, 2, 5, 1, 2, 2), "DWDLL")],
+  };
+  it.each([
+    "Saltmarsh are unbeaten in their last two league games.",
+    "Saltmarsh Athletic are unbeaten in their last three.",
+    "Northgate Comets are without a win in their last two.",
+  ])("accepts a true run: %s", (text) => {
+    expect(errs(text, after5)).toEqual([]);
+  });
+  it.each([
+    ["Saltmarsh Athletic are unbeaten in their last four games.", /last 4 results after round 5: LDWW/],
+    ["Northgate Comets are without a win in their last four.", /last 4 results after round 5: WDLL/],
+    ["Saltmarsh Athletic are unbeaten this season.", /W3 D1 L1/],
+  ])("rejects a false run: %s", (text, re) => {
+    expect(errs(text, after5).join("\n")).toMatch(re);
+  });
+});

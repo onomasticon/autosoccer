@@ -22,6 +22,7 @@ let R = null;
 // Pitch half-length / half-width, from the match info (50×32 m in 5-a-side, 60×38 m in 7-a-side).
 let HL = 25;
 let HW = 16;
+let GOAL_HALF = 2;
 
 const clampPitch = (p) => ({ x: Soccer.clamp(p.x, -(HL - 1.5), HL - 1.5), y: Soccer.clamp(p.y, -(HW - 1), HW - 1) });
 
@@ -87,10 +88,24 @@ function keeper(obs, gk, out) {
     });
     return;
   }
-  if (!obs.restart && !b.heldBy && Soccer.dist(b, gk) < 1.3 && gk.cooldowns.catch === 0 && Soccer.inOwnBox(obs, gk)) {
+  const reach = R.catchReach - 0.1;
+  if (!obs.restart && !b.heldBy && Soccer.dist(b, gk) < reach && gk.cooldowns.catch === 0 && Soccer.inOwnBox(obs, gk)) {
     out.push({ type: "catchBall", player: gk.id });
   }
-  out.push({ type: "moveTo", player: gk.id, x: -dir * (HL - 1.4), y: Soccer.clamp(b.y * 0.25, -1.8, 1.8) });
+  // A ball travelling toward our goal: meet it on its path if we can get there in time, inside the box.
+  const speed = Math.hypot(b.vx, b.vy);
+  const incoming = !obs.restart && !b.heldBy && speed > 5 && b.vx * -dir > 0 && Soccer.forward(obs, b) < -HL / 3;
+  if (incoming) {
+    const ip = Soccer.interceptPoint(gk, b, R, 1.2);
+    if (ip && Soccer.inOwnBox(obs, ip)) {
+      out.push({ type: "moveTo", player: gk.id, x: ip.x, y: ip.y, sprint: true });
+      return;
+    }
+  }
+  // Otherwise hold a line between the ball and the middle of the goal.
+  const gx = -dir * (HL - 1.4);
+  const lineY = Soccer.clamp(b.y * 0.25, -(GOAL_HALF - 0.3), GOAL_HALF - 0.3);
+  out.push({ type: "moveTo", player: gk.id, x: gx, y: lineY });
 }
 
 function onBall(obs, p, out, notes) {
@@ -100,7 +115,7 @@ function onBall(obs, p, out, notes) {
   const goalDist = Soccer.dist(p, goal);
   const shot = Soccer.shotTarget(obs);
   const lane = Soccer.laneClearance(b, shot, obs.opponents);
-  if ((goalDist < P.shootRange && lane > 0.6) || goalDist < P.shootRange * 0.45) {
+  if ((goalDist < P.shootRange && lane > 0.3) || goalDist < P.shootRange * 0.6) {
     notes.push(`${p.id} shoots from ${goalDist.toFixed(1)} m`);
     out.push(...Soccer.approachAndKick(p, b, shot, 1, R, { sprint: P.sprint }));
     return "shoot";
@@ -122,8 +137,8 @@ function onBall(obs, p, out, notes) {
     out.push({ type: "moveTo", player: p.id, x: target.x, y: target.y, dribble: true, sprint: false });
     return "carry";
   }
-  if (Soccer.forward(obs, p) > -HL / 3) {
-    // Under pressure with no pass: shield, turning away from the nearest opponent.
+  if (Soccer.forward(obs, p) > -HL / 3 && P.dribbleSpace < 5) {
+    // Under pressure with no pass: sides that dribble shield, turning away from the nearest opponent.
     const o = Soccer.nearest(obs.opponents, p);
     const away = Soccer.norm(p.x - o.x, p.y - o.y);
     const target = clampPitch({ x: p.x + (away.x + dir * 0.6) * 2.5, y: p.y + away.y * 2.5 });
@@ -168,6 +183,7 @@ defineController({
     R = info.rules;
     HL = info.pitch.length / 2;
     HW = info.pitch.width / 2;
+    GOAL_HALF = info.pitch.goalWidth / 2;
   },
   update(obs) {
     const out = [];

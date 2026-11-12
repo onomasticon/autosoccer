@@ -101,6 +101,29 @@ function Step({ kind, children, className = "" }: { kind: Kind; children: ReactN
   );
 }
 
+/** First sentence of a manager's reasoning, so long rationales stay skimmable. */
+export function firstSentence(text: string): string {
+  const m = /^.+?[.!?](?=\s|$)/s.exec(text.trim());
+  return m ? m[0] : text.trim();
+}
+
+/** The manager's reasoning: its first sentence, with the rest one tap away when it runs longer. */
+function Reasoning({ text }: { text: string }) {
+  const lead = firstSentence(text);
+  if (lead.length >= text.trim().length) return <p className="italic">{text}</p>;
+  return (
+    <details className="group">
+      <summary className="cursor-pointer list-none italic">
+        {lead}{" "}
+        <span className="not-italic text-sm font-semibold text-violet-deep underline underline-offset-4 group-open:hidden">
+          Read their full reasoning
+        </span>
+      </summary>
+      <p className="italic">{text.trim().slice(lead.length).trim()}</p>
+    </details>
+  );
+}
+
 function DecisionBlock({ d, compact = false }: { d: DugoutDecision; compact?: boolean }) {
   const noDecision = d.status === "skipped_budget" || d.status === "rejected" || d.status === "failed";
   return (
@@ -131,7 +154,7 @@ function DecisionBlock({ d, compact = false }: { d: DugoutDecision; compact?: bo
           <figcaption className="mb-0.5 flex items-center gap-1.5 text-xs text-muted-text">
             <ProvenanceChip kind="view" /> their stated reasoning
           </figcaption>
-          <p className="italic">{d.rationale}</p>
+          <Reasoning text={d.rationale} />
         </figure>
       )}
       {noDecision && <p className="mt-1 text-xs text-muted-text">No reasoning on record for this match.</p>}
