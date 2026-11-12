@@ -115,3 +115,34 @@ describe("revisions and match deployment", () => {
     expect(body.items.at(-1)!.rationale).toBe("push up");
   });
 });
+
+describe("7-a-side", () => {
+  it("7-a-side seasons need seven starters and a 7-a-side formation, and play 7v7", async () => {
+    const season7 = await insertSeason(t.db, "seven", undefined, 7);
+    const all = ids(1, 2, 3, 4, 5, 6, 7);
+    const shape7 = { ...DEFAULT_TACTICS, formation: "2-3-1" as const };
+    expect(validateRevision(squad, { deployment: tacticalDeployment(shape7), starters: all }, 7).ok).toBe(true);
+    const five = validateRevision(squad, { deployment: tacticalDeployment(DEFAULT_TACTICS), starters: all }, 7);
+    expect(five.errors.join(" ")).toMatch(/2-1-1 is not a 7-a-side formation/);
+    const short = validateRevision(squad, { deployment: tacticalDeployment(shape7), starters: ids(1, 2, 3, 4, 5) }, 7);
+    expect(short.errors).toContain("exactly 7 starters are required (got 5)");
+
+    const bad = await createRevision(t.db, {
+      teamId: home,
+      seasonId: season7,
+      source: "manager",
+      deployment: tacticalDeployment(DEFAULT_TACTICS),
+      starters: ids(1, 2, 3, 4, 5),
+    });
+    expect(bad.status).toBe("rejected");
+    const f = await insertFixture(t.db, season7, home, away, 1, 99);
+    const req = await buildMatchRequest({ db: t.db, store: new MemoryReplayStore() }, f);
+    expect(req.config.playersPerTeam).toBe(7);
+    expect(req.home.starters).toHaveLength(7);
+    // Default lineup fills GK, DF, DF, MF, MF, MF, FW; this test squad has only two MFs, so an FW fills the third.
+    expect(req.away.starters.map((s) => s.position)).toEqual(["GK", "DF", "DF", "MF", "MF", "FW", "FW"]);
+    const out = await playFixture({ db: t.db, store: new MemoryReplayStore(), halfDurationSec: 15 }, f);
+    const [m] = await t.db`select status from matches where id = ${out.matchId}`;
+    expect(m).toMatchObject({ status: "completed" });
+  });
+});

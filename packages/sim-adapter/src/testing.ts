@@ -2,14 +2,18 @@ import type { MatchRequest } from "@autosoccer/contracts";
 import { SIM_VERSION } from "./version.ts";
 
 const uuid = (n: number) => `00000000-0000-4000-8000-${n.toString(16).padStart(12, "0")}`;
-const POS = ["GK", "DF", "DF", "MF", "FW"] as const;
+const POS = {
+  5: ["GK", "DF", "DF", "MF", "FW"],
+  7: ["GK", "DF", "DF", "MF", "MF", "MF", "FW"],
+} as const;
 
-/** A valid MatchRequest with baseline tactics, for tests and demos. */
+/** A valid MatchRequest with baseline tactics, for tests and demos (7-a-side when config.playersPerTeam is 7). */
 export function sampleRequest(over: Partial<MatchRequest> = {}): MatchRequest {
+  const size = over.config?.playersPerTeam === 7 ? 7 : 5;
   const side = (base: number, name: string) => ({
     teamId: uuid(base),
     name,
-    starters: POS.map((position, i) => ({
+    starters: POS[size].map((position, i) => ({
       playerId: uuid(base + i + 1),
       name: `${name} ${i + 1}`,
       shirtNumber: i + 1,

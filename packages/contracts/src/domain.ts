@@ -48,6 +48,7 @@ export const Season = z.object({
   status: SeasonStatus,
   seed: z.number().int().nonnegative().describe("master seed; fixture seeds derive from it"),
   simVersion: z.string().describe("pinned simulator version for every match of the season"),
+  playersPerTeam: z.union([z.literal(5), z.literal(7)]).describe("players per side: 5-a-side or 7-a-side"),
   budgetPerTeamMicroUsd: MicroUsd.nonnegative(),
   startsAt: Timestamp.nullable(),
   completedAt: Timestamp.nullable(),

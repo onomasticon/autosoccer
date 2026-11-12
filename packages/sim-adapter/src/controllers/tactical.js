@@ -1,29 +1,49 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// Auto Soccer · parameterised tactical controller (autosoccer-sim SDK 1.2)
+// Auto Soccer · parameterised tactical controller (autosoccer-sim SDK 1.3)
 //
 // One script, driven entirely by the PARAMS object the platform injects. The
 // same params always produce the same source, so a tactical revision maps to
 // exactly one controller (and one sourceHash in the replay).
 //
-// Without the ball: hold a shape of four outfield slots (depth from own goal
-// line, lateral offset), shifted toward the ball; the nearest player engages,
-// and a second presser joins when the ball is inside the pressing zone.
-// With the ball: shoot inside shooting range with an open lane; otherwise pass
-// to the best open teammate (weighted by directness); dribble into space when
-// unpressured. Keeper catches in the box and releases short or long.
+// Without the ball: hold a shape of outfield slots (four in 5-a-side, six in
+// 7-a-side; depth from own goal line, lateral offset), shifted toward the ball.
+// The player who can reach a loose ball first goes for it (at its intercept
+// point); a second player supports when the ball is in the pressing zone or in
+// the opponents' half. When we have the ball (balanced or direct tempo), the most
+// advanced outfield player runs in behind and the rest step up.
+// With the ball: shoot inside shooting range with an open lane, or from close
+// range regardless; otherwise pass to the best open teammate (weighted by
+// directness); carry into space when unpressured, toward goal in the final
+// third; under pressure with no pass, shield and turn away rather than hoof.
+// Keeper catches in the box and releases short or long.
 // ─────────────────────────────────────────────────────────────────────────────
 const P = __PARAMS__;
 let R = null;
+// Pitch half-length / half-width, from the match info (50×32 m in 5-a-side, 60×38 m in 7-a-side).
+let HL = 25;
+let HW = 16;
 
-const clampPitch = (p) => ({ x: Soccer.clamp(p.x, -23.5, 23.5), y: Soccer.clamp(p.y, -15, 15) });
+const clampPitch = (p) => ({ x: Soccer.clamp(p.x, -(HL - 1.5), HL - 1.5), y: Soccer.clamp(p.y, -(HW - 1), HW - 1) });
 
 function slotTarget(obs, number, attacking) {
   const s = P.slots[number];
   const dir = obs.attackingDirection;
   const ballUp = Soccer.forward(obs, obs.ball);
-  const push = Soccer.clamp(ballUp * P.ballFollow, -4, 6) + (attacking ? P.attackPush * (s.depth > 14 ? 1 : 0.5) : 0);
+  const push =
+    Soccer.clamp(ballUp * P.ballFollow, -4, 6) + (attacking ? P.attackPush * (s.depth > P.pushDepth ? 1 : 0.5) : 0);
   const shift = Soccer.clamp(obs.ball.y * P.ballShift, -6, 6);
-  return clampPitch({ x: (-25 + s.depth + push) * dir, y: s.lateral + shift });
+  return clampPitch({ x: (-HL + s.depth + push) * dir, y: s.lateral + shift });
+}
+
+/** Run in behind: just beyond the deepest outfield opponent, on the ball's side, never offside-limited (no offside). */
+function runTarget(obs, p) {
+  const dir = obs.attackingDirection;
+  const deepest = obs.opponents
+    .filter((o) => o.role !== "GK")
+    .reduce((m, o) => Math.max(m, Soccer.forward(obs, o)), -HL);
+  const depth = Soccer.clamp(Math.max(deepest + 2, Soccer.forward(obs, obs.ball) + 4), -HL + 4, HL - 4);
+  const y = Soccer.clamp(p.y * 0.5 + obs.ball.y * 0.2, -(HW - 3), HW - 3);
+  return clampPitch({ x: depth * dir, y });
 }
 
 function bestPass(obs, carrier) {
@@ -36,13 +56,15 @@ function bestPass(obs, carrier) {
     if (d < 4 || d > P.maxPassDistance) continue;
     const gain = Soccer.forward(obs, q) - Soccer.forward(obs, carrier);
     if (gain < -P.backPassAllowance) continue;
-    const lead = { x: q.x + obs.attackingDirection * P.leadDistance, y: q.y };
+    const lead = clampPitch({ x: q.x + obs.attackingDirection * P.leadDistance, y: q.y });
     const clearance = Soccer.laneClearance(b, lead, obs.opponents);
     if (clearance < P.passSafety) continue;
-    const score = gain * P.directness + Math.min(clearance, 4) * (1 - P.directness) * 2;
+    // A receiver close to the opponents' goal is worth more (a pass that sets up a shot).
+    const threat = Math.max(0, P.shootRange - Soccer.dist(q, Soccer.oppGoal(obs)));
+    const score = gain * P.directness + Math.min(clearance, 4) * (1 - P.directness) * 2 + threat * 0.5;
     if (score > bestScore) {
       bestScore = score;
-      best = { q, lead, d };
+      best = { q, lead, d, gain };
     }
   }
   return best;
@@ -68,31 +90,47 @@ function keeper(obs, gk, out) {
   if (!obs.restart && !b.heldBy && Soccer.dist(b, gk) < 1.3 && gk.cooldowns.catch === 0 && Soccer.inOwnBox(obs, gk)) {
     out.push({ type: "catchBall", player: gk.id });
   }
-  out.push({ type: "moveTo", player: gk.id, x: -dir * 23.6, y: Soccer.clamp(b.y * 0.25, -1.8, 1.8) });
+  out.push({ type: "moveTo", player: gk.id, x: -dir * (HL - 1.4), y: Soccer.clamp(b.y * 0.25, -1.8, 1.8) });
 }
 
 function onBall(obs, p, out, notes) {
   const b = obs.ball;
-  const goalDist = Soccer.dist(p, Soccer.oppGoal(obs));
+  const dir = obs.attackingDirection;
+  const goal = Soccer.oppGoal(obs);
+  const goalDist = Soccer.dist(p, goal);
   const shot = Soccer.shotTarget(obs);
-  if (goalDist < P.shootRange && Soccer.laneClearance(b, shot, obs.opponents) > 0.6) {
+  const lane = Soccer.laneClearance(b, shot, obs.opponents);
+  if ((goalDist < P.shootRange && lane > 0.6) || goalDist < P.shootRange * 0.45) {
     notes.push(`${p.id} shoots from ${goalDist.toFixed(1)} m`);
     out.push(...Soccer.approachAndKick(p, b, shot, 1, R, { sprint: P.sprint }));
     return "shoot";
   }
   const pressure = Soccer.pressure(p, obs.opponents);
-  if (pressure > P.dribbleSpace) {
-    const target = clampPitch({ x: p.x + obs.attackingDirection * 4, y: p.y * 0.85 });
-    out.push({ type: "moveTo", player: p.id, x: target.x, y: target.y, dribble: true, sprint: false });
-    return "carry";
-  }
   const pass = bestPass(obs, p);
-  if (pass) {
+  // A clearly better-placed teammate gets the ball even when we have room to carry;
+  // patient sides keep it moving whenever a safe pass is on.
+  if (pass && (pressure <= P.dribbleSpace || pass.gain > 6 || P.directness < 0.3)) {
     notes.push(`${p.id} → ${pass.q.id}`);
     out.push(...Soccer.approachAndKick(p, b, pass.lead, Soccer.kickPowerFor(pass.d, P.passArriveSpeed, R), R));
     return "pass";
   }
-  const clear = { x: obs.attackingDirection * 25, y: p.y > 0 ? 12 : -12 };
+  if (pressure > P.dribbleSpace) {
+    // Carry: straight up the pitch, bending toward goal once in the final third.
+    const up = Soccer.forward(obs, p);
+    const bend = up > HL / 3 ? 0.35 : 0;
+    const target = clampPitch({ x: p.x + dir * 4, y: p.y * (0.85 - bend) });
+    out.push({ type: "moveTo", player: p.id, x: target.x, y: target.y, dribble: true, sprint: false });
+    return "carry";
+  }
+  if (Soccer.forward(obs, p) > -HL / 3) {
+    // Under pressure with no pass: shield, turning away from the nearest opponent.
+    const o = Soccer.nearest(obs.opponents, p);
+    const away = Soccer.norm(p.x - o.x, p.y - o.y);
+    const target = clampPitch({ x: p.x + (away.x + dir * 0.6) * 2.5, y: p.y + away.y * 2.5 });
+    out.push({ type: "moveTo", player: p.id, x: target.x, y: target.y, dribble: true, sprint: false });
+    return "shield";
+  }
+  const clear = { x: dir * HL, y: p.y > 0 ? HW * 0.75 : -HW * 0.75 };
   out.push(...Soccer.approachAndKick(p, b, clear, 0.8, R));
   return "clear";
 }
@@ -125,9 +163,11 @@ function restart(obs, out, notes) {
 
 defineController({
   name: P.name,
-  version: "1.0.0",
+  version: "2.0.0",
   initialize(info) {
     R = info.rules;
+    HL = info.pitch.length / 2;
+    HW = info.pitch.width / 2;
   },
   update(obs) {
     const out = [];
@@ -144,11 +184,26 @@ defineController({
 
     let engager = null;
     let presser = null;
+    let runner = null;
     if (!obs.restart && !b.heldBy) {
-      const byDist = field.slice().sort((p, q) => Soccer.dist(p, b) - Soccer.dist(q, b));
-      engager = byDist[0];
-      const inPressZone = Soccer.forward(obs, b) > P.pressLine;
-      if (poss.side === "opp" && inPressZone && P.pressers > 1) presser = byDist[1];
+      // Whoever reaches the ball first engages; a loose ball is met where it will be, not where it is.
+      const reach = (p) => {
+        const ip = Soccer.interceptPoint(p, b, R, 2);
+        return ip ? ip.t : Soccer.timeToReach(p, b, R, true) + 1;
+      };
+      const byReach = field.slice().sort((p, q) => reach(p) - reach(q));
+      engager = byReach[0];
+      const ballUp = Soccer.forward(obs, b);
+      const inPressZone = ballUp > P.pressLine;
+      if (poss.side === "opp" && inPressZone && P.pressers > 1) presser = byReach[1];
+      else if (poss.side === null && ballUp > 0) presser = byReach[1];
+    }
+    // Patient sides keep their shape; balanced and direct ones send a runner beyond the last defender.
+    if (attacking && P.directness >= 0.5) {
+      const carrier = poss.player;
+      runner = field
+        .filter((p) => !carrier || p.id !== carrier.id)
+        .reduce((a, c) => (!a || Soccer.forward(obs, c) > Soccer.forward(obs, a) ? c : a), null);
     }
 
     for (const p of field) {
@@ -161,13 +216,20 @@ defineController({
           mode = onBall(obs, p, out, notes);
           continue;
         }
-        out.push({ type: "moveTo", player: p.id, x: b.x, y: b.y, sprint: P.sprint && d > 3 });
+        const ip = poss.side === null ? Soccer.interceptPoint(p, b, R, 2) : null;
+        const t = ip ? { x: ip.x, y: ip.y } : { x: b.x, y: b.y };
+        out.push({ type: "moveTo", player: p.id, x: t.x, y: t.y, sprint: P.sprint && d > 3 });
         continue;
       }
       if (presser && p.id === presser.id) {
         const own = Soccer.ownGoal(obs);
         const goalSide = { x: b.x + (own.x - b.x) * 0.08, y: b.y * 0.92 };
         out.push({ type: "moveTo", player: p.id, x: goalSide.x, y: goalSide.y, sprint: P.sprint });
+        continue;
+      }
+      if (runner && p.id === runner.id) {
+        const r = runTarget(obs, p);
+        out.push({ type: "moveTo", player: p.id, x: r.x, y: r.y, sprint: true });
         continue;
       }
       const s = slotTarget(obs, p.number, attacking);

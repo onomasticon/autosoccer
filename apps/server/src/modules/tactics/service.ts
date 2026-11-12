@@ -1,5 +1,6 @@
 import type { ControllerDeployment, Lineup, TacticalRevision } from "@autosoccer/contracts";
 import type { Db } from "@autosoccer/db";
+import { seasonTeamSize } from "../league/read.ts";
 import { type PlayerRow, type RevisionRow, toPlayer, toRevision } from "../mappers.ts";
 import { type RevisionInput, validateRevision } from "./validate.ts";
 
@@ -19,8 +20,9 @@ export interface CreateRevisionInput extends RevisionInput {
  */
 export async function createRevision(db: Db, input: CreateRevisionInput): Promise<TacticalRevision> {
   const squad = (await db<PlayerRow[]>`select * from players where team_id = ${input.teamId}`).map(toPlayer);
-  const v = validateRevision(squad, input);
-  const lineup: Lineup = v.lineup ?? { starters: input.starters.slice(0, 5), reserves: [] };
+  const size = await seasonTeamSize(db, input.seasonId);
+  const v = validateRevision(squad, input, size);
+  const lineup: Lineup = v.lineup ?? { starters: padStarters(input.starters, size), reserves: [] };
   return db.begin(async (tx) => {
     await tx`select pg_advisory_xact_lock(hashtext(${`revision:${input.teamId}:${input.seasonId}`}))`;
     const [nextRow] = await tx<{ next: number }[]>`
@@ -35,6 +37,13 @@ export async function createRevision(db: Db, input: CreateRevisionInput): Promis
       returning *`;
     return toRevision(row!);
   });
+}
+
+/** Rejected proposals are stored with a schema-valid lineup shape: trimmed, or padded with placeholders. */
+function padStarters(starters: string[], size: number): string[] {
+  const s = starters.slice(0, size);
+  while (s.length < 5) s.push(`missing-${s.length + 1}`);
+  return s;
 }
 
 /** The revision a team would play with now: its latest valid one. */

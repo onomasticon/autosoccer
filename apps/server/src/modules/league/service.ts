@@ -1,3 +1,4 @@
+import type { TeamSize } from "@autosoccer/contracts";
 import type { Db } from "@autosoccer/db";
 import { SIM_VERSION } from "@autosoccer/sim-adapter";
 import { enqueueFixture } from "../matches/service.ts";
@@ -6,7 +7,7 @@ import { doubleRoundRobin, fixtureSeed, seededOrder } from "./schedule.ts";
 import { SEED_TEAMS, type SeedTeam } from "./seed-data.ts";
 import { computeStandings, type Result, type Standing } from "./standings.ts";
 
-/** Upserts the founding clubs and their seven-player squads. Safe to run repeatedly. */
+/** Upserts the founding clubs and their squads (new shirt numbers are added to existing clubs). Safe to run repeatedly. */
 export async function seedTeams(db: Db, teams: readonly SeedTeam[] = SEED_TEAMS): Promise<Map<string, string>> {
   const ids = new Map<string, string>();
   await db.begin(async (tx) => {
@@ -43,6 +44,8 @@ export interface CreateSeasonInput {
   roundIntervalMinutes?: number;
   /** Calendar cadence; overrides roundIntervalMinutes (see cadence.ts). Default: demo, hourly. */
   cadence?: Cadence;
+  /** Players per side. Default 7 (7-a-side); the launch season was 5-a-side. */
+  playersPerTeam?: TeamSize;
 }
 
 /**
@@ -59,8 +62,8 @@ export async function createSeason(db: Db, input: CreateSeasonInput): Promise<{ 
     if (teams.length !== input.teamSlugs.length) throw new Error(`unknown team in ${input.teamSlugs.join(", ")}`);
     const startsAt = input.startsAt ?? new Date();
     const [season] = await tx<{ id: string }[]>`
-      insert into seasons (slug, name, status, seed, sim_version, budget_per_team_micro_usd, editorial_budget_micro_usd, starts_at)
-      values (${input.slug}, ${input.name}, 'scheduled', ${input.seed}, ${input.simVersion ?? SIM_VERSION},
+      insert into seasons (slug, name, status, seed, sim_version, players_per_team, budget_per_team_micro_usd, editorial_budget_micro_usd, starts_at)
+      values (${input.slug}, ${input.name}, 'scheduled', ${input.seed}, ${input.simVersion ?? SIM_VERSION}, ${input.playersPerTeam ?? 7},
         ${input.budgetPerTeamMicroUsd}, ${input.editorialBudgetMicroUsd ?? DEFAULT_EDITORIAL_BUDGET_MICRO_USD}, ${startsAt}) returning id`;
     for (const t of teams) await tx`insert into season_teams (season_id, team_id) values (${season!.id}, ${t.id})`;
     const order = seededOrder(teams, input.seed);

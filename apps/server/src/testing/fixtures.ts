@@ -15,10 +15,10 @@ export async function insertTeam(db: Db, slug: string, name = slug) {
   return t!.id;
 }
 
-export async function insertSeason(db: Db, slug = "test-season", simVersion = SIM_VERSION) {
+export async function insertSeason(db: Db, slug = "test-season", simVersion = SIM_VERSION, playersPerTeam = 5) {
   const [s] = await db<{ id: string }[]>`
-    insert into seasons (slug, name, status, seed, sim_version, budget_per_team_micro_usd)
-    values (${slug}, ${slug}, 'active', 7, ${simVersion}, 1000000) returning id`;
+    insert into seasons (slug, name, status, seed, sim_version, budget_per_team_micro_usd, players_per_team)
+    values (${slug}, ${slug}, 'active', 7, ${simVersion}, 1000000, ${playersPerTeam}) returning id`;
   return s!.id;
 }
 

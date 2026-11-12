@@ -4,7 +4,7 @@
  * so the pre/post-match loop, memory and adaptation can be exercised end to end without a
  * model. It's a stand-in, not a model, and runs are labelled provider "offline".
  */
-import { DEFAULT_TACTICS, describeTactics, type TacticalConfigV1 } from "@autosoccer/contracts";
+import { defaultTactics, describeTactics, formationsFor, type TacticalConfigV1 } from "@autosoccer/contracts";
 import { OfflineLlm } from "./llm.ts";
 import type { ManagerFacts, PostMatchFacts, PostMatchReview, PreMatchDecision } from "./prompts.ts";
 
@@ -13,10 +13,10 @@ const PRESS = ["low", "mid", "high"] as const;
 const LINE = ["deep", "mid", "high"] as const;
 const TEMPO = ["patient", "balanced", "direct"] as const;
 const SHOOT = ["selective", "balanced", "early"] as const;
-const FORMATIONS: TacticalConfigV1["formation"][] = ["2-1-1", "1-2-1", "2-2", "1-1-2", "3-1"];
-
 export function offlinePreMatch(f: ManagerFacts): PreMatchDecision {
-  const t: TacticalConfigV1 = { ...(f.current.tactics ?? DEFAULT_TACTICS) };
+  const size = f.format?.playersPerTeam ?? 5;
+  const FORMATIONS = formationsFor(size);
+  const t: TacticalConfigV1 = { ...(f.current.tactics ?? defaultTactics(size)) };
   const [last, prev] = f.recent;
   let why: string;
   if (!last) {

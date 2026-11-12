@@ -1,14 +1,16 @@
 import {
   type ControllerDeployment,
+  formationsFor,
   type Lineup,
   type Player,
   TACTICS_SCHEMA_VERSION,
   TacticalConfigV1,
+  type TeamSize,
 } from "@autosoccer/contracts";
 
 export interface RevisionInput {
   deployment: ControllerDeployment;
-  /** Five starters in slot order: [GK, then the formation's outfield slots back to front]. */
+  /** Starters in slot order (five, or seven in 7-a-side): [GK, then the formation's outfield slots back to front]. */
   starters: string[];
 }
 
@@ -20,11 +22,12 @@ export interface ValidationResult {
 
 /**
  * Validates a proposed tactical revision against the team's squad:
- * schema (tactics/1, strict), exactly five distinct starters from this squad,
- * a goalkeeper in slot 1 and no goalkeeper in an outfield slot. Reserves are the
- * rest of the squad. Scripted deployments are rejected until they're executable.
+ * schema (tactics/1, strict) with a formation for the season's team size, exactly
+ * that many distinct starters from this squad, a goalkeeper in slot 1 and no goalkeeper
+ * in an outfield slot. Reserves are the rest of the squad. Scripted deployments are
+ * rejected until they're executable.
  */
-export function validateRevision(squad: Player[], input: RevisionInput): ValidationResult {
+export function validateRevision(squad: Player[], input: RevisionInput, size: TeamSize = 5): ValidationResult {
   const errors: string[] = [];
   const d = input.deployment;
   if (d.kind !== "tactical") {
@@ -35,11 +38,15 @@ export function validateRevision(squad: Player[], input: RevisionInput): Validat
     const parsed = TacticalConfigV1.safeParse(d.config);
     if (!parsed.success)
       for (const i of parsed.error.issues) errors.push(`tactics.${i.path.join(".") || "(root)"}: ${i.message}`);
+    else if (!formationsFor(size).includes(parsed.data.formation))
+      errors.push(
+        `tactics.formation: ${parsed.data.formation} is not a ${size}-a-side formation (use one of ${formationsFor(size).join(", ")})`,
+      );
   }
 
   const byId = new Map(squad.map((p) => [p.id, p]));
   const starters = input.starters;
-  if (starters.length !== 5) errors.push(`exactly 5 starters are required (got ${starters.length})`);
+  if (starters.length !== size) errors.push(`exactly ${size} starters are required (got ${starters.length})`);
   if (new Set(starters).size !== starters.length) errors.push("a player is listed more than once");
   const unknown = starters.filter((id) => !byId.has(id));
   if (unknown.length) errors.push(`not in this squad: ${unknown.join(", ")}`);

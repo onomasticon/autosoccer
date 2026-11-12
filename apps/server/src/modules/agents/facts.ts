@@ -7,7 +7,7 @@ import {
   type TeamMatchStats,
 } from "@autosoccer/contracts";
 import type { Db } from "@autosoccer/db";
-import { standingRows } from "../league/read.ts";
+import { seasonTeamSize, standingRows } from "../league/read.ts";
 import { type PlayerRow, toPlayer } from "../mappers.ts";
 import { defaultLineup } from "../matches/lineup.ts";
 import { latestValidRevision } from "../tactics/service.ts";
@@ -113,7 +113,8 @@ export async function managerFacts(
     toPlayer,
   );
   const rev = await latestValidRevision(db, teamId, fixture.season_id);
-  const lineup: Lineup = rev?.lineup ?? defaultLineup(squad);
+  const size = await seasonTeamSize(db, fixture.season_id);
+  const lineup: Lineup = rev?.lineup ?? defaultLineup(squad, size);
   const shirt = new Map(squad.map((p) => [p.id, p.shirtNumber]));
   const parsed = rev && rev.deployment.kind === "tactical" ? TacticalConfigV1.safeParse(rev.deployment.config) : null;
   const upTo = opts.includeRound ? fixture.round : fixture.round - 1;
@@ -121,6 +122,7 @@ export async function managerFacts(
   return {
     manager: { name: manager.name, persona: manager.persona, philosophy: manager.philosophy, memory: manager.memory },
     team: { name: team!.name },
+    format: { playersPerTeam: size },
     fixture: { round: fixture.round, venue: home ? "home" : "away", opponent: opp!.name },
     squad: squad.map((p) => ({ shirt: p.shirtNumber, name: p.name, position: p.position })),
     current: { tactics: parsed?.success ? parsed.data : null, starters: lineup.starters.map((id) => shirt.get(id)!) },

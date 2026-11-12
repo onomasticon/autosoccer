@@ -1,4 +1,4 @@
-import type { TacticalConfigV1 } from "@autosoccer/contracts";
+import type { Formation, TacticalConfigV1, TeamSize } from "@autosoccer/contracts";
 
 /** The four persistent AI managers: one per club, with a stable identity and opening tactics. */
 export interface SeedManager {
@@ -8,6 +8,21 @@ export interface SeedManager {
   persona: string;
   philosophy: string;
   openingTactics: TacticalConfigV1;
+}
+
+/** Each manager's 5-a-side opening shape, translated to the 7-a-side shape with the same intent. */
+const SEVEN_A_SIDE_SHAPE: Partial<Record<Formation, Formation>> = {
+  "2-1-1": "2-3-1",
+  "1-2-1": "2-1-2-1",
+  "2-2": "2-2-2",
+  "1-1-2": "3-1-2",
+  "3-1": "3-2-1",
+};
+
+/** A manager's opening setup for a season's team size. */
+export function openingTactics(m: SeedManager, size: TeamSize): TacticalConfigV1 {
+  if (size === 5) return m.openingTactics;
+  return { ...m.openingTactics, formation: SEVEN_A_SIDE_SHAPE[m.openingTactics.formation] ?? "2-3-1" };
 }
 
 export const SEED_MANAGERS: SeedManager[] = [

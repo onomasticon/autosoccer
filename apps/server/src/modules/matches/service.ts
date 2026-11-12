@@ -1,4 +1,4 @@
-import type { ControllerDeployment, Lineup, MatchRequest, MatchResult } from "@autosoccer/contracts";
+import type { ControllerDeployment, Lineup, MatchRequest, MatchResult, TeamSize } from "@autosoccer/contracts";
 import type { Db } from "@autosoccer/db";
 import {
   type ParamsResolver,
@@ -34,28 +34,41 @@ interface TeamSelection {
 }
 
 /** The deployment a team takes into a fixture: its latest valid revision, else the default. */
-export async function teamSelection(db: Db, seasonId: string, teamId: string): Promise<TeamSelection> {
+export async function teamSelection(
+  db: Db,
+  seasonId: string,
+  teamId: string,
+  size: TeamSize = 5,
+): Promise<TeamSelection> {
   const [rev] = await db<{ id: string; deployment: ControllerDeployment; lineup: Lineup }[]>`
     select id, deployment, lineup from tactical_revisions
     where team_id = ${teamId} and season_id = ${seasonId} and status = 'valid'
     order by version desc limit 1`;
   if (rev) return { revisionId: rev.id, deployment: rev.deployment, lineup: rev.lineup };
   const players = await db<PlayerRow[]>`select * from players where team_id = ${teamId}`;
-  return { revisionId: null, deployment: DEFAULT_DEPLOYMENT, lineup: defaultLineup(players.map(toPlayer)) };
+  return { revisionId: null, deployment: DEFAULT_DEPLOYMENT, lineup: defaultLineup(players.map(toPlayer), size) };
 }
 
 /** Builds the MatchRequest for a fixture from persisted state (squads, revisions, seed, pinned sim). */
 export async function buildMatchRequest(deps: MatchDeps, fixtureId: string): Promise<MatchRequest> {
   const { db } = deps;
   const [f] = await db<
-    { season_id: string; home_team_id: string; away_team_id: string; seed: number; sim_version: string }[]
+    {
+      season_id: string;
+      home_team_id: string;
+      away_team_id: string;
+      seed: number;
+      sim_version: string;
+      players_per_team: number;
+    }[]
   >`
-    select f.season_id, f.home_team_id, f.away_team_id, f.seed, s.sim_version
+    select f.season_id, f.home_team_id, f.away_team_id, f.seed, s.sim_version, s.players_per_team
     from fixtures f join seasons s on s.id = f.season_id where f.id = ${fixtureId}`;
   if (!f) throw new PermanentJobError(`fixture ${fixtureId} not found`);
+  const size: TeamSize = f.players_per_team === 7 ? 7 : 5;
   const entry = async (teamId: string) => {
     const [team] = await db<{ name: string }[]>`select name from teams where id = ${teamId}`;
-    const sel = await teamSelection(db, f.season_id, teamId);
+    const sel = await teamSelection(db, f.season_id, teamId, size);
     const players = new Map(
       (await db<PlayerRow[]>`select * from players where team_id = ${teamId}`).map((p) => [p.id, toPlayer(p)]),
     );
@@ -73,7 +86,10 @@ export async function buildMatchRequest(deps: MatchDeps, fixtureId: string): Pro
     simVersion: f.sim_version,
     home: await entry(f.home_team_id),
     away: await entry(f.away_team_id),
-    config: deps.halfDurationSec ? { halfDurationSec: deps.halfDurationSec } : {},
+    config: {
+      ...(deps.halfDurationSec ? { halfDurationSec: deps.halfDurationSec } : {}),
+      ...(size === 7 ? { playersPerTeam: 7 as const } : {}),
+    },
   };
 }
 

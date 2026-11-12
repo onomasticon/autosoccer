@@ -1,5 +1,5 @@
 /** Read-model queries shared by the league API routes (and later the editorial facts). */
-import type { FixtureView, Season, StandingRow, Team } from "@autosoccer/contracts";
+import type { FixtureView, Season, StandingRow, Team, TeamSize } from "@autosoccer/contracts";
 import type { Db } from "@autosoccer/db";
 import { type FixtureRow, type TeamRow, toFixtureView, toTeam } from "../mappers.ts";
 import { seasonStandings } from "./service.ts";
@@ -11,6 +11,7 @@ export interface SeasonRow {
   status: Season["status"];
   seed: number;
   sim_version: string;
+  players_per_team: number;
   budget_per_team_micro_usd: number;
   starts_at: Date | null;
   completed_at: Date | null;
@@ -22,10 +23,17 @@ export const toSeason = (r: SeasonRow): Season => ({
   status: r.status,
   seed: r.seed,
   simVersion: r.sim_version,
+  playersPerTeam: r.players_per_team === 7 ? 7 : 5,
   budgetPerTeamMicroUsd: r.budget_per_team_micro_usd,
   startsAt: r.starts_at?.toISOString() ?? null,
   completedAt: r.completed_at?.toISOString() ?? null,
 });
+
+/** Players per side in a season (5 for every season before 7-a-side). */
+export async function seasonTeamSize(db: Db, seasonId: string): Promise<TeamSize> {
+  const [s] = await db<{ players_per_team: number }[]>`select players_per_team from seasons where id = ${seasonId}`;
+  return s?.players_per_team === 7 ? 7 : 5;
+}
 
 /** The season the site shows: the active one, else the most recently started/created. */
 export async function currentSeason(db: Db): Promise<SeasonRow | null> {

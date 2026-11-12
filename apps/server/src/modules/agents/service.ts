@@ -2,14 +2,22 @@ import type { Db } from "@autosoccer/db";
 import { enqueue } from "../../jobs/queue.ts";
 import { PermanentJobError } from "../../jobs/worker.ts";
 import type { Logger } from "../../log.ts";
+import { seasonTeamSize } from "../league/read.ts";
 import { type PlayerRow, toPlayer } from "../mappers.ts";
 import { defaultLineup } from "../matches/lineup.ts";
 import { createRevision, latestValidRevision, tacticalDeployment } from "../tactics/service.ts";
 import { type FixtureCtx, type ManagerRow, managerFacts, postMatchFacts } from "./facts.ts";
 import type { LlmClient, LlmResponse } from "./llm.ts";
-import { SEED_MANAGERS } from "./managers-seed.ts";
+import { openingTactics, SEED_MANAGERS } from "./managers-seed.ts";
 import { costMicroUsd } from "./pricing.ts";
-import { managerSystem, PostMatchReview, PreMatchDecision, postMatchPrompt, preMatchPrompt } from "./prompts.ts";
+import {
+  managerSystem,
+  PostMatchReview,
+  type PreMatchDecision,
+  postMatchPrompt,
+  preMatchDecision,
+  preMatchPrompt,
+} from "./prompts.ts";
 
 export const PRE_MATCH_JOB = "manager.pre_match";
 export const POST_MATCH_JOB = "manager.post_match";
@@ -60,12 +68,13 @@ export async function seedManagers(db: Db, seasonId: string, model: string) {
       on conflict (team_id) do nothing`;
     if (!(await latestValidRevision(db, team.id, seasonId))) {
       const squad = (await db<PlayerRow[]>`select * from players where team_id = ${team.id}`).map(toPlayer);
+      const size = await seasonTeamSize(db, seasonId);
       await createRevision(db, {
         teamId: team.id,
         seasonId,
         source: "seed",
-        deployment: tacticalDeployment(m.openingTactics),
-        starters: defaultLineup(squad).starters,
+        deployment: tacticalDeployment(openingTactics(m, size)),
+        starters: defaultLineup(squad, size).starters,
         rationale: `Opening setup: ${m.philosophy}`,
       });
     }
@@ -193,8 +202,9 @@ export async function runPreMatch(deps: ManagerDeps, fixtureId: string, teamId: 
   const ids = { seasonId: fixture.season_id, teamId, runId: run.id };
 
   const facts = await managerFacts(db, fixture, teamId, manager, { includeRound: false });
-  const system = managerSystem(facts.manager, facts.team.name);
+  const system = managerSystem(facts.manager, facts.team.name, facts.format.playersPerTeam);
   const prompt = preMatchPrompt(facts);
+  const decisionSchema = preMatchDecision(facts.format.playersPerTeam);
   const audit: { system: string; user: string; repair?: string } = { system, user: prompt };
 
   if (!(await reserveFor(deps, ids, system, prompt))) {
@@ -214,7 +224,7 @@ export async function runPreMatch(deps: ManagerDeps, fixtureId: string, teamId: 
     let res = await llm.complete({
       system,
       prompt,
-      schema: PreMatchDecision,
+      schema: decisionSchema,
       task: "manager.pre_match",
       context: facts,
       maxTokens: maxOut(deps),
@@ -239,7 +249,7 @@ export async function runPreMatch(deps: ManagerDeps, fixtureId: string, teamId: 
       res = await llm.complete({
         system,
         prompt: repair,
-        schema: PreMatchDecision,
+        schema: decisionSchema,
         task: "manager.pre_match",
         context: facts,
         maxTokens: maxOut(deps),
@@ -293,7 +303,7 @@ export async function runPostMatch(deps: ManagerDeps, fixtureId: string, teamId:
   const ids = { seasonId: fixture.season_id, teamId, runId: run.id };
 
   const facts = await postMatchFacts(db, fixture, teamId, manager);
-  const system = managerSystem(facts.manager, facts.team.name);
+  const system = managerSystem(facts.manager, facts.team.name, facts.format.playersPerTeam);
   const prompt = postMatchPrompt(facts);
   const audit = { system, user: prompt };
   if (!(await reserveFor(deps, ids, system, prompt))) {

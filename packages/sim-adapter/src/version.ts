@@ -8,9 +8,9 @@ import { REPLAY_FORMAT_VERSION } from "@autosoccer/telemetry";
  * the `vendor/autosoccer-sim` submodule HEAD (a test enforces it). Upgrading the sim =
  * bump the submodule + this constant + re-run the adapter tests.
  */
-export const SIM_COMMIT = "38b8c6f1aeb0d1c7765b6e65b247af799a498675";
+export const SIM_COMMIT = "853d76f8d24c909b7f83ad9a29b0d576d734e7a6";
 export const SIM_VERSION = SIM_COMMIT.slice(0, 7);
-export const ADAPTER_VERSION = "1.0.0";
+export const ADAPTER_VERSION = "1.1.0";
 
 export const VERSIONS: SimVersionInfo = {
   simCommit: SIM_COMMIT,

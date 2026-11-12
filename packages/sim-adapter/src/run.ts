@@ -1,7 +1,7 @@
 import { gzipSync } from "node:zlib";
 import { MatchRequest, type MatchResult, type TeamMatchStats } from "@autosoccer/contracts";
 import { runSeriesMatch } from "@autosoccer/match-runner";
-import { makeConfig } from "@autosoccer/sim-core";
+import { type ConfigOverrides, makeConfig, SEVEN_A_SIDE } from "@autosoccer/sim-core";
 import { canonicalJson, sha256 } from "./canonical.ts";
 import { controllerSource, type ParamsResolver } from "./controllers/index.ts";
 import { officialEvents } from "./events.ts";
@@ -42,18 +42,22 @@ export async function runMatch(input: MatchRequest, opts: RunMatchOptions): Prom
   if (request.simVersion !== SIM_VERSION && request.simVersion !== SIM_COMMIT) {
     throw new SimVersionMismatchError(`request pins sim ${request.simVersion}, adapter is built for ${SIM_VERSION}`);
   }
-  const config = request.config.halfDurationSec ? { halfDurationSec: request.config.halfDurationSec } : {};
+  const size = request.config.playersPerTeam ?? 5;
+  const config: ConfigOverrides = {
+    ...(size === 7 ? SEVEN_A_SIDE : {}),
+    ...(request.config.halfDurationSec ? { halfDurationSec: request.config.halfDurationSec } : {}),
+  };
   const simConfig = makeConfig(config);
   const label = (t: typeof request.home, side: string) => `${t.name} (${side}, ${t.tacticalRevisionId ?? "default"})`;
 
   const { summary, replay } = await runSeriesMatch(request.seed, {
     blue: {
       label: label(request.home, "home"),
-      source: controllerSource(request.home.deployment, opts.resolveParams ?? resolveTactics),
+      source: controllerSource(request.home.deployment, opts.resolveParams ?? resolveTactics, size),
     },
     red: {
       label: label(request.away, "away"),
-      source: controllerSource(request.away.deployment, opts.resolveParams ?? resolveTactics),
+      source: controllerSource(request.away.deployment, opts.resolveParams ?? resolveTactics, size),
     },
     config,
     replayEvery: 1,
