@@ -77,6 +77,21 @@ cd ~/autosoccer
 ```
 `deploy.sh` refuses to run without `.env` or with a weak or non-URL-safe `POSTGRES_PASSWORD`, and only accepts tags made of `[A-Za-z0-9._-]`. Migrations take an advisory lock, are checksummed, and run once per deploy, before the new version starts. A rollback doesn't undo migrations, so keep them backward compatible.
 
+### Rotating the deploy key
+If the deploy job fails at *Ship compose file and scripts* with `Access denied for VM` / `Permission denied (publickey)`, exe.dev no longer accepts the key in `DEPLOY_SSH_KEY`. Rotate it from a machine logged in to exe.dev:
+```sh
+cd "$(mktemp -d)"
+ssh-keygen -t ed25519 -N '' -C autosoccer-deploy -f deploy_key
+ssh exe.dev ssh-key add --vm=autosoccer < deploy_key.pub
+ssh -i deploy_key -o IdentitiesOnly=yes -o UserKnownHostsFile=./known_hosts -o StrictHostKeyChecking=accept-new \
+  vm+autosoccer@vm.exe.xyz 'cat ~/autosoccer/.deployed-tag'     # must print the deployed tag
+gh secret set DEPLOY_SSH_KEY     --env production < deploy_key
+gh secret set DEPLOY_KNOWN_HOSTS --env production < known_hosts
+gh secret set DEPLOY_VM          --env production --body autosoccer
+rm deploy_key deploy_key.pub known_hosts
+```
+The next push to `main` deploys. To deploy without a push, run the *Deploy* workflow by hand, or re-run its last failed run; both need a token with Actions write access. The key was last rotated on 12 Nov 2026, after deploys had failed since #40.
+
 The Compose project is named `autosoccer-exe`. `deploy.sh` runs `up --remove-orphans`, which removes any container in the same project that the file doesn't define, so never reuse that name for anything else on the VM. The database lives in the `autosoccer-exe_pgdata` volume. `docker compose down` keeps it, but `down -v` deletes it.
 
 ## Backups and restore
