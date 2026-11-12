@@ -5,6 +5,7 @@ import type {
   Player,
   TeamMatchStats,
 } from "@autosoccer/contracts";
+import { useState } from "react";
 import { Link } from "react-router";
 import { ArticleCard } from "../components/ArticleCard";
 import { MatchViewer } from "../components/match-viewer/MatchViewer";
@@ -111,57 +112,92 @@ function Timeline({
   home: string;
   away: string;
 }) {
-  const shown = events.filter(
+  // Goals and the whistles by default; fouls, free kicks and corners on request.
+  const [all, setAll] = useState(false);
+  const everything = events.filter(
     (e) =>
       e.type === "goal" ||
       e.type === "foul" ||
       (e.type === "restart" && (e.restart === "corner" || e.restart === "freeKick")) ||
       e.type === "periodEnd",
   );
-  if (!shown.length) return <EmptyState title="No events recorded" />;
+  const shown = all ? everything : everything.filter((e) => e.type === "goal" || e.type === "periodEnd");
+  if (!everything.length) return <EmptyState title="No events recorded" />;
   const who = (id: string | null) => (id ? (names.get(id) ?? "Unknown player") : "Unknown player");
   const sideName = (s: "home" | "away") => (s === "home" ? home : away);
   return (
-    <ol className="relative space-y-3 border-l-2 border-line pl-5">
-      {shown.map((e, i) => {
-        let icon = "•";
-        let text = "";
-        let strong = false;
-        if (e.type === "goal") {
-          icon = "⚽";
-          strong = true;
-          const other = e.side === "home" ? "away" : "home";
-          text = e.ownGoal
-            ? `Own goal by ${who(e.scorerId)} (${sideName(other)}) — ${sideName(e.side)} score. ${e.score.home}–${e.score.away}`
-            : `Goal! ${who(e.scorerId)} — ${sideName(e.side)}. ${e.score.home}–${e.score.away}`;
-        } else if (e.type === "foul") {
-          icon = "✕";
-          text = `Foul by ${who(e.playerId)} (${sideName(e.side)}) on ${who(e.againstId)}`;
-        } else if (e.type === "restart") {
-          icon = e.restart === "corner" ? "⚑" : "↗";
-          text = `${e.restart === "corner" ? "Corner" : "Free kick"} to ${sideName(e.side)}, taken by ${who(e.takerId)}`;
-        } else if (e.type === "periodEnd") {
-          icon = "⏸";
-          text = e.period === "firstHalf" ? "Half-time" : "Full time";
-          strong = true;
-        }
-        return (
-          <li key={`${e.tick}-${i}`} className="relative">
-            <span
-              aria-hidden
-              className={`absolute -left-[1.95rem] top-0 inline-flex size-6 items-center justify-center rounded-full text-xs ${e.type === "goal" ? "bg-yellow" : "bg-surface ring-1 ring-line"}`}
-            >
-              {icon}
-            </span>
-            <span className="tabular mr-2 text-xs font-semibold text-muted-text">
-              {formatClock(e.period, e.clockSec)}
-            </span>
-            <span className={strong ? "font-semibold" : ""}>{text}</span>
-          </li>
-        );
-      })}
-    </ol>
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center gap-2 text-sm" role="group" aria-label="Timeline events">
+        {(
+          [
+            [false, "Key moments"],
+            [true, `Everything (${everything.length})`],
+          ] as const
+        ).map(([v, label]) => (
+          <button
+            key={label}
+            type="button"
+            aria-pressed={all === v}
+            onClick={() => setAll(v)}
+            className={`rounded-full px-3 py-1 font-semibold ${all === v ? "bg-violet text-white" : "bg-lavender text-ink hover:bg-violet/20"}`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+      <ol className="relative space-y-3 border-l-2 border-line pl-5">
+        {shown.map((e, i) => {
+          let icon = "•";
+          let text = "";
+          let strong = false;
+          if (e.type === "goal") {
+            icon = "⚽";
+            strong = true;
+            const other = e.side === "home" ? "away" : "home";
+            text = e.ownGoal
+              ? `Own goal by ${who(e.scorerId)} (${sideName(other)}) — ${sideName(e.side)} score. ${e.score.home}–${e.score.away}`
+              : `Goal! ${who(e.scorerId)} — ${sideName(e.side)}. ${e.score.home}–${e.score.away}`;
+          } else if (e.type === "foul") {
+            icon = "✕";
+            text = `Foul by ${who(e.playerId)} (${sideName(e.side)}) on ${who(e.againstId)}`;
+          } else if (e.type === "restart") {
+            icon = e.restart === "corner" ? "⚑" : "↗";
+            text = `${e.restart === "corner" ? "Corner" : "Free kick"} to ${sideName(e.side)}, taken by ${who(e.takerId)}`;
+          } else if (e.type === "periodEnd") {
+            icon = "⏸";
+            text = e.period === "firstHalf" ? "Half-time" : "Full time";
+            strong = true;
+          }
+          return (
+            <li key={`${e.tick}-${i}`} className="relative">
+              <span
+                aria-hidden
+                className={`absolute -left-[1.95rem] top-0 inline-flex size-6 items-center justify-center rounded-full text-xs ${e.type === "goal" ? "bg-yellow" : "bg-surface ring-1 ring-line"}`}
+              >
+                {icon}
+              </span>
+              <span className="tabular mr-2 text-xs font-semibold text-muted-text">
+                {formatClock(e.period, e.clockSec)}
+              </span>
+              <span className={strong ? "font-semibold" : ""}>{text}</span>
+            </li>
+          );
+        })}
+      </ol>
+    </div>
   );
+}
+
+/** "Tove Nyberg 2H 0:07, 2H 0:26" per scorer, in the order they first scored, for one side. */
+export function scorerLines(events: OfficialEvent[], side: "home" | "away", names: Map<string, string>): string[] {
+  const by = new Map<string, string[]>();
+  for (const e of events) {
+    if (e.type !== "goal" || e.side !== side) continue;
+    const who = e.scorerId ? (names.get(e.scorerId) ?? "Unknown player") : "Unknown player";
+    const key = e.ownGoal ? `${who} (own goal)` : who;
+    by.set(key, [...(by.get(key) ?? []), formatClock(e.period, e.clockSec)]);
+  }
+  return [...by.entries()].map(([who, times]) => `${who} ${times.join(", ")}`);
 }
 
 function Lineup({ players, title }: { players: Player[]; title: string }) {
@@ -233,6 +269,20 @@ export default function MatchCentre({ loaderData }: Route.ComponentProps) {
             </span>
           </Link>
         </div>
+        {done && (match.homeScore ?? 0) + (match.awayScore ?? 0) > 0 && (
+          <div className="grid grid-cols-2 gap-6 border-t border-line px-4 py-3 text-sm sm:px-8">
+            <ul aria-label={`${fixture.home.name} scorers`} className="text-right">
+              {scorerLines(events, "home", names).map((l) => (
+                <li key={l}>{l}</li>
+              ))}
+            </ul>
+            <ul aria-label={`${fixture.away.name} scorers`}>
+              {scorerLines(events, "away", names).map((l) => (
+                <li key={l}>{l}</li>
+              ))}
+            </ul>
+          </div>
+        )}
       </header>
 
       <div className="grid gap-8 lg:grid-cols-12">
