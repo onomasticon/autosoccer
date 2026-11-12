@@ -36,6 +36,8 @@ export interface StandingsTableProps {
   highlightTeamId?: string;
   /** Render without its own card (inside a Panel). */
   bare?: boolean;
+  /** Last season's champions, marked "Holders". */
+  holdersTeamId?: string | null;
 }
 
 export function StandingsTable({
@@ -45,6 +47,7 @@ export function StandingsTable({
   loading = false,
   highlightTeamId,
   bare = false,
+  holdersTeamId = null,
 }: StandingsTableProps) {
   if (loading)
     return (
@@ -135,6 +138,14 @@ export function StandingsTable({
                     {leader && !compact && (
                       <span aria-hidden className="rounded bg-yellow px-1 text-[10px] font-bold uppercase text-ink">
                         Top
+                      </span>
+                    )}
+                    {holdersTeamId === r.team.id && (
+                      <span
+                        className="rounded border border-violet px-1 text-[10px] font-bold uppercase text-violet-deep"
+                        title="Last season's champions"
+                      >
+                        Holders
                       </span>
                     )}
                   </Link>

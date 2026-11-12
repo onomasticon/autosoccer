@@ -201,6 +201,7 @@ export async function matchFacts(db: Db, matchId: string): Promise<EditorialFact
   }
   facts.push(...(await continuityFacts(db, m)));
   facts.push(...(await standingFacts(db, m.season_id, m.round)));
+  facts.push(...(await historyFacts(db, m.season_id)));
   return {
     contract: "editorial-facts/1",
     seasonId: m.season_id,
@@ -304,6 +305,56 @@ async function continuityFacts(db: Db, m: MatchRow): Promise<Fact[]> {
 }
 
 /** Facts for a whole round: each match's score and key stats, plus the table afterwards. */
+/**
+ * League history before this season, from earlier seasons' final tables: the defending champion and
+ * any run of consecutive titles, and every club's title count. Gives journalists the long story
+ * ("seeking a fourth straight title") without inventing it.
+ */
+export async function historyFacts(db: Db, seasonId: string): Promise<Fact[]> {
+  const earlier = await db<{ id: string; name: string }[]>`
+    select s.id, s.name from seasons s, seasons cur
+    where cur.id = ${seasonId} and s.status = 'completed' and s.id <> cur.id
+      and coalesce(s.starts_at, s.created_at) < coalesce(cur.starts_at, cur.created_at)
+    order by coalesce(s.starts_at, s.created_at)`;
+  if (!earlier.length) return [];
+  const champions: Array<{ season: string; team: string }> = [];
+  for (const s of earlier) {
+    const { rows } = await standingRows(db, s.id);
+    if (rows[0]) champions.push({ season: s.name, team: rows[0].team.name });
+  }
+  if (!champions.length) return [];
+  const last = champions.at(-1)!;
+  let streak = 0;
+  for (let i = champions.length - 1; i >= 0 && champions[i]!.team === last.team; i--) streak++;
+  const counts = new Map<string, number>();
+  for (const c of champions) counts.set(c.team, (counts.get(c.team) ?? 0) + 1);
+  const { rows: clubs } = await standingRows(db, seasonId);
+  const tally = clubs
+    .map((r) => ({ team: r.team.name, n: counts.get(r.team.name) ?? 0 }))
+    .sort((a, b) => b.n - a.n || a.team.localeCompare(b.team));
+  const src = { table: "seasons", id: `history:${seasonId}` };
+  const listSeasons = (xs: string[]) => (xs.length > 1 ? `${xs.slice(0, -1).join(", ")} and ${xs.at(-1)}` : xs[0]!);
+  return [
+    {
+      id: `history:${seasonId}:defending`,
+      kind: "standing",
+      statement:
+        streak > 1
+          ? `${last.team} are the defending champions and have won the last ${streak} titles in a row (${listSeasons(champions.slice(-streak).map((c) => c.season))})`
+          : `${last.team} are the defending champions (${last.season})`,
+      value: { defending: last.team, streak, seasons: champions.slice(-streak).map((c) => c.season) },
+      source: src,
+    },
+    {
+      id: `history:${seasonId}:titles`,
+      kind: "standing",
+      statement: `League titles before this season: ${tally.map((t) => `${t.team} ${t.n}`).join(", ")} (${champions.length} seasons completed)`,
+      value: { titles: Object.fromEntries(tally.map((t) => [t.team, t.n])), seasons: champions.length },
+      source: src,
+    },
+  ];
+}
+
 export async function roundFacts(
   db: Db,
   seasonId: string,
@@ -317,7 +368,11 @@ export async function roundFacts(
     const mf = await matchFacts(db, id);
     facts.push(...mf.facts.filter((f) => f.kind !== "standing" && f.kind !== "lineup"));
   }
-  facts.push(...(await standingFacts(db, seasonId, round)), ...(await raceFact(db, seasonId, round)));
+  facts.push(
+    ...(await standingFacts(db, seasonId, round)),
+    ...(await raceFact(db, seasonId, round)),
+    ...(await historyFacts(db, seasonId)),
+  );
   return {
     contract: "editorial-facts/1",
     seasonId,
