@@ -90,7 +90,7 @@ export function FixtureCard({ fixture }: { fixture: FixtureView }) {
         <span className="mt-1">
           {!s && fixture.status === "scheduled" && fixture.scheduledAt ? (
             <time dateTime={fixture.scheduledAt} className="text-xs font-semibold text-muted-text">
-              {formatDate(fixture.scheduledAt, { weekday: true, time: true, date: false })}
+              {formatDate(fixture.scheduledAt, { weekday: true, time: true })}
             </time>
           ) : (
             <StatusChip status={fixture.status} />
@@ -157,8 +157,10 @@ export function FixtureRow({ fixture }: { fixture: FixtureView }) {
         {s ? (
           <StatusChip status={fixture.status} />
         ) : fixture.scheduledAt ? (
-          <time dateTime={fixture.scheduledAt}>
-            {formatDate(fixture.scheduledAt, { weekday: true, time: true, date: false })}
+          // Date over time, so a narrow panel keeps room for the team names.
+          <time dateTime={fixture.scheduledAt} className="flex flex-col leading-tight">
+            <span>{formatDate(fixture.scheduledAt, { weekday: true })}</span>
+            <span className="text-muted-text">{formatDate(fixture.scheduledAt, { time: true }).split(", ")[1]}</span>
           </time>
         ) : (
           <StatusChip status={fixture.status} />
