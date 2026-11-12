@@ -66,6 +66,7 @@ export const exampleSeason: Season = {
   status: "active",
   seed: 20261109,
   simVersion: "38b8c6f",
+  playersPerTeam: 5,
   budgetPerTeamMicroUsd: 1_000_000,
   startsAt: T0,
   completedAt: null,

@@ -1,14 +1,28 @@
-import { describeTactics, TacticalConfigV1 } from "@autosoccer/contracts";
+import { describeTactics, TacticalConfigV1, type TeamSize, tacticsSchemaFor } from "@autosoccer/contracts";
 import { z } from "zod";
 
-/** What a manager decides before a match. Starters are shirt numbers in slot order. */
+const NUMBER_WORDS: Record<TeamSize, string> = { 5: "five", 7: "seven" };
+
+/** What a manager decides before a match, for a team size. Starters are shirt numbers in slot order. */
+export function preMatchDecision(size: TeamSize) {
+  return z
+    .object({
+      tactics: tacticsSchemaFor(size),
+      starters: z
+        .array(z.number().int())
+        .describe(
+          `exactly ${NUMBER_WORDS[size]} shirt numbers: the goalkeeper first, then the formation's outfield slots back to front`,
+        ),
+      rationale: z.string().describe("one or two sentences explaining the choice, citing the facts given"),
+    })
+    .strict();
+}
+/** The 5-a-side decision schema (kept for callers that predate 7-a-side). */
 export const PreMatchDecision = z
   .object({
     tactics: TacticalConfigV1,
-    starters: z
-      .array(z.number().int())
-      .describe("exactly five shirt numbers: the goalkeeper first, then the formation's outfield slots back to front"),
-    rationale: z.string().describe("one or two sentences explaining the choice, citing the facts given"),
+    starters: z.array(z.number().int()),
+    rationale: z.string(),
   })
   .strict();
 export type PreMatchDecision = z.infer<typeof PreMatchDecision>;
@@ -42,6 +56,7 @@ export interface MatchSummaryFact {
 export interface ManagerFacts {
   manager: { name: string; persona: string; philosophy: string; memory: { summary: string; notes: string[] } };
   team: { name: string };
+  format: { playersPerTeam: TeamSize };
   fixture: { round: number; venue: "home" | "away"; opponent: string };
   squad: Array<{ shirt: number; name: string; position: string }>;
   current: { tactics: TacticalConfigV1 | null; starters: number[] };
@@ -54,22 +69,23 @@ export interface PostMatchFacts extends ManagerFacts {
   match: MatchSummaryFact & { goals: string[] };
 }
 
-const OPTIONS = Object.entries(TacticalConfigV1.shape)
-  .map(([k, v]) => `- ${k}: ${(v as unknown as { options: string[] }).options.join(" | ")}`)
-  .join("\n");
+const options = (size: TeamSize) =>
+  Object.entries(tacticsSchemaFor(size).shape)
+    .map(([k, v]) => `- ${k}: ${(v as unknown as { options: string[] }).options.join(" | ")}`)
+    .join("\n");
 
-/** Stable system prompt per manager (cache-friendly: no per-match data). */
-export function managerSystem(m: ManagerFacts["manager"], team: string): string {
-  return `You are ${m.name}, the AI manager of ${team} in Auto Soccer, a fictional 5v5 league played in a deterministic 2D simulator.
+/** Stable system prompt per manager and team size (cache-friendly: no per-match data). */
+export function managerSystem(m: ManagerFacts["manager"], team: string, size: TeamSize = 5): string {
+  return `You are ${m.name}, the AI manager of ${team} in Auto Soccer, a fictional ${size}-a-side league played in a deterministic 2D simulator.
 Persona: ${m.persona}
 Philosophy: ${m.philosophy}
 
 You manage by choosing a lineup and a structured tactical setup before each match, and by reviewing the official result afterwards. You cannot influence the match while it is being played.
 Only use the facts provided. Do not invent results, statistics, injuries or quotes.
 
-Tactical options (tactics/1):
-${OPTIONS}
-Formations list the four outfield players back to front. Slot 1 is always the goalkeeper.`;
+Tactical options (tactics/1, ${size}-a-side):
+${options(size)}
+Formations list the ${NUMBER_WORDS[(size - 1) as TeamSize] ?? size - 1} outfield players back to front. Slot 1 is always the goalkeeper.`;
 }
 
 const fmtMatch = (m: MatchSummaryFact) =>
@@ -103,7 +119,7 @@ export function preMatchPrompt(f: ManagerFacts): string {
 
 ${commonFacts(f)}
 
-Decide your lineup and tactics for this match. Keep what works; change what the evidence says isn't working. Return the full tactics object, five starters by shirt number (goalkeeper first), and a short rationale grounded in the facts above.`;
+Decide your lineup and tactics for this match. Keep what works; change what the evidence says isn't working. Return the full tactics object, ${NUMBER_WORDS[f.format.playersPerTeam]} starters by shirt number (goalkeeper first), and a short rationale grounded in the facts above.`;
 }
 
 export function postMatchPrompt(f: PostMatchFacts): string {

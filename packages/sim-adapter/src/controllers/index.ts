@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
-import type { ControllerDeployment } from "@autosoccer/contracts";
+import type { ControllerDeployment, TeamSize } from "@autosoccer/contracts";
 
-/** Slot = where one outfield shirt number (2–5) stands: metres from own goal line, and lateral offset. */
+/** Slot = where one outfield shirt number (2–5, or 2–7 in 7-a-side) stands: metres from own goal line, and lateral offset. */
 export interface Slot {
   depth: number;
   lateral: number;
@@ -10,10 +10,12 @@ export interface Slot {
 /** Everything the tactical controller template reads. Plain numbers only, so the source is deterministic. */
 export interface ControllerParams {
   name: string;
-  slots: Record<2 | 3 | 4 | 5, Slot>;
+  slots: Partial<Record<2 | 3 | 4 | 5 | 6 | 7, Slot>>;
   ballFollow: number;
   ballShift: number;
   attackPush: number;
+  /** Slots deeper than this (m) only get half the attacking push. */
+  pushDepth: number;
   pressLine: number;
   pressers: 1 | 2;
   sprint: boolean;
@@ -40,6 +42,7 @@ export const BASELINE_PARAMS: ControllerParams = {
   ballFollow: 0.3,
   ballShift: 0.4,
   attackPush: 4,
+  pushDepth: 14,
   pressLine: 0,
   pressers: 1,
   sprint: true,
@@ -61,7 +64,10 @@ export function renderTacticalController(params: ControllerParams): string {
   return TEMPLATE.replace("__PARAMS__", JSON.stringify(params));
 }
 
-export type ParamsResolver = (deployment: Extract<ControllerDeployment, { kind: "tactical" }>) => ControllerParams;
+export type ParamsResolver = (
+  deployment: Extract<ControllerDeployment, { kind: "tactical" }>,
+  size?: TeamSize,
+) => ControllerParams;
 
 export class UnsupportedDeploymentError extends Error {}
 
@@ -73,8 +79,9 @@ export class UnsupportedDeploymentError extends Error {}
 export function controllerSource(
   deployment: ControllerDeployment,
   resolve: ParamsResolver = () => BASELINE_PARAMS,
+  size: TeamSize = 5,
 ): string {
-  if (deployment.kind === "tactical") return renderTacticalController(resolve(deployment));
+  if (deployment.kind === "tactical") return renderTacticalController(resolve(deployment, size));
   throw new UnsupportedDeploymentError(
     `scripted deployments (sdk ${deployment.sdkVersion}, artifact ${deployment.artifactId}) are not executable yet`,
   );

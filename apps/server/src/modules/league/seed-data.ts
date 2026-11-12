@@ -8,12 +8,15 @@ export interface SeedTeam {
   city: string;
   colors: { primary: string; secondary: string };
   crest: { shape: "shield" | "circle" | "hexagon" | "diamond"; glyph: string };
-  /** Seven players: five starters (GK, DF, DF, MF, FW) and two reserves. */
+  /**
+   * Ten players. 7-a-side starters fill GK, DF, DF, MF, MF, MF, FW; shirts 1–7 were the
+   * original 5-a-side squad (starters GK, DF, DF, MF, FW and two reserves), 8–10 joined for 7-a-side.
+   */
   players: Array<{ name: string; number: number; position: Position }>;
 }
 
 const squad = (names: string[]): SeedTeam["players"] => {
-  const positions: Position[] = ["GK", "DF", "DF", "MF", "FW", "DF", "FW"];
+  const positions: Position[] = ["GK", "DF", "DF", "MF", "FW", "DF", "FW", "MF", "MF", "FW"];
   return names.map((name, i) => ({ name, number: i + 1, position: positions[i]! }));
 };
 
@@ -25,7 +28,18 @@ export const SEED_TEAMS: SeedTeam[] = [
     city: "Harbour City",
     colors: { primary: "#245EFF", secondary: "#FFFFFF" },
     crest: { shape: "shield", glyph: "H" },
-    players: squad(["Ada Okafor", "Bruno Lind", "Chen Wu", "Dara Quinn", "Eli Moreau", "Femi Adeyemi", "Gus Varga"]),
+    players: squad([
+      "Ada Okafor",
+      "Bruno Lind",
+      "Chen Wu",
+      "Dara Quinn",
+      "Eli Moreau",
+      "Femi Adeyemi",
+      "Gus Varga",
+      "Hana Ito",
+      "Ivo Brandt",
+      "Jae Moon",
+    ]),
   },
   {
     slug: "red-rock-rovers",
@@ -34,7 +48,18 @@ export const SEED_TEAMS: SeedTeam[] = [
     city: "Red Rock",
     colors: { primary: "#E2412E", secondary: "#FFE7A3" },
     crest: { shape: "circle", glyph: "R" },
-    players: squad(["Iris Kale", "Jon Pike", "Kofi Mensah", "Lia Sorn", "Max Ruiz", "Nell Hart", "Omar Said"]),
+    players: squad([
+      "Iris Kale",
+      "Jon Pike",
+      "Kofi Mensah",
+      "Lia Sorn",
+      "Max Ruiz",
+      "Nell Hart",
+      "Omar Said",
+      "Pablo Reyes",
+      "Runa Dahl",
+      "Sol Achebe",
+    ]),
   },
   {
     slug: "northgate-comets",
@@ -51,6 +76,9 @@ export const SEED_TEAMS: SeedTeam[] = [
       "Tove Nyberg",
       "Uma Rao",
       "Viktor Hale",
+      "Wanda Kerr",
+      "Xan Petit",
+      "Yusuf Demir",
     ]),
   },
   {
@@ -60,6 +88,17 @@ export const SEED_TEAMS: SeedTeam[] = [
     city: "Saltmarsh",
     colors: { primary: "#F2A93B", secondary: "#20203B" },
     crest: { shape: "diamond", glyph: "S" },
-    players: squad(["Wen Tao", "Xavi Cole", "Yara Haddad", "Zane Brooks", "Abel Novak", "Bea Lund", "Cyrus Amini"]),
+    players: squad([
+      "Wen Tao",
+      "Xavi Cole",
+      "Yara Haddad",
+      "Zane Brooks",
+      "Abel Novak",
+      "Bea Lund",
+      "Cyrus Amini",
+      "Dina Osei",
+      "Emil Strand",
+      "Faye Burke",
+    ]),
   },
 ];

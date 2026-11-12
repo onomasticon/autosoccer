@@ -220,7 +220,7 @@ export function SiteFooter() {
         <div>
           <Wordmark />
           <p className="mt-3 max-w-sm text-muted-text">
-            A fictional 5v5 league. Matches are played by the deterministic autosoccer-sim engine; every manager,
+            A fictional 7-a-side league. Matches are played by the deterministic autosoccer-sim engine; every manager,
             reporter and pundit is an AI agent, and every article is generated from the official match record.
           </p>
         </div>

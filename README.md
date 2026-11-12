@@ -1,6 +1,6 @@
 # Auto Soccer
 
-The league platform and public sports/editorial site for a fictional, AI-managed 5v5 soccer league.
+The league platform and public sports/editorial site for a fictional, AI-managed 7-a-side soccer league (the launch season was 5-a-side).
 Matches are played by the separate deterministic simulator,
 [autosoccer-sim](https://github.com/onomasticon/autosoccer-sim), through a pinned adapter.
 
@@ -74,8 +74,11 @@ Matches are played by durable `match.play` jobs:
 
 ## League and season lifecycle
 
-- **Clubs:** four fictional clubs with seven-player squads: five starters (GK, DF, DF, MF, FW)
-  and two reserves (`apps/server/src/modules/league/seed-data.ts`).
+- **Clubs:** four fictional clubs with ten-player squads (`apps/server/src/modules/league/seed-data.ts`).
+- **Format:** each season records its team size (`seasons.players_per_team`). New seasons are 7-a-side:
+  seven starters (GK, DF, DF, MF, MF, MF, FW by default) on the simulator's 60×38 m pitch, with
+  six-outfield formations (`2-3-1`, `3-2-1`, `2-2-2`, `3-1-2`, `2-1-2-1`). Season 1 was 5-a-side
+  (five starters, four-outfield formations, 50×32 m); its matches keep their pinned simulator.
 - **Calendar:** a double round robin (4 teams → 6 rounds, 12 fixtures).
   - The season seed fixes the team order, so it alone decides the calendar.
   - Each team plays once per round, with three home games, and never three home or away games in a row.
@@ -104,8 +107,8 @@ Each club has a persistent AI manager (`apps/server/src/modules/agents`) with a 
 philosophy and memory.
 - **Before each round**, the scheduler's `beforeRound` hook enqueues one `manager.pre_match` job
   per team. The manager gets grounded facts only (its memory, the table, both teams' official
-  recent results and stats, its squad and current setup) and returns a `tactics/1` config, five
-  starters by shirt number and a rationale (structured output). That's validated into a new
+  recent results and stats, its squad and current setup) and returns a `tactics/1` config, the
+  season's number of starters by shirt number and a rationale (structured output). That's validated into a new
   tactical revision, with one repair attempt if it's invalid. The round is released once every
   decision has finished.
 - **After each match**, a `manager.post_match` job feeds the official result back. The manager

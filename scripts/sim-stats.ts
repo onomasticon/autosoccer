@@ -4,14 +4,14 @@
  * presets, and records per-match outcomes. Read-only research: it never touches the database
  * or any official result.
  *
- *   bun scripts/sim-stats.ts play --matches 1200 [--start-seed 1] [--shard 0/4] --out out/sim-stats
+ *   bun scripts/sim-stats.ts play --matches 1200 [--start-seed 1] [--shard 0/4] [--players 5|7] --out out/sim-stats
  *   bun scripts/sim-stats.ts report --out out/sim-stats      # aggregates every shard → report.md + summary.json
  */
 import { appendFileSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { DEFAULT_TACTICS, type TacticalConfigV1 } from "@autosoccer/contracts";
+import { defaultTactics, type TacticalConfigV1, type TeamSize } from "@autosoccer/contracts";
 import { MemoryReplayStore, runMatch, SIM_VERSION } from "@autosoccer/sim-adapter";
-import { SEED_MANAGERS } from "../apps/server/src/modules/agents/managers-seed.ts";
+import { openingTactics, SEED_MANAGERS } from "../apps/server/src/modules/agents/managers-seed.ts";
 import { sampleRequest } from "../packages/sim-adapter/src/testing.ts";
 
 const args = process.argv.slice(2);
@@ -20,10 +20,11 @@ const opt = (n: string, d: string) => (args.includes(`--${n}`) ? args[args.index
 const out = opt("out", "out/sim-stats");
 mkdirSync(out, { recursive: true });
 
-/** The four clubs' opening setups plus the league baseline. */
+const players: TeamSize = opt("players", "5") === "7" ? 7 : 5;
+/** The four clubs' opening setups plus the league baseline, for the team size. */
 const PRESETS: Array<{ name: string; config: TacticalConfigV1 }> = [
-  ...SEED_MANAGERS.map((m) => ({ name: m.teamSlug, config: m.openingTactics })),
-  { name: "baseline", config: DEFAULT_TACTICS },
+  ...SEED_MANAGERS.map((m) => ({ name: m.teamSlug, config: openingTactics(m, players) })),
+  { name: "baseline", config: defaultTactics(players) },
 ];
 const PAIRS = PRESETS.flatMap((h) => PRESETS.map((a) => [h, a] as const));
 
@@ -54,7 +55,7 @@ if (cmd === "play") {
   for (let i = shard; i < total; i += shards) {
     const seed = start + i;
     const [h, a] = PAIRS[i % PAIRS.length]!;
-    const req = sampleRequest({ seed }); // production default match config
+    const req = sampleRequest({ seed, config: players === 7 ? { playersPerTeam: 7 } : {} }); // production match config
     req.home.deployment = dep(h.config);
     req.away.deployment = dep(a.config);
     const r = (await runMatch(req, { store: new MemoryReplayStore() })).result;

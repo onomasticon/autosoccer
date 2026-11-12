@@ -50,12 +50,12 @@ describe("league season without AI", () => {
     await t.drop();
   });
 
-  it("seeds four teams with seven-player squads (idempotently)", async () => {
+  it("seeds four teams with ten-player squads (idempotently)", async () => {
     await seedTeams(t.db);
     const [teams] = await t.db`select count(*)::int as n from teams`;
     const squads = await t.db<{ n: number }[]>`select count(*)::int as n from players group by team_id`;
     expect(teams!.n).toBe(4);
-    expect(squads.map((s) => s.n)).toEqual([7, 7, 7, 7]);
+    expect(squads.map((s) => s.n)).toEqual([10, 10, 10, 10]);
   });
 
   it("creates 12 fixtures once; re-creating the season is a no-op", async () => {
@@ -113,7 +113,7 @@ describe("league season without AI", () => {
     expect(fx.rounds.map((r) => r.fixtures.length)).toEqual([2, 2, 2, 2, 2, 2]);
     expect(fx.rounds.flatMap((r) => r.fixtures).every((f) => f.score && f.matchId)).toBe(true);
     const team = TeamDetailResponse.parse(await (await app.request("/api/v1/teams/harbour-city")).json());
-    expect(team.players).toHaveLength(7);
+    expect(team.players).toHaveLength(10);
     expect(team.fixtures).toHaveLength(6);
     expect(team.standing?.played).toBe(6);
     expect((await app.request("/api/v1/teams/nope")).status).toBe(404);

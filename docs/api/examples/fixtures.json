@@ -6,6 +6,7 @@
     "status": "active",
     "seed": 20261109,
     "simVersion": "38b8c6f",
+    "playersPerTeam": 5,
     "budgetPerTeamMicroUsd": 1000000,
     "startsAt": "2026-11-09T12:00:00.000Z",
     "completedAt": null

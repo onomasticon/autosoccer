@@ -80,6 +80,32 @@ describe("runMatch", () => {
   });
 });
 
+describe("7-a-side", () => {
+  it("plays seven players a side on the bigger pitch, with platform ids for every player", async () => {
+    const store = new MemoryReplayStore();
+    const req = sampleRequest({ seed: 11, config: { ...SHORT, playersPerTeam: 7 } });
+    const { result } = await runMatch(req, { store });
+    expect(MatchResult.safeParse(result).success).toBe(true);
+    expect(result.replay.verified).toBe(true);
+    expect(result.diagnostics.controllerFailures).toEqual([]);
+    expect(result.diagnostics.invariantViolations).toEqual([]);
+    const replay = JSON.parse(gunzipSync(await store.get(result.replay.uri)).toString());
+    expect(replay.config.playersPerTeam).toBe(7);
+    expect(replay.config.pitch).toMatchObject({ length: 60, width: 38, goalWidth: 5 });
+    const known = new Set([...req.home.starters, ...req.away.starters].map((s) => s.playerId));
+    const named = result.events.flatMap((e) =>
+      "takerId" in e ? [e.takerId] : "playerId" in e ? [e.playerId, e.againstId] : [],
+    );
+    expect(named.length).toBeGreaterThan(0);
+    for (const id of named) expect(known.has(id)).toBe(true);
+  });
+
+  it("rejects a request whose lineups don't match the team size", () => {
+    const five = sampleRequest();
+    expect(() => requestHash({ ...five, config: { playersPerTeam: 7 } })).toThrow(/playersPerTeam/);
+  });
+});
+
 describe("controller rendering", () => {
   it("is deterministic and embeds the params", () => {
     const a = renderTacticalController(BASELINE_PARAMS);

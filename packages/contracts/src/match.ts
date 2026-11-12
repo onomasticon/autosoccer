@@ -16,29 +16,36 @@ export type SimVersionInfo = z.infer<typeof SimVersionInfo>;
 export const MatchTeamEntry = z.object({
   teamId: Id,
   name: z.string(),
-  /** Exactly five starters in simulator slot order: [GK, DF, DF, MF, FW]. */
+  /** Starters in simulator slot order, goalkeeper first: five in 5-a-side, seven in 7-a-side (config.playersPerTeam). */
   starters: z
     .array(z.object({ playerId: Id, name: z.string(), shirtNumber: z.number().int(), position: Position }))
-    .length(5),
+    .min(5)
+    .max(7),
   tacticalRevisionId: Id.nullable(),
   deployment: ControllerDeployment,
 });
 export type MatchTeamEntry = z.infer<typeof MatchTeamEntry>;
 
 /** Everything the simulator adapter needs. A pure function of this request yields the MatchResult. */
-export const MatchRequest = z.object({
-  contract: z.literal("match-request/1"),
-  fixtureId: Id,
-  seed: z.number().int().nonnegative().max(0xffffffff),
-  simVersion: z.string().describe("required pinned sim commit; adapter refuses a mismatch"),
-  home: MatchTeamEntry,
-  away: MatchTeamEntry,
-  config: z
-    .object({
-      halfDurationSec: z.number().positive().optional(),
-    })
-    .default({}),
-});
+export const MatchRequest = z
+  .object({
+    contract: z.literal("match-request/1"),
+    fixtureId: Id,
+    seed: z.number().int().nonnegative().max(0xffffffff),
+    simVersion: z.string().describe("required pinned sim commit; adapter refuses a mismatch"),
+    home: MatchTeamEntry,
+    away: MatchTeamEntry,
+    config: z
+      .object({
+        halfDurationSec: z.number().positive().optional(),
+        /** Players per side; absent means 5 (every request before 7-a-side). */
+        playersPerTeam: z.union([z.literal(5), z.literal(7)]).optional(),
+      })
+      .default({}),
+  })
+  .refine((r) => [r.home, r.away].every((t) => t.starters.length === (r.config.playersPerTeam ?? 5)), {
+    message: "each side must name exactly config.playersPerTeam starters (default 5)",
+  });
 export type MatchRequest = z.infer<typeof MatchRequest>;
 
 export const Period = z.enum(["firstHalf", "secondHalf"]);

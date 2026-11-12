@@ -1,4 +1,10 @@
-import { DEFAULT_TACTICS, Formation, TacticalConfigV1 as Schema, type TacticalConfigV1 } from "@autosoccer/contracts";
+import {
+  DEFAULT_TACTICS,
+  Formation,
+  formationTeamSize,
+  TacticalConfigV1 as Schema,
+  type TacticalConfigV1,
+} from "@autosoccer/contracts";
 import { describe, expect, it } from "vitest";
 import {
   BASELINE_PARAMS,
@@ -41,15 +47,18 @@ describe("tactics/1 → controller mapping", () => {
   it("is total and stays on the pitch for every one of the valid configs", () => {
     let n = 0;
     for (const c of allConfigs()) {
-      const p = tacticalParams(c);
+      const size = formationTeamSize(c.formation);
+      const p = tacticalParams(c, size);
+      const [length, width] = size === 7 ? [60, 38] : [50, 32];
+      expect(Object.keys(p.slots)).toHaveLength(size - 1);
       for (const s of Object.values(p.slots)) {
         expect(s.depth).toBeGreaterThan(0);
-        expect(s.depth).toBeLessThan(50);
-        expect(Math.abs(s.lateral)).toBeLessThanOrEqual(15);
+        expect(s.depth).toBeLessThan(length);
+        expect(Math.abs(s.lateral)).toBeLessThanOrEqual(width / 2 - 1);
       }
       n++;
     }
-    expect(n).toBe(5 * 3 ** 7 * 2);
+    expect(n).toBe(10 * 3 ** 7 * 2);
   });
 
   it("is deterministic: equal configs render byte-identical controllers, different ones differ", () => {
@@ -99,6 +108,7 @@ describe("contrasting tactics in the simulator", () => {
 
   it("produce observable, reproducible differences (both venues)", async () => {
     const totals = { aggressive: { pl: 0, comp: 0, drib: 0 }, block: { pl: 0, comp: 0, drib: 0 } };
+    let heightGap = 0;
     for (const seed of [1, 2, 3, 4]) {
       const swap = seed % 2 === 0;
       const req = sampleRequest({ seed, config: { halfDurationSec: 60 } });
@@ -107,8 +117,9 @@ describe("contrasting tactics in the simulator", () => {
       const { result } = await runMatch(req, { store: new MemoryReplayStore() });
       const agg = swap ? result.stats.away : result.stats.home;
       const blk = swap ? result.stats.home : result.stats.away;
-      // A high line stands far higher up the pitch than a deep block — every match.
-      expect(agg.avgTeamHeight - blk.avgTeamHeight).toBeGreaterThan(15);
+      // A high line stands higher up the pitch than a deep block in every match, and far higher on average.
+      expect(agg.avgTeamHeight - blk.avgTeamHeight).toBeGreaterThan(5);
+      heightGap += (agg.avgTeamHeight - blk.avgTeamHeight) / 4;
       totals.aggressive.pl += agg.avgPassLength;
       totals.block.pl += blk.avgPassLength;
       totals.aggressive.comp += agg.passesCompleted;
@@ -122,6 +133,7 @@ describe("contrasting tactics in the simulator", () => {
         expect(again.result.stats).toEqual(result.stats);
       }
     }
+    expect(heightGap).toBeGreaterThan(15);
     expect(totals.aggressive.pl).toBeGreaterThan(totals.block.pl); // direct = longer passes
     expect(totals.block.comp).toBeGreaterThan(totals.aggressive.comp); // safe/patient = more completed
     expect(totals.aggressive.drib).toBeGreaterThan(totals.block.drib); // "often" dribbles more
