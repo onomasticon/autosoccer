@@ -1,22 +1,28 @@
-import type { StandingsResponse } from "@autosoccer/contracts";
+import type { ScorersResponse, StandingsResponse } from "@autosoccer/contracts";
 import { Link } from "react-router";
 import { RouteError } from "../components/RouteError";
+import { ScorersTable } from "../components/ScorersTable";
 import { SectionHeader } from "../components/SectionHeader";
 import { StandingsTable } from "../components/StandingsTable";
 import { TitleRaceLine } from "../components/TitleRace";
-import { apiOr404, seasonSlugFrom } from "../lib/api.server";
+import { apiMaybe, apiOr404, seasonSlugFrom } from "../lib/api.server";
 import { seo } from "../lib/seo";
 import type { Route } from "./+types/table";
 
 export async function loader({ request }: Route.LoaderArgs) {
-  return apiOr404<StandingsResponse>(`/api/v1/seasons/${await seasonSlugFrom(request)}/standings`);
+  const slug = await seasonSlugFrom(request);
+  const [standings, scorers] = await Promise.all([
+    apiOr404<StandingsResponse>(`/api/v1/seasons/${slug}/standings`),
+    apiMaybe<ScorersResponse>(`/api/v1/seasons/${slug}/scorers`),
+  ]);
+  return { ...standings, scorers: scorers?.items ?? [] };
 }
 
 export const meta: Route.MetaFunction = ({ data }) =>
   seo(data ? `${data.season.name} table` : "Table", "The official league table: points, goal difference and form.");
 
 export default function Table({ loaderData }: Route.ComponentProps) {
-  const { season, rows, afterRound, race } = loaderData;
+  const { season, rows, afterRound, race, scorers } = loaderData;
   return (
     <div className="mx-auto max-w-5xl space-y-6">
       <SectionHeader
@@ -45,6 +51,12 @@ export default function Table({ loaderData }: Route.ComponentProps) {
         Three points for a win, one for a draw. Ties are split by goal difference, then goals scored, then the
         head-to-head record between the tied clubs.
       </p>
+      <section aria-labelledby="scorers" className="space-y-3">
+        <SectionHeader id="scorers" title="Top scorers" tone="coral" />
+        <div className="card-surface p-3">
+          <ScorersTable rows={scorers} caption={`${season.name} top scorers`} />
+        </div>
+      </section>
     </div>
   );
 }

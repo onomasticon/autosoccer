@@ -1,15 +1,20 @@
-import type { SeasonListResponse, SeasonSummary } from "@autosoccer/contracts";
+import type { ScorersResponse, SeasonListResponse, SeasonSummary } from "@autosoccer/contracts";
 import { Link } from "react-router";
 import { RouteError } from "../components/RouteError";
+import { ScorersTable } from "../components/ScorersTable";
 import { SectionHeader } from "../components/SectionHeader";
 import { EmptyState } from "../components/States";
 import { TeamBadge } from "../components/TeamBadge";
-import { apiOr404 } from "../lib/api.server";
+import { apiMaybe, apiOr404 } from "../lib/api.server";
 import { seo } from "../lib/seo";
 import type { Route } from "./+types/history";
 
 export async function loader() {
-  return apiOr404<SeasonListResponse>("/api/v1/seasons");
+  const [seasons, scorers] = await Promise.all([
+    apiOr404<SeasonListResponse>("/api/v1/seasons"),
+    apiMaybe<ScorersResponse>("/api/v1/scorers"),
+  ]);
+  return { ...seasons, scorers: scorers?.items ?? [] };
 }
 
 export const meta: Route.MetaFunction = () =>
@@ -90,7 +95,7 @@ export function SeasonCard({ s }: { s: SeasonSummary }) {
 }
 
 export default function History({ loaderData }: Route.ComponentProps) {
-  const { items } = loaderData;
+  const { items, scorers } = loaderData;
   const titles = new Map<string, { name: string; n: number }>();
   for (const s of items)
     if (s.season.status === "completed" && s.leader) {
@@ -106,6 +111,14 @@ export default function History({ loaderData }: Route.ComponentProps) {
           <span className="font-semibold">Titles: </span>
           {honours.map((h) => `${h.name} ${h.n}`).join(" · ")}
         </p>
+      )}
+      {scorers.length > 0 && (
+        <section aria-labelledby="all-time-scorers" className="space-y-3">
+          <SectionHeader id="all-time-scorers" title="All-time top scorers" tone="coral" />
+          <div className="card-surface p-3">
+            <ScorersTable rows={scorers} caption="All-time top scorers, every season" />
+          </div>
+        </section>
       )}
       {!items.length ? (
         <EmptyState title="No seasons yet" />

@@ -535,7 +535,7 @@ function checkTable(sentence: string, ms: Mention[], ledger: Ledger, errors: str
         `contradiction: "${short(sentence)}" — ${a.team} have ${row.points} point${row.points === 1 ? "" : "s"} after round ${ledger.afterRound ?? "?"} (${row.factId})`,
       );
     const rec =
-      /^[^.;]{0,40}?\b(unbeaten|undefeated|perfect record|maximum points|100% record|winless|without a win|yet to win|yet to lose|without a point|pointless)\b/i.exec(
+      /^,?[^.;,]{0,40}?\b(unbeaten|undefeated|perfect record|maximum points|100% record|winless|without a win|yet to win|yet to lose|without a point|pointless)\b/i.exec(
         rest,
       );
     if (rec && row) {

@@ -1,5 +1,6 @@
 import {
   FixturesResponse,
+  ScorersResponse,
   SeasonListResponse,
   SeasonResponse,
   StandingsResponse,
@@ -132,6 +133,12 @@ describe("league season without AI", () => {
     const goals = standings.rows.reduce((n, r) => n + r.goalsFor, 0);
     expect(s1.goalsPerMatch).toBeCloseTo(goals / 12, 2);
     if (goals > 0) expect(s1.topScorers.length).toBeGreaterThan(0);
+    const sc = ScorersResponse.parse(await (await app.request("/api/v1/seasons/season-1/scorers")).json());
+    const allTime = ScorersResponse.parse(await (await app.request("/api/v1/scorers")).json());
+    expect(allTime.items).toEqual(sc.items); // only one season so far
+    for (const r of sc.items) expect(r.matches).toBeGreaterThan(0);
+    for (let i = 1; i < sc.items.length; i++) expect(sc.items[i]!.goals).toBeLessThanOrEqual(sc.items[i - 1]!.goals);
+    if (sc.items.length) expect(sc.items[0]!.goals).toBe(s1.topScorers[0]!.goals);
     expect((await app.request("/api/v1/teams/nope")).status).toBe(404);
     expect((await app.request("/api/v1/seasons/nope/standings")).status).toBe(404);
   });

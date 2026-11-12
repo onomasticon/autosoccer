@@ -1,5 +1,14 @@
 /** Read-model queries shared by the league API routes (and later the editorial facts). */
-import type { FixtureView, Season, SeasonSummary, StandingRow, Team, TeamSize, TitleRace } from "@autosoccer/contracts";
+import type {
+  FixtureView,
+  ScorerRow,
+  Season,
+  SeasonSummary,
+  StandingRow,
+  Team,
+  TeamSize,
+  TitleRace,
+} from "@autosoccer/contracts";
 import type { Db } from "@autosoccer/db";
 import { type FixtureRow, type TeamRow, toFixtureView, toTeam } from "../mappers.ts";
 import { titleRace } from "./race.ts";
@@ -34,6 +43,40 @@ export const toSeason = (r: SeasonRow): Season => ({
 export async function seasonTeamSize(db: Db, seasonId: string): Promise<TeamSize> {
   const [s] = await db<{ players_per_team: number }[]>`select players_per_team from seasons where id = ${seasonId}`;
   return s?.players_per_team === 7 ? 7 : 5;
+}
+
+/** Top scorers for a season, or across all seasons (seasonId null). Own goals don't count. */
+export async function scorers(db: Db, seasonId: string | null, limit = 10): Promise<ScorerRow[]> {
+  const rows = await db<{ player_id: string; name: string; team_id: string; goals: number; matches: number }[]>`
+    with done as (
+      select m.* from matches m join fixtures f on f.id = m.fixture_id
+      where m.status = 'completed' and (${seasonId}::uuid is null or f.season_id = ${seasonId}::uuid)
+    ), goals as (
+      select (g->>'scorerId')::uuid as player_id, count(*)::int as goals
+      from done cross join lateral jsonb_array_elements(done.events) g
+      where g->>'type' = 'goal' and coalesce((g->>'ownGoal')::boolean, false) = false and g->>'scorerId' is not null
+      group by 1
+    ), apps as (
+      select (s->>'playerId')::uuid as player_id, count(*)::int as matches
+      from done cross join lateral jsonb_array_elements((done.request->'home'->'starters') || (done.request->'away'->'starters')) s
+      group by 1
+    )
+    select g.player_id, p.name, p.team_id, g.goals, coalesce(a.matches, 0)::int as matches
+    from goals g join players p on p.id = g.player_id left join apps a on a.player_id = g.player_id
+    order by g.goals desc, a.matches asc nulls last, p.name limit ${limit}`;
+  const teams = new Map((await db<TeamRow[]>`select * from teams`).map((t) => [t.id, toTeam(t)]));
+  let rank = 0;
+  return rows.map((r, i) => {
+    if (i === 0 || r.goals !== rows[i - 1]!.goals) rank = i + 1;
+    return {
+      rank,
+      playerId: r.player_id,
+      name: r.name,
+      team: teams.get(r.team_id)!,
+      goals: r.goals,
+      matches: r.matches,
+    };
+  });
 }
 
 /** The roll of honour: every non-draft season, newest first, from the official record. */

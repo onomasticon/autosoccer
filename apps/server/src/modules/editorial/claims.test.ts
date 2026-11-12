@@ -333,6 +333,8 @@ describe("record claims over a recent run use form, not the season record", () =
     "Northgate Comets are without a win in their last two.",
     "Saltmarsh are unbeaten in three.",
     "Northgate Comets have gone two games without a win.",
+    // Season 7: the run claim belongs to the subject, not the club named in the clause before the comma.
+    "Northgate Comets are 2nd, four behind leaders Saltmarsh Athletic on 10, and are without a win in their last two.",
   ])("accepts a true run: %s", (text) => {
     expect(errs(text, after5)).toEqual([]);
   });

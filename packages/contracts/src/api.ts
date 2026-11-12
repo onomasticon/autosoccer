@@ -90,6 +90,22 @@ export const SeasonSummary = z.object({
 });
 export const SeasonListResponse = z.object({ items: z.array(SeasonSummary) });
 
+/** Goals per player (own goals excluded), most first; ties share a rank. */
+export const ScorerRow = z.object({
+  rank: z.number().int().positive(),
+  playerId: Id,
+  name: z.string(),
+  team: Team,
+  goals: z.number().int().positive(),
+  /** Matches the player started (from the official lineups). */
+  matches: z.number().int().nonnegative(),
+});
+export const ScorersResponse = z.object({
+  /** The season, or null for all seasons together. */
+  season: Season.nullable(),
+  items: z.array(ScorerRow),
+});
+
 export const FixturesResponse = z.object({
   season: Season,
   rounds: z.array(z.object({ round: z.number().int().positive(), fixtures: z.array(FixtureView) })),
@@ -173,6 +189,23 @@ export const ROUTES: RouteDef[] = [
     summary: "Every season, newest first: champion (or leader), runner-up, margin, top scorers",
     response: SeasonListResponse,
     responseName: "SeasonListResponse",
+  },
+  {
+    method: "get",
+    path: "/scorers",
+    operationId: "listAllTimeScorers",
+    summary: "All-time top scorers across every season",
+    response: ScorersResponse,
+    responseName: "ScorersResponse",
+  },
+  {
+    method: "get",
+    path: "/seasons/{season}/scorers",
+    operationId: "listScorers",
+    summary: "A season's top scorers (own goals excluded)",
+    params: SeasonSlugParam,
+    response: ScorersResponse,
+    responseName: "ScorersResponse",
   },
   {
     method: "get",
@@ -290,6 +323,8 @@ export type StandingsResponse = z.infer<typeof StandingsResponse>;
 export type FixturesResponse = z.infer<typeof FixturesResponse>;
 export type SeasonSummary = z.infer<typeof SeasonSummary>;
 export type SeasonListResponse = z.infer<typeof SeasonListResponse>;
+export type ScorerRow = z.infer<typeof ScorerRow>;
+export type ScorersResponse = z.infer<typeof ScorersResponse>;
 export type TeamListResponse = z.infer<typeof TeamListResponse>;
 export type TeamDetailResponse = z.infer<typeof TeamDetailResponse>;
 export type MatchDetailResponse = z.infer<typeof MatchDetailResponse>;
