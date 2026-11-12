@@ -91,6 +91,41 @@ export function leagueRoutes({ db }: { db: Db }) {
     >`
       select id, slug, name, persona, philosophy, model, memory from manager_agents where team_id = ${t.id}`;
     const season = await currentSeason(db);
+    // Club history: final position in each completed season.
+    const done = await db<{ id: string; slug: string; name: string }[]>`
+      select s.id, s.slug, s.name from seasons s join season_teams st on st.season_id = s.id
+      where st.team_id = ${t.id} and s.status = 'completed' order by s.starts_at desc nulls last, s.created_at desc`;
+    const history = [];
+    for (const s of done) {
+      const row = (await standingRows(db, s.id)).rows.find((x) => x.team.id === t.id);
+      if (row)
+        history.push({
+          season: { slug: s.slug, name: s.name },
+          position: row.position,
+          points: row.points,
+          played: row.played,
+          champion: row.position === 1,
+        });
+    }
+    // Goals per player (own goals excluded): this season and all time.
+    const goalRows = await db<{ player_id: string; season_id: string; n: number }[]>`
+      select (g->>'scorerId')::uuid as player_id, f.season_id, count(*)::int as n
+      from matches m join fixtures f on f.id = m.fixture_id cross join lateral jsonb_array_elements(m.events) g
+      join players p on p.id = (g->>'scorerId')::uuid
+      where m.status = 'completed' and p.team_id = ${t.id} and g->>'type' = 'goal'
+        and coalesce((g->>'ownGoal')::boolean, false) = false
+      group by 1, 2`;
+    const goals = players.map((p) => ({
+      playerId: p.id,
+      season: goalRows.filter((g) => g.player_id === p.id && g.season_id === season?.id).reduce((a, g) => a + g.n, 0),
+      allTime: goalRows.filter((g) => g.player_id === p.id).reduce((a, g) => a + g.n, 0),
+    }));
+    const [written] = mgr
+      ? await db<{ name: string; round: number }[]>`
+          select s.name, f.round from agent_runs r join fixtures f on f.id = r.fixture_id join seasons s on s.id = f.season_id
+          where r.agent_id = ${mgr.id} and r.purpose = 'post_match' and r.status = 'succeeded'
+          order by r.finished_at desc nulls last limit 1`
+      : [];
     let standing = null;
     let fixtures: Awaited<ReturnType<typeof fixtureViews>> = [];
     let currentRevision = null;
@@ -116,6 +151,9 @@ export function leagueRoutes({ db }: { db: Db }) {
       standing,
       fixtures,
       currentRevision,
+      history,
+      goals,
+      memoryWrittenAfter: written ? { season: written.name, round: written.round } : null,
     });
   });
 

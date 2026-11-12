@@ -49,8 +49,22 @@ export const meta: Route.MetaFunction = ({ data }) =>
 const POSITION_NAME: Record<Position, string> = { GK: "Goalkeeper", DF: "Defender", MF: "Midfielder", FW: "Forward" };
 
 export default function Team({ loaderData }: Route.ComponentProps) {
-  const { team, players, manager, standing, fixtures, currentRevision, news, budget, dugout, hasSeason, teams } =
-    loaderData;
+  const {
+    team,
+    players,
+    manager,
+    standing,
+    fixtures,
+    currentRevision,
+    news,
+    budget,
+    dugout,
+    hasSeason,
+    teams,
+    history,
+    goals,
+    memoryWrittenAfter,
+  } = loaderData;
   const results = fixtures.filter((f) => f.status === "completed");
   const upcoming = fixtures.filter((f) => f.status !== "completed");
   return (
@@ -91,6 +105,7 @@ export default function Team({ loaderData }: Route.ComponentProps) {
             ) : (
               <p className="mt-3 text-muted-text">No league games played yet.</p>
             )}
+            <Honours history={history} />
           </div>
         </div>
       </header>
@@ -191,6 +206,14 @@ export default function Team({ loaderData }: Route.ComponentProps) {
                 <h3 className="font-display text-lg font-extrabold uppercase italic">Manager's notebook</h3>
                 <p className="mt-1 text-xs text-muted-text">
                   The AI manager's persistent memory, rewritten after every match from the official record.
+                  {memoryWrittenAfter && (
+                    <>
+                      {" "}
+                      <span className="font-semibold text-ink">
+                        Last rewritten after {memoryWrittenAfter.season}, round {memoryWrittenAfter.round}.
+                      </span>
+                    </>
+                  )}
                 </p>
                 {manager.memory.summary && <p className="mt-3">{manager.memory.summary}</p>}
                 <ul className="mt-2 list-disc space-y-1 pl-5 text-muted-text">
@@ -210,6 +233,7 @@ export default function Team({ loaderData }: Route.ComponentProps) {
                     {p.shirtNumber}
                   </span>
                   <span className="flex-1 font-medium">{p.name}</span>
+                  <PlayerGoals g={goals.find((g) => g.playerId === p.id)} />
                   <span className="text-xs font-semibold uppercase tracking-wider text-muted-text">
                     <abbr title={POSITION_NAME[p.position]}>{p.position}</abbr>
                   </span>
@@ -220,6 +244,39 @@ export default function Team({ loaderData }: Route.ComponentProps) {
         </aside>
       </div>
     </div>
+  );
+}
+
+const ordinal = (n: number) => `${n}${n === 1 ? "st" : n === 2 ? "nd" : n === 3 ? "rd" : "th"}`;
+
+/** "3 titles (Seasons 1, 6 and 7)" plus each completed season's finish. */
+export function Honours({ history }: { history: TeamDetailResponse["history"] }) {
+  if (!history.length) return null;
+  const titles = history.filter((h) => h.champion).map((h) => h.season.name.replace(/^Season /, ""));
+  const list = (xs: string[]) => (xs.length > 1 ? `${xs.slice(0, -1).join(", ")} and ${xs.at(-1)}` : xs[0]);
+  return (
+    <div className="mt-4 space-y-1 text-sm">
+      <p>
+        <span className="font-semibold">Honours: </span>
+        {titles.length
+          ? `${titles.length} title${titles.length === 1 ? "" : "s"} (Season${titles.length === 1 ? "" : "s"} ${list([...titles].reverse())})`
+          : "no titles yet"}
+      </p>
+      <p className="text-muted-text">
+        <span className="font-semibold text-ink">Finishes: </span>
+        {list([...history].reverse().map((h) => `${h.season.name.replace(/^Season /, "S")} ${ordinal(h.position)}`))}
+      </p>
+    </div>
+  );
+}
+
+function PlayerGoals({ g }: { g: TeamDetailResponse["goals"][number] | undefined }) {
+  if (!g || g.allTime === 0) return null;
+  return (
+    <span className="tabular text-xs text-muted-text" title="Goals this season · all seasons">
+      {g.season} · {g.allTime} <span className="sr-only">goals this season, all seasons</span>
+      <span aria-hidden>⚽</span>
+    </span>
   );
 }
 

@@ -121,6 +121,21 @@ describe("league season without AI", () => {
     expect(fx.rounds.flatMap((r) => r.fixtures).every((f) => f.score && f.matchId)).toBe(true);
     const team = TeamDetailResponse.parse(await (await app.request("/api/v1/teams/harbour-city")).json());
     expect(team.players).toHaveLength(10);
+    // Club history and squad goals come from the same record as the table.
+    const final = StandingsResponse.parse(await (await app.request("/api/v1/seasons/season-1/standings")).json());
+    const hbc = final.rows.find((r) => r.team.slug === "harbour-city")!;
+    expect(team.history).toEqual([
+      {
+        season: { slug: "season-1", name: "Season 1" },
+        position: hbc.position,
+        points: hbc.points,
+        played: 6,
+        champion: hbc.position === 1,
+      },
+    ]);
+    expect(team.goals).toHaveLength(10);
+    expect(team.goals.reduce((n, g) => n + g.allTime, 0)).toBeLessThanOrEqual(hbc.goalsFor);
+    expect(team.memoryWrittenAfter).toBeNull(); // no AI manager in this test
     expect(team.fixtures).toHaveLength(6);
     expect(team.standing?.played).toBe(6);
     const history = SeasonListResponse.parse(await (await app.request("/api/v1/seasons")).json());

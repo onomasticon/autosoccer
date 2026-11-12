@@ -65,6 +65,59 @@
       "position": "FW"
     }
   ],
+  "history": [
+    {
+      "season": {
+        "slug": "season-1",
+        "name": "Season 1"
+      },
+      "position": 1,
+      "points": 11,
+      "played": 6,
+      "champion": true
+    }
+  ],
+  "goals": [
+    {
+      "playerId": "00000000-0000-4000-8000-000000000065",
+      "season": 0,
+      "allTime": 0
+    },
+    {
+      "playerId": "00000000-0000-4000-8000-000000000066",
+      "season": 0,
+      "allTime": 0
+    },
+    {
+      "playerId": "00000000-0000-4000-8000-000000000067",
+      "season": 0,
+      "allTime": 0
+    },
+    {
+      "playerId": "00000000-0000-4000-8000-000000000068",
+      "season": 0,
+      "allTime": 0
+    },
+    {
+      "playerId": "00000000-0000-4000-8000-000000000069",
+      "season": 1,
+      "allTime": 3
+    },
+    {
+      "playerId": "00000000-0000-4000-8000-00000000006a",
+      "season": 0,
+      "allTime": 0
+    },
+    {
+      "playerId": "00000000-0000-4000-8000-00000000006b",
+      "season": 0,
+      "allTime": 0
+    }
+  ],
+  "memoryWrittenAfter": {
+    "season": "Season 2",
+    "round": 1
+  },
   "manager": {
     "id": "00000000-0000-4000-8000-000000000258",
     "slug": "marta-sol",

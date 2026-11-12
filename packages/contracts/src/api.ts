@@ -124,6 +124,22 @@ export const TeamDetailResponse = z.object({
     rationale: true,
     createdAt: true,
   }).nullable(),
+  /** Final position in every completed season, newest first. */
+  history: z.array(
+    z.object({
+      season: Season.pick({ slug: true, name: true }),
+      position: z.number().int().positive(),
+      points: z.number().int().nonnegative(),
+      played: z.number().int().nonnegative(),
+      champion: z.boolean(),
+    }),
+  ),
+  /** Goals per squad player: this season and all seasons (own goals excluded). */
+  goals: z.array(
+    z.object({ playerId: Id, season: z.number().int().nonnegative(), allTime: z.number().int().nonnegative() }),
+  ),
+  /** When the manager last rewrote their notebook, so stale notes read as last season's. */
+  memoryWrittenAfter: z.object({ season: z.string(), round: z.number().int().positive() }).nullable(),
 });
 export const MatchDetailResponse = z.object({
   match: Match,
