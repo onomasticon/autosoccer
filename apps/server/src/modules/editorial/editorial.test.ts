@@ -155,8 +155,14 @@ describe("AI newsroom over a season", () => {
     const standings = (await matchFacts(t.db, m!.id)).facts.filter((f) => f.kind === "standing");
     expect(standings.map((f) => (f.value as { played: number }).played)).toEqual([1, 1, 1, 1]);
     expect(standings.every((f) => f.id.includes(":r1:"))).toBe(true);
-    const r3 = (await roundFacts(t.db, seasonId, 3)).facts.filter((f) => f.kind === "standing");
+    const r3all = (await roundFacts(t.db, seasonId, 3)).facts;
+    const r3 = r3all.filter((f) => f.kind === "standing" && !f.id.startsWith("race:"));
     expect(r3.map((f) => (f.value as { played: number }).played)).toEqual([3, 3, 3, 3]);
+    // The title race is part of the round's facts, as of that round.
+    const race = r3all.find((f) => f.id.startsWith("race:"))!;
+    expect(race.statement).toMatch(
+      /^After round 3, (with 3 rounds left, .+ can still win the title|.+ can no longer be caught)/,
+    );
   });
 
   it("continuity facts come only from stored history: earlier meetings and runs of form", async () => {

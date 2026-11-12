@@ -13,7 +13,7 @@ import {
   type TeamMatchStats,
 } from "@autosoccer/contracts";
 import type { Db } from "@autosoccer/db";
-import { standingRows } from "../league/read.ts";
+import { seasonRace, standingRows } from "../league/read.ts";
 
 const clock = (e: { period: string; clockSec: number }) =>
   `${e.period === "firstHalf" ? "first" : "second"} half, ${Math.floor(e.clockSec / 60)}:${String(Math.floor(e.clockSec % 60)).padStart(2, "0")}`;
@@ -88,6 +88,33 @@ async function standingFacts(db: Db, seasonId: string, round: number): Promise<F
     },
     source: { table: "matches", id: `season:${seasonId}` },
   }));
+}
+
+/** The title race after a round: who can still win it, or who already has (from the table and fixtures left). */
+async function raceFact(db: Db, seasonId: string, round: number): Promise<Fact[]> {
+  const { rows } = await standingRows(db, seasonId, { throughRound: round });
+  if (!rows.length || rows.every((r) => r.played === 0)) return [];
+  const race = await seasonRace(db, seasonId, rows, round);
+  const list = (xs: string[]) => (xs.length > 1 ? `${xs.slice(0, -1).join(", ")} and ${xs.at(-1)}` : xs[0]!);
+  const statement = race.clinched
+    ? race.roundsLeft > 0
+      ? `After round ${round}, ${race.clinched.name} can no longer be caught: they have won the title with ${race.roundsLeft} round${race.roundsLeft === 1 ? "" : "s"} to spare`
+      : `${race.clinched.name} finished top and won the title`
+    : `After round ${round}, with ${race.roundsLeft} round${race.roundsLeft === 1 ? "" : "s"} left, ${race.contenders.length === rows.length ? "every club" : list(race.contenders.map((t) => t.name))} can still win the title`;
+  return [
+    {
+      id: `race:${seasonId}:r${round}`,
+      kind: "standing",
+      statement,
+      value: {
+        afterRound: round,
+        roundsLeft: race.roundsLeft,
+        contenders: race.contenders.map((t) => t.name),
+        clinched: race.clinched?.name ?? null,
+      },
+      source: { table: "matches", id: `season:${seasonId}` },
+    },
+  ];
 }
 
 const ordinal = (n: number) => `${n}${n === 1 ? "st" : n === 2 ? "nd" : n === 3 ? "rd" : "th"}`;
@@ -290,7 +317,7 @@ export async function roundFacts(
     const mf = await matchFacts(db, id);
     facts.push(...mf.facts.filter((f) => f.kind !== "standing" && f.kind !== "lineup"));
   }
-  facts.push(...(await standingFacts(db, seasonId, round)));
+  facts.push(...(await standingFacts(db, seasonId, round)), ...(await raceFact(db, seasonId, round)));
   return {
     contract: "editorial-facts/1",
     seasonId,

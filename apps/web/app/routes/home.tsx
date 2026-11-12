@@ -22,6 +22,7 @@ import { RouteError } from "../components/RouteError";
 import { Panel, SectionHeader } from "../components/SectionHeader";
 import { StandingsTable } from "../components/StandingsTable";
 import { EmptyState, ErrorState } from "../components/States";
+import { TitleRaceLine } from "../components/TitleRace";
 import { apiMaybe, apiOptional } from "../lib/api.server";
 import { formatDate } from "../lib/format";
 import { seo } from "../lib/seo";
@@ -227,6 +228,14 @@ export default function Home({ loaderData }: Route.ComponentProps) {
           )}
         </Panel>
         <Panel id="table-heading" title="League table" tone="coral" meta={season.name} bodyClassName="p-2 sm:p-3">
+          {standings && (
+            <TitleRaceLine
+              race={standings.race}
+              afterRound={standings.afterRound}
+              seasonCompleted={season.status === "completed"}
+              className="px-2 pb-2"
+            />
+          )}
           <StandingsTable rows={standings?.rows ?? null} caption={`${season.name} league table`} compact bare />
           <Link
             to="/table"

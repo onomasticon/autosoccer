@@ -43,6 +43,7 @@ const summary = (over: Partial<SeasonSummary> = {}): SeasonSummary => ({
   margin: 2,
   topScorers: [{ playerId: "00000000-0000-4000-8000-000000000101", name: "Max Ruiz", team: b!, goals: 4 }],
   goalsPerMatch: 1.58,
+  decidedAfterRound: 5,
   ...over,
 });
 
@@ -67,6 +68,7 @@ describe("roll of honour", () => {
     expect(container.textContent).toMatch(`10 pts, 2 pts clear of ${b!.name}`);
     expect(container.textContent).toMatch(`Max Ruiz (${b!.name}), 4 goals`);
     expect(screen.getByRole("link", { name: "Final table" }).getAttribute("href")).toBe("/table?season=season-3");
+    expect(container.textContent).toMatch("after round 5, with 1 round to spare");
     const r = await axe.run(container, { rules: { region: { enabled: false } } });
     expect(r.violations.map((v) => v.id)).toEqual([]);
   });

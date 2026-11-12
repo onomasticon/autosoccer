@@ -223,6 +223,7 @@ export const exampleSeasonResponse: z.infer<typeof SeasonResponse> = {
 };
 
 export const exampleStandings: z.infer<typeof StandingsResponse> = {
+  race: { roundsLeft: 5, contenders: exampleTeams, clinched: null },
   season: exampleSeason,
   afterRound: 1,
   rows: [
