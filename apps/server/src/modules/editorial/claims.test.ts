@@ -345,3 +345,29 @@ describe("record claims over a recent run use form, not the season record", () =
     expect(errs(text, after5).join("\n")).toMatch(re);
   });
 });
+
+describe("a match report's result claims are about its own match, not an earlier meeting", () => {
+  // Round 4: Harbour City 0–1 Red Rock Rovers. The facts also carry their round-1 meeting (0–4).
+  const r4: M = { ...R1[0]!, id: "r4match", round: 4, score: [1, 0], goals: [{ side: "home", score: [1, 0] }] };
+  const report: EditorialFacts = {
+    ...round1,
+    match: {
+      round: 4,
+      home: { teamId: HBC.id, name: HBC.name, score: 1 },
+      away: { teamId: RRR.id, name: RRR.name, score: 0 },
+      events: [],
+      stats: round1.match?.stats ?? ({} as never),
+      lineups: { home: [], away: [] },
+    } as EditorialFacts["match"],
+    facts: [...matchFactsOf(r4), ...R1.flatMap(matchFactsOf).filter((f) => f.id.startsWith("match:49edc6ae:score"))],
+  };
+  it("rejects the reverse of this match's result, even though it happened in the earlier meeting", () => {
+    expect(errs("Red Rock Rovers beat Harbour City.", report).join("\n")).toMatch(
+      /official result is Harbour City 1–0/,
+    );
+  });
+  it("accepts the earlier meeting when the sentence points at it", () => {
+    expect(errs("Red Rock Rovers beat Harbour City in the earlier meeting.", report)).toEqual([]);
+    expect(errs("Harbour City beat Red Rock Rovers.", report)).toEqual([]);
+  });
+});
