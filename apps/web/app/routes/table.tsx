@@ -3,6 +3,7 @@ import { Link } from "react-router";
 import { RouteError } from "../components/RouteError";
 import { SectionHeader } from "../components/SectionHeader";
 import { StandingsTable } from "../components/StandingsTable";
+import { TitleRaceLine } from "../components/TitleRace";
 import { apiOr404, seasonSlugFrom } from "../lib/api.server";
 import { seo } from "../lib/seo";
 import type { Route } from "./+types/table";
@@ -15,7 +16,7 @@ export const meta: Route.MetaFunction = ({ data }) =>
   seo(data ? `${data.season.name} table` : "Table", "The official league table: points, goal difference and form.");
 
 export default function Table({ loaderData }: Route.ComponentProps) {
-  const { season, rows, afterRound } = loaderData;
+  const { season, rows, afterRound, race } = loaderData;
   return (
     <div className="mx-auto max-w-5xl space-y-6">
       <SectionHeader
@@ -35,6 +36,7 @@ export default function Table({ loaderData }: Route.ComponentProps) {
           Past seasons and champions
         </Link>
       </p>
+      <TitleRaceLine race={race} afterRound={afterRound} seasonCompleted={season.status === "completed"} />
       <StandingsTable
         rows={rows}
         caption={`${season.name} league table${afterRound ? ` after round ${afterRound}` : ""}`}

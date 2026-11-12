@@ -57,6 +57,16 @@ export function SeasonCard({ s }: { s: SeasonSummary }) {
               <dt className="inline font-semibold">Top scorer: </dt>
               <dd className="inline">{scorersLine(s.topScorers)}</dd>
             </div>
+            {done && s.decidedAfterRound && (
+              <div>
+                <dt className="inline font-semibold">Decided: </dt>
+                <dd className="inline">
+                  {s.decidedAfterRound < s.rounds
+                    ? `after round ${s.decidedAfterRound}, with ${s.rounds - s.decidedAfterRound} round${s.rounds - s.decidedAfterRound === 1 ? "" : "s"} to spare`
+                    : "on the final day"}
+                </dd>
+              </div>
+            )}
             <div>
               <dt className="inline font-semibold">Goals per match: </dt>
               <dd className="tabular inline">{s.goalsPerMatch.toFixed(2)}</dd>

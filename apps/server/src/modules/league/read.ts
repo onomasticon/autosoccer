@@ -1,7 +1,8 @@
 /** Read-model queries shared by the league API routes (and later the editorial facts). */
-import type { FixtureView, Season, SeasonSummary, StandingRow, Team, TeamSize } from "@autosoccer/contracts";
+import type { FixtureView, Season, SeasonSummary, StandingRow, Team, TeamSize, TitleRace } from "@autosoccer/contracts";
 import type { Db } from "@autosoccer/db";
 import { type FixtureRow, type TeamRow, toFixtureView, toTeam } from "../mappers.ts";
+import { titleRace } from "./race.ts";
 import { seasonStandings } from "./service.ts";
 
 export interface SeasonRow {
@@ -70,6 +71,7 @@ export async function seasonSummaries(db: Db): Promise<SeasonSummary[]> {
         .filter((g) => g.goals === best && teams.has(g.team_id))
         .map((g) => ({ playerId: g.scorer_id, name: g.name, team: teams.get(g.team_id)!, goals: g.goals })),
       goalsPerMatch: tot!.matches ? Math.round((tot!.goals / tot!.matches) * 100) / 100 : 0,
+      decidedAfterRound: played ? await decidedAfterRound(db, s.id, afterRound) : null,
     });
   }
   return out;
@@ -103,6 +105,41 @@ export async function fixtureViews(db: Db, seasonId: string, teamId?: string): P
       and (${teamId ?? null}::uuid is null or ${teamId ?? null}::uuid in (f.home_team_id, f.away_team_id))
     order by f.round, f.scheduled_at, f.id`;
   return rows.map((r) => toFixtureView(r, teams));
+}
+
+/** The title race after `afterRound`: remaining fixtures are the ones in later rounds. */
+export async function seasonRace(
+  db: Db,
+  seasonId: string,
+  rows: StandingRow[],
+  afterRound: number,
+): Promise<TitleRace> {
+  const left = await db<{ team_id: string; n: number }[]>`
+    select t.team_id, count(*)::int as n from fixtures f
+      cross join lateral (values (f.home_team_id), (f.away_team_id)) as t(team_id)
+    where f.season_id = ${seasonId} and f.round > ${afterRound} group by 1`;
+  const [r] = await db<
+    { n: number }[]
+  >`select coalesce(max(round), 0)::int as n from fixtures where season_id = ${seasonId}`;
+  const race = titleRace({
+    rows: rows.map((x) => ({ teamId: x.team.id, points: x.points })),
+    remaining: new Map(left.map((l) => [l.team_id, l.n])),
+  });
+  const team = new Map(rows.map((x) => [x.team.id, x.team]));
+  return {
+    roundsLeft: Math.max(0, r!.n - afterRound),
+    contenders: race.contenders.map((id) => team.get(id)!),
+    clinched: race.clinched ? team.get(race.clinched)! : null,
+  };
+}
+
+/** First round after which the title was settled, or null. */
+export async function decidedAfterRound(db: Db, seasonId: string, upTo: number): Promise<number | null> {
+  for (let round = 1; round <= upTo; round++) {
+    const { rows } = await standingRows(db, seasonId, { throughRound: round });
+    if ((await seasonRace(db, seasonId, rows, round)).clinched) return round;
+  }
+  return null;
 }
 
 export async function standingRows(

@@ -14,6 +14,7 @@ import {
   currentSeason,
   fixtureViews,
   seasonBySlug,
+  seasonRace,
   seasonSummaries,
   seasonTeams,
   standingRows,
@@ -39,7 +40,8 @@ export function leagueRoutes({ db }: { db: Db }) {
     const s = await seasonBySlug(db, c.req.param("season"));
     if (!s) return notFound(c, "Season");
     const { rows, afterRound } = await standingRows(db, s.id);
-    return contractJson(c, StandingsResponse, { season: toSeason(s), afterRound, rows });
+    const race = await seasonRace(db, s.id, rows, afterRound);
+    return contractJson(c, StandingsResponse, { season: toSeason(s), afterRound, rows, race });
   });
 
   r.get("/seasons/:season/fixtures", async (c) => {

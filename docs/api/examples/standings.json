@@ -1,4 +1,40 @@
 {
+  "race": {
+    "roundsLeft": 5,
+    "contenders": [
+      {
+        "id": "00000000-0000-4000-8000-000000000001",
+        "slug": "harbour-city",
+        "name": "Harbour City",
+        "shortName": "HBC",
+        "city": "Harbour City",
+        "colors": {
+          "primary": "#245EFF",
+          "secondary": "#FFFFFF"
+        },
+        "crest": {
+          "shape": "shield",
+          "glyph": "H"
+        }
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000000002",
+        "slug": "red-rock-rovers",
+        "name": "Red Rock Rovers",
+        "shortName": "RRR",
+        "city": "Red Rock",
+        "colors": {
+          "primary": "#E2412E",
+          "secondary": "#FFE7A3"
+        },
+        "crest": {
+          "shape": "circle",
+          "glyph": "R"
+        }
+      }
+    ],
+    "clinched": null
+  },
   "season": {
     "id": "00000000-0000-4000-8000-000000000384",
     "slug": "season-1",

@@ -55,10 +55,21 @@ export const PublicManager = ManagerAgent.pick({
 });
 
 export const SeasonResponse = z.object({ season: Season, teams: z.array(Team), rounds: z.number().int() });
+/** Who can still win the league after the last completed round, and whether it's settled. */
+export const TitleRace = z.object({
+  roundsLeft: z.number().int().nonnegative(),
+  /** Teams that can still finish first, leader first (just the champion once it's settled). */
+  contenders: z.array(Team),
+  /** Set once nobody can catch the leader, before or at the end of the season. */
+  clinched: Team.nullable(),
+});
+export type TitleRace = z.infer<typeof TitleRace>;
+
 export const StandingsResponse = z.object({
   season: Season,
   afterRound: z.number().int().nonnegative(),
   rows: z.array(StandingRow),
+  race: TitleRace,
 });
 /** One line of the roll of honour: a season and, once played, who won it and who scored most. */
 export const SeasonSummary = z.object({
@@ -73,6 +84,8 @@ export const SeasonSummary = z.object({
   margin: z.number().int().nonnegative().nullable(),
   /** Players level on the most goals (own goals excluded). Empty before the first goal. */
   topScorers: z.array(z.object({ playerId: Id, name: z.string(), team: Team, goals: z.number().int().positive() })),
+  /** Round after which the title could no longer change hands (null while it's open). */
+  decidedAfterRound: z.number().int().positive().nullable(),
   goalsPerMatch: z.number().nonnegative(),
 });
 export const SeasonListResponse = z.object({ items: z.array(SeasonSummary) });
