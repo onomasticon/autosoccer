@@ -14,10 +14,12 @@ import { createWorker } from "../../jobs/worker.ts";
 import type { LlmClient, LlmRequest } from "../agents/llm.ts";
 import { offlineManagerLlm } from "../agents/offline.ts";
 import { managerRoundHook, seedManagers } from "../agents/service.ts";
+import { standingRows } from "../league/read.ts";
 import { SEED_TEAMS } from "../league/seed-data.ts";
 import { advanceSeason, createSeason, seedTeams } from "../league/service.ts";
 import { auditPublishedArticles } from "./audit.ts";
-import { matchFacts, roundFacts } from "./facts.ts";
+import { checkClaims } from "./claims.ts";
+import { historyFacts, matchFacts, roundFacts } from "./facts.ts";
 import { type ArticleDraft, checkGrounding } from "./grounding.ts";
 import { offlineEditorialLlm } from "./offline.ts";
 import { seedJournalists, writeMatchReport } from "./service.ts";
@@ -163,6 +165,31 @@ describe("AI newsroom over a season", () => {
     expect(race.statement).toMatch(
       /^After round 3, (with 3 rounds left, .+ can still win the title|.+ can no longer be caught)/,
     );
+  });
+
+  it("history facts tell the next season who the defending champions are, from the final table", async () => {
+    expect(await historyFacts(t.db, seasonId)).toEqual([]); // nothing before the first season
+    const { seasonId: next } = await createSeason(t.db, {
+      slug: "season-2",
+      name: "Season 2",
+      seed: 100,
+      budgetPerTeamMicroUsd: 1_000_000,
+      teamSlugs: SEED_TEAMS.map((x) => x.slug),
+      startsAt: new Date(Date.now() + 86_400_000),
+    });
+    try {
+      const champion = (await standingRows(t.db, seasonId)).rows[0]!.team.name;
+      const [defending, titles] = await historyFacts(t.db, next);
+      expect(defending!.statement).toBe(`${champion} are the defending champions (Season 1)`);
+      expect(titles!.statement).toMatch(
+        new RegExp(`^League titles before this season: ${champion} 1, .+ 0 \\(1 seasons completed\\)$`),
+      );
+      // The checker accepts the long story the facts allow.
+      const ef = await roundFacts(t.db, next, 1);
+      expect(checkClaims(`${champion} have won the last one title and are the defending champions.`, ef)).toEqual([]);
+    } finally {
+      await t.db`delete from seasons where id = ${next}`;
+    }
   });
 
   it("continuity facts come only from stored history: earlier meetings and runs of form", async () => {

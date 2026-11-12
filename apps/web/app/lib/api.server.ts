@@ -51,6 +51,17 @@ export async function apiOptional<T>(path: string): Promise<T | null> {
   }
 }
 
+/** Champions of the completed season before `slug` (the holders), from the roll of honour. */
+export async function holdersBefore(slug: string): Promise<string | null> {
+  const list = await apiMaybe<{
+    items: Array<{ season: { slug: string; status: string }; leader: { team: { id: string } } | null }>;
+  }>("/api/v1/seasons");
+  if (!list) return null;
+  const i = list.items.findIndex((s) => s.season.slug === slug);
+  const prev = list.items.slice(i + 1).find((s) => s.season.status === "completed");
+  return prev?.leader?.team.id ?? null;
+}
+
 /** ?season=season-2 picks a past season; anything else (or nothing) means the current one. */
 export async function seasonSlugFrom(request: Request): Promise<string> {
   const asked = new URL(request.url).searchParams.get("season");
