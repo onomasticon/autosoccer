@@ -106,6 +106,25 @@ export const ScorersResponse = z.object({
   items: z.array(ScorerRow),
 });
 
+const SeasonRef = Season.pick({ slug: true, name: true });
+/** League records across every completed season (ties listed together). */
+export const RecordsResponse = z.object({
+  mostPoints: z.array(z.object({ season: SeasonRef, team: Team, points: z.number().int(), played: z.number().int() })),
+  perfectSeasons: z.array(z.object({ season: SeasonRef, team: Team, won: z.number().int() })),
+  mostGoalsInSeason: z.array(z.object({ season: SeasonRef, name: z.string(), team: Team, goals: z.number().int() })),
+  biggestWin: z.array(
+    z.object({
+      season: SeasonRef,
+      round: z.number().int(),
+      matchId: Id,
+      winner: Team,
+      loser: Team,
+      score: z.string(),
+      margin: z.number().int(),
+    }),
+  ),
+});
+
 export const FixturesResponse = z.object({
   season: Season,
   rounds: z.array(z.object({ round: z.number().int().positive(), fixtures: z.array(FixtureView) })),
@@ -205,6 +224,14 @@ export const ROUTES: RouteDef[] = [
     summary: "Every season, newest first: champion (or leader), runner-up, margin, top scorers",
     response: SeasonListResponse,
     responseName: "SeasonListResponse",
+  },
+  {
+    method: "get",
+    path: "/records",
+    operationId: "getRecords",
+    summary: "League records across completed seasons: most points, perfect seasons, most goals, biggest win",
+    response: RecordsResponse,
+    responseName: "RecordsResponse",
   },
   {
     method: "get",
@@ -341,6 +368,7 @@ export type SeasonSummary = z.infer<typeof SeasonSummary>;
 export type SeasonListResponse = z.infer<typeof SeasonListResponse>;
 export type ScorerRow = z.infer<typeof ScorerRow>;
 export type ScorersResponse = z.infer<typeof ScorersResponse>;
+export type RecordsResponse = z.infer<typeof RecordsResponse>;
 export type TeamListResponse = z.infer<typeof TeamListResponse>;
 export type TeamDetailResponse = z.infer<typeof TeamDetailResponse>;
 export type MatchDetailResponse = z.infer<typeof MatchDetailResponse>;

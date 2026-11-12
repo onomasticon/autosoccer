@@ -1,5 +1,6 @@
 import {
   FixturesResponse,
+  RecordsResponse,
   ScorersResponse,
   SeasonListResponse,
   SeasonResponse,
@@ -14,6 +15,7 @@ import { type PlayerRow, type RevisionRow, type TeamRow, toPlayer, toTeam } from
 import {
   currentSeason,
   fixtureViews,
+  leagueRecords,
   scorers,
   seasonBySlug,
   seasonRace,
@@ -27,6 +29,8 @@ export function leagueRoutes({ db }: { db: Db }) {
   const r = new Hono();
 
   r.get("/seasons", async (c) => contractJson(c, SeasonListResponse, { items: await seasonSummaries(db) }));
+
+  r.get("/records", async (c) => contractJson(c, RecordsResponse, await leagueRecords(db)));
 
   r.get("/scorers", async (c) =>
     contractJson(c, ScorersResponse, { season: null, items: await scorers(db, null, 10) }),

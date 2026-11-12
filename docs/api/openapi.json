@@ -38,6 +38,34 @@
         }
       }
     },
+    "/records": {
+      "get": {
+        "operationId": "getRecords",
+        "summary": "League records across completed seasons: most points, perfect seasons, most goals, biggest win",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecordsResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/scorers": {
       "get": {
         "operationId": "listAllTimeScorers",
@@ -1384,6 +1412,610 @@
         },
         "required": [
           "items"
+        ],
+        "additionalProperties": false
+      },
+      "RecordsResponse": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "mostPoints": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "season": {
+                  "type": "object",
+                  "properties": {
+                    "slug": {
+                      "type": "string",
+                      "maxLength": 80,
+                      "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+                    },
+                    "name": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "slug",
+                    "name"
+                  ],
+                  "additionalProperties": false
+                },
+                "team": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "description": "UUID primary key",
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    },
+                    "slug": {
+                      "type": "string",
+                      "maxLength": 80,
+                      "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+                    },
+                    "name": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 60
+                    },
+                    "shortName": {
+                      "type": "string",
+                      "minLength": 2,
+                      "maxLength": 4
+                    },
+                    "city": {
+                      "type": "string",
+                      "maxLength": 60
+                    },
+                    "colors": {
+                      "type": "object",
+                      "properties": {
+                        "primary": {
+                          "type": "string",
+                          "pattern": "^#[0-9A-Fa-f]{6}$"
+                        },
+                        "secondary": {
+                          "type": "string",
+                          "pattern": "^#[0-9A-Fa-f]{6}$"
+                        }
+                      },
+                      "required": [
+                        "primary",
+                        "secondary"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "crest": {
+                      "type": "object",
+                      "properties": {
+                        "shape": {
+                          "type": "string",
+                          "enum": [
+                            "shield",
+                            "circle",
+                            "hexagon",
+                            "diamond"
+                          ]
+                        },
+                        "glyph": {
+                          "description": "short monogram rendered on the badge",
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 3
+                        }
+                      },
+                      "required": [
+                        "shape",
+                        "glyph"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "slug",
+                    "name",
+                    "shortName",
+                    "city",
+                    "colors",
+                    "crest"
+                  ],
+                  "additionalProperties": false
+                },
+                "points": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "played": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                }
+              },
+              "required": [
+                "season",
+                "team",
+                "points",
+                "played"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "perfectSeasons": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "season": {
+                  "type": "object",
+                  "properties": {
+                    "slug": {
+                      "type": "string",
+                      "maxLength": 80,
+                      "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+                    },
+                    "name": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "slug",
+                    "name"
+                  ],
+                  "additionalProperties": false
+                },
+                "team": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "description": "UUID primary key",
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    },
+                    "slug": {
+                      "type": "string",
+                      "maxLength": 80,
+                      "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+                    },
+                    "name": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 60
+                    },
+                    "shortName": {
+                      "type": "string",
+                      "minLength": 2,
+                      "maxLength": 4
+                    },
+                    "city": {
+                      "type": "string",
+                      "maxLength": 60
+                    },
+                    "colors": {
+                      "type": "object",
+                      "properties": {
+                        "primary": {
+                          "type": "string",
+                          "pattern": "^#[0-9A-Fa-f]{6}$"
+                        },
+                        "secondary": {
+                          "type": "string",
+                          "pattern": "^#[0-9A-Fa-f]{6}$"
+                        }
+                      },
+                      "required": [
+                        "primary",
+                        "secondary"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "crest": {
+                      "type": "object",
+                      "properties": {
+                        "shape": {
+                          "type": "string",
+                          "enum": [
+                            "shield",
+                            "circle",
+                            "hexagon",
+                            "diamond"
+                          ]
+                        },
+                        "glyph": {
+                          "description": "short monogram rendered on the badge",
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 3
+                        }
+                      },
+                      "required": [
+                        "shape",
+                        "glyph"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "slug",
+                    "name",
+                    "shortName",
+                    "city",
+                    "colors",
+                    "crest"
+                  ],
+                  "additionalProperties": false
+                },
+                "won": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                }
+              },
+              "required": [
+                "season",
+                "team",
+                "won"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "mostGoalsInSeason": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "season": {
+                  "type": "object",
+                  "properties": {
+                    "slug": {
+                      "type": "string",
+                      "maxLength": 80,
+                      "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+                    },
+                    "name": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "slug",
+                    "name"
+                  ],
+                  "additionalProperties": false
+                },
+                "name": {
+                  "type": "string"
+                },
+                "team": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "description": "UUID primary key",
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    },
+                    "slug": {
+                      "type": "string",
+                      "maxLength": 80,
+                      "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+                    },
+                    "name": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 60
+                    },
+                    "shortName": {
+                      "type": "string",
+                      "minLength": 2,
+                      "maxLength": 4
+                    },
+                    "city": {
+                      "type": "string",
+                      "maxLength": 60
+                    },
+                    "colors": {
+                      "type": "object",
+                      "properties": {
+                        "primary": {
+                          "type": "string",
+                          "pattern": "^#[0-9A-Fa-f]{6}$"
+                        },
+                        "secondary": {
+                          "type": "string",
+                          "pattern": "^#[0-9A-Fa-f]{6}$"
+                        }
+                      },
+                      "required": [
+                        "primary",
+                        "secondary"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "crest": {
+                      "type": "object",
+                      "properties": {
+                        "shape": {
+                          "type": "string",
+                          "enum": [
+                            "shield",
+                            "circle",
+                            "hexagon",
+                            "diamond"
+                          ]
+                        },
+                        "glyph": {
+                          "description": "short monogram rendered on the badge",
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 3
+                        }
+                      },
+                      "required": [
+                        "shape",
+                        "glyph"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "slug",
+                    "name",
+                    "shortName",
+                    "city",
+                    "colors",
+                    "crest"
+                  ],
+                  "additionalProperties": false
+                },
+                "goals": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                }
+              },
+              "required": [
+                "season",
+                "name",
+                "team",
+                "goals"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "biggestWin": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "season": {
+                  "type": "object",
+                  "properties": {
+                    "slug": {
+                      "type": "string",
+                      "maxLength": 80,
+                      "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+                    },
+                    "name": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "slug",
+                    "name"
+                  ],
+                  "additionalProperties": false
+                },
+                "round": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "matchId": {
+                  "description": "UUID primary key",
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                },
+                "winner": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "description": "UUID primary key",
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    },
+                    "slug": {
+                      "type": "string",
+                      "maxLength": 80,
+                      "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+                    },
+                    "name": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 60
+                    },
+                    "shortName": {
+                      "type": "string",
+                      "minLength": 2,
+                      "maxLength": 4
+                    },
+                    "city": {
+                      "type": "string",
+                      "maxLength": 60
+                    },
+                    "colors": {
+                      "type": "object",
+                      "properties": {
+                        "primary": {
+                          "type": "string",
+                          "pattern": "^#[0-9A-Fa-f]{6}$"
+                        },
+                        "secondary": {
+                          "type": "string",
+                          "pattern": "^#[0-9A-Fa-f]{6}$"
+                        }
+                      },
+                      "required": [
+                        "primary",
+                        "secondary"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "crest": {
+                      "type": "object",
+                      "properties": {
+                        "shape": {
+                          "type": "string",
+                          "enum": [
+                            "shield",
+                            "circle",
+                            "hexagon",
+                            "diamond"
+                          ]
+                        },
+                        "glyph": {
+                          "description": "short monogram rendered on the badge",
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 3
+                        }
+                      },
+                      "required": [
+                        "shape",
+                        "glyph"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "slug",
+                    "name",
+                    "shortName",
+                    "city",
+                    "colors",
+                    "crest"
+                  ],
+                  "additionalProperties": false
+                },
+                "loser": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "description": "UUID primary key",
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    },
+                    "slug": {
+                      "type": "string",
+                      "maxLength": 80,
+                      "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+                    },
+                    "name": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 60
+                    },
+                    "shortName": {
+                      "type": "string",
+                      "minLength": 2,
+                      "maxLength": 4
+                    },
+                    "city": {
+                      "type": "string",
+                      "maxLength": 60
+                    },
+                    "colors": {
+                      "type": "object",
+                      "properties": {
+                        "primary": {
+                          "type": "string",
+                          "pattern": "^#[0-9A-Fa-f]{6}$"
+                        },
+                        "secondary": {
+                          "type": "string",
+                          "pattern": "^#[0-9A-Fa-f]{6}$"
+                        }
+                      },
+                      "required": [
+                        "primary",
+                        "secondary"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "crest": {
+                      "type": "object",
+                      "properties": {
+                        "shape": {
+                          "type": "string",
+                          "enum": [
+                            "shield",
+                            "circle",
+                            "hexagon",
+                            "diamond"
+                          ]
+                        },
+                        "glyph": {
+                          "description": "short monogram rendered on the badge",
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 3
+                        }
+                      },
+                      "required": [
+                        "shape",
+                        "glyph"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "slug",
+                    "name",
+                    "shortName",
+                    "city",
+                    "colors",
+                    "crest"
+                  ],
+                  "additionalProperties": false
+                },
+                "score": {
+                  "type": "string"
+                },
+                "margin": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                }
+              },
+              "required": [
+                "season",
+                "round",
+                "matchId",
+                "winner",
+                "loser",
+                "score",
+                "margin"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "mostPoints",
+          "perfectSeasons",
+          "mostGoalsInSeason",
+          "biggestWin"
         ],
         "additionalProperties": false
       },

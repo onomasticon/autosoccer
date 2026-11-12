@@ -1,5 +1,6 @@
 import {
   FixturesResponse,
+  RecordsResponse,
   ScorersResponse,
   SeasonListResponse,
   SeasonResponse,
@@ -154,6 +155,17 @@ describe("league season without AI", () => {
     for (const r of sc.items) expect(r.matches).toBeGreaterThan(0);
     for (let i = 1; i < sc.items.length; i++) expect(sc.items[i]!.goals).toBeLessThanOrEqual(sc.items[i - 1]!.goals);
     if (sc.items.length) expect(sc.items[0]!.goals).toBe(s1.topScorers[0]!.goals);
+    // League records agree with the final table and the results.
+    const rec = RecordsResponse.parse(await (await app.request("/api/v1/records")).json());
+    expect(rec.mostPoints.map((r) => r.points)).toEqual(rec.mostPoints.map(() => standings.rows[0]!.points));
+    expect(rec.mostPoints.map((r) => r.team.id)).toContain(standings.rows[0]!.team.id);
+    expect(rec.perfectSeasons).toEqual(
+      standings.rows
+        .filter((r) => r.won === 6)
+        .map((r) => ({ season: { slug: "season-1", name: "Season 1" }, team: r.team, won: 6 })),
+    );
+    const results = fx.rounds.flatMap((r) => r.fixtures).map((f) => Math.abs(f.score!.home - f.score!.away));
+    if (Math.max(...results) > 0) expect(rec.biggestWin[0]!.margin).toBe(Math.max(...results));
     expect((await app.request("/api/v1/teams/nope")).status).toBe(404);
     expect((await app.request("/api/v1/seasons/nope/standings")).status).toBe(404);
   });

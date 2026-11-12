@@ -1,5 +1,6 @@
-import type { ScorersResponse, SeasonListResponse, SeasonSummary } from "@autosoccer/contracts";
+import type { RecordsResponse, ScorersResponse, SeasonListResponse, SeasonSummary } from "@autosoccer/contracts";
 import { Link } from "react-router";
+import { Records } from "../components/Records";
 import { RouteError } from "../components/RouteError";
 import { ScorersTable } from "../components/ScorersTable";
 import { SectionHeader } from "../components/SectionHeader";
@@ -10,11 +11,12 @@ import { seo } from "../lib/seo";
 import type { Route } from "./+types/history";
 
 export async function loader() {
-  const [seasons, scorers] = await Promise.all([
+  const [seasons, scorers, records] = await Promise.all([
     apiOr404<SeasonListResponse>("/api/v1/seasons"),
     apiMaybe<ScorersResponse>("/api/v1/scorers"),
+    apiMaybe<RecordsResponse>("/api/v1/records"),
   ]);
-  return { ...seasons, scorers: scorers?.items ?? [] };
+  return { ...seasons, scorers: scorers?.items ?? [], records };
 }
 
 export const meta: Route.MetaFunction = () =>
@@ -95,7 +97,7 @@ export function SeasonCard({ s }: { s: SeasonSummary }) {
 }
 
 export default function History({ loaderData }: Route.ComponentProps) {
-  const { items, scorers } = loaderData;
+  const { items, scorers, records } = loaderData;
   const titles = new Map<string, { name: string; n: number }>();
   for (const s of items)
     if (s.season.status === "completed" && s.leader) {
@@ -111,6 +113,12 @@ export default function History({ loaderData }: Route.ComponentProps) {
           <span className="font-semibold">Titles: </span>
           {honours.map((h) => `${h.name} ${h.n}`).join(" · ")}
         </p>
+      )}
+      {records && records.mostPoints.length > 0 && (
+        <section aria-labelledby="records" className="space-y-3">
+          <SectionHeader id="records" title="League records" />
+          <Records records={records} />
+        </section>
       )}
       {scorers.length > 0 && (
         <section aria-labelledby="all-time-scorers" className="space-y-3">
