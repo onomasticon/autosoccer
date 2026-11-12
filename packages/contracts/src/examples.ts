@@ -264,6 +264,9 @@ export const exampleFixtures: z.infer<typeof FixturesResponse> = {
 export const exampleTeamDetail: z.infer<typeof TeamDetailResponse> = {
   team: home,
   players: examplePlayers,
+  history: [{ season: { slug: "season-1", name: "Season 1" }, position: 1, points: 11, played: 6, champion: true }],
+  goals: examplePlayers.map((p, i) => ({ playerId: p.id, season: i === 4 ? 1 : 0, allTime: i === 4 ? 3 : 0 })),
+  memoryWrittenAfter: { season: "Season 2", round: 1 },
   manager: {
     id: uuid(600),
     slug: "marta-sol",
