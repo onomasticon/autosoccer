@@ -127,7 +127,12 @@ function onBall(obs, p, out, notes) {
   const goal = Soccer.oppGoal(obs);
   const goalDist = Soccer.dist(p, goal);
   const shot = Soccer.shotTarget(obs);
-  const lane = Soccer.laneClearance(b, shot, obs.opponents);
+  // Outfield blockers only: the keeper stands in every shooting lane, and beating them is the point of a shot.
+  const lane = Soccer.laneClearance(
+    b,
+    shot,
+    obs.opponents.filter((o) => o.role !== "GK"),
+  );
   if ((goalDist < P.shootRange && lane > 0.3) || goalDist < P.shootRange * 0.6) {
     notes.push(`${p.id} shoots from ${goalDist.toFixed(1)} m`);
     out.push(...Soccer.approachAndKick(p, b, shot, 1, R, { sprint: P.sprint }));

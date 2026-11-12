@@ -221,7 +221,7 @@ function NextBlock({ c, seasonComplete }: { c: DugoutChapter | undefined; season
     <p className="text-sm">
       <span className="font-semibold">Next:</span> R{c.round} {c.venue === "home" ? "vs" : "at"} {c.opponent.name}
       {c.scheduledAt && (
-        <span className="text-muted-text"> · {formatDate(c.scheduledAt, { weekday: true, time: true })} UTC</span>
+        <span className="text-muted-text"> · {formatDate(c.scheduledAt, { weekday: true, time: true })}</span>
       )}
       <span className="block text-muted-text">
         {c.decision.status === "pending" || c.decision.status === "opening"

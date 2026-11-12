@@ -5,7 +5,9 @@ import type {
   FixtureView,
   JournalistListResponse,
   MatchDetailResponse,
+  SeasonListResponse,
   SeasonResponse,
+  SeasonSummary,
   StandingsResponse,
 } from "@autosoccer/contracts";
 import { Link } from "react-router";
@@ -21,6 +23,7 @@ import { Panel, SectionHeader } from "../components/SectionHeader";
 import { StandingsTable } from "../components/StandingsTable";
 import { EmptyState, ErrorState } from "../components/States";
 import { apiMaybe, apiOptional } from "../lib/api.server";
+import { formatDate } from "../lib/format";
 import { seo } from "../lib/seo";
 import type { Route } from "./+types/home";
 
@@ -40,6 +43,7 @@ export async function loader() {
       journalists: [],
       dugout: null,
       fixtures: [],
+      previous: null,
     };
   const slug = current.season.slug;
   const [standings, fixtures, articles, journalists, dugout] = await Promise.all([
@@ -53,7 +57,21 @@ export async function loader() {
   const completed = all.filter((f) => f.status === "completed" && f.matchId);
   const results = completed.slice(-4).reverse();
   const upcoming = all.filter((f) => f.status !== "completed").slice(0, 4);
-  const latest = completed.at(-1);
+  // Before the new season's first result, the last completed season is still the story: its champion,
+  // its final table and its last replay.
+  let previous: SeasonSummary | null = null;
+  let latest = completed.at(-1);
+  if (!latest) {
+    const history = await apiMaybe<SeasonListResponse>("/api/v1/seasons");
+    previous = history?.items.find((s) => s.season.status === "completed" && s.season.slug !== slug) ?? null;
+    if (previous) {
+      const prev = await apiMaybe<FixturesResponse>(`/api/v1/seasons/${previous.season.slug}/fixtures`);
+      latest = prev?.rounds
+        .flatMap((r) => r.fixtures)
+        .filter((f) => f.status === "completed" && f.matchId)
+        .at(-1);
+    }
+  }
   const featured = latest?.matchId ? await apiMaybe<MatchDetailResponse>(`/api/v1/matches/${latest.matchId}`) : null;
   return {
     season: current.season,
@@ -66,7 +84,57 @@ export async function loader() {
     journalists: journalists?.items ?? [],
     dugout,
     fixtures: all,
+    previous,
   };
+}
+
+/** Between seasons: who won the last one, and when the next one starts. */
+export function OffSeasonCard({
+  previous,
+  next,
+  firstKickoff,
+}: {
+  previous: SeasonSummary;
+  next: string;
+  firstKickoff: string | null;
+}) {
+  const champ = previous.leader;
+  return (
+    <div className="card-surface flex flex-col gap-4 p-6">
+      <SectionHeader
+        as="h2"
+        banner
+        eyebrow={`${previous.season.name} · final`}
+        title={champ ? `${champ.team.name}, champions` : previous.season.name}
+      />
+      {champ && (
+        <p>
+          {champ.points} points from {champ.played} matches
+          {previous.margin !== null && previous.runnerUp
+            ? previous.margin === 0
+              ? `, level on points with ${previous.runnerUp.team.name} and ahead on tie-breaks.`
+              : `, ${previous.margin} clear of ${previous.runnerUp.team.name}.`
+            : "."}
+        </p>
+      )}
+      <p className="text-muted-text">
+        {next}{" "}
+        {firstKickoff ? `kicks off ${formatDate(firstKickoff, { weekday: true, time: true })}.` : "is scheduled."} The
+        managers keep what they learned last season.
+      </p>
+      <p className="flex flex-wrap gap-x-4 text-sm font-semibold">
+        <Link
+          to={`/table?season=${previous.season.slug}`}
+          className="underline underline-offset-4 hover:text-violet-deep"
+        >
+          {previous.season.name} final table
+        </Link>
+        <Link to="/history" className="underline underline-offset-4 hover:text-violet-deep">
+          Every champion
+        </Link>
+      </p>
+    </div>
+  );
 }
 
 const pad2 = (n: number) => String(n).padStart(2, "0");
@@ -77,7 +145,8 @@ const pad2 = (n: number) => String(n).padStart(2, "0");
  * loop, the league's point of difference), then stories / table / schedule panels, then league voices.
  */
 export default function Home({ loaderData }: Route.ComponentProps) {
-  const { season, teams, standings, results, upcoming, featured, articles, journalists, dugout, fixtures } = loaderData;
+  const { season, teams, standings, results, upcoming, featured, articles, journalists, dugout, fixtures, previous } =
+    loaderData;
   if (!season)
     return (
       <EmptyState title="The league hasn't kicked off">
@@ -94,7 +163,9 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       <h1 className="sr-only">Auto Soccer — {season.name}</h1>
       <YourClub teams={teams} fixtures={fixtures} stories={dugout?.stories ?? null} articles={articles} />
       <div className="grid items-stretch gap-6 lg:grid-cols-2">
-        {lead ? (
+        {previous ? (
+          <OffSeasonCard previous={previous} next={season.name} firstKickoff={upcoming[0]?.scheduledAt ?? null} />
+        ) : lead ? (
           <LeadStory article={lead} teams={teams} />
         ) : (
           <div className="card-surface p-6">
@@ -119,7 +190,8 @@ export default function Home({ loaderData }: Route.ComponentProps) {
               to={`/matches/${featured.match.id}`}
               className="mt-1 self-end text-sm font-semibold underline-offset-4 hover:underline"
             >
-              Matchweek {pad2(featured.fixture.round)} match centre <span aria-hidden>→</span>
+              {previous ? `${previous.season.name}, last match` : `Matchweek ${pad2(featured.fixture.round)}`} match
+              centre <span aria-hidden>→</span>
             </Link>
           </section>
         ) : (

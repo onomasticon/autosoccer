@@ -224,7 +224,8 @@ describe("AI newsroom over a season", () => {
   it("the published-content audit passes the season's articles and flags a contradicting one, read-only", async () => {
     expect(await auditPublishedArticles(t.db)).toEqual([]);
     const [a] = await t.db<{ id: string; body: string; match_id: string }[]>`
-      select a.id, a.body, a.match_id from articles a where kind = 'match_report' order by a.id limit 1`;
+      select a.id, a.body, a.match_id from articles a join matches m on m.id = a.match_id
+      where a.kind = 'match_report' and m.home_score <> m.away_score order by m.completed_at, a.id limit 1`;
     const f = await matchFacts(t.db, a!.match_id);
     const { home, away } = f.match!;
     const loser = home.score < away.score ? home : away;

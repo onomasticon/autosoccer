@@ -164,7 +164,7 @@ export function YourClub({
               <FixtureCard fixture={next} />
               {next.scheduledAt && (
                 <p className="text-xs text-muted-text">
-                  Kick-off {formatDate(next.scheduledAt, { weekday: true, time: true })} UTC
+                  Kick-off {formatDate(next.scheduledAt, { weekday: true, time: true })}
                 </p>
               )}
             </>

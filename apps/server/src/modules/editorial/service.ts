@@ -49,7 +49,7 @@ const ROLE_FOR: Record<ArticleKind, "reporter" | "analyst" | "pundit"> = {
 };
 export const roundPieceKind = (round: number): ArticleKind => (round % 2 === 1 ? "analysis" : "column");
 
-const slugify = (s: string) =>
+export const slugify = (s: string) =>
   s
     .toLowerCase()
     .replace(/(\d)\s*[–—]\s*(\d)/g, "$1-$2")
@@ -57,7 +57,9 @@ const slugify = (s: string) =>
     .replace(/[^\w\s-]/g, "")
     .replace(/[\s_–-]+/g, "-")
     .replace(/^-+|-+$/g, "")
-    .slice(0, 60);
+    .slice(0, 60)
+    // Cutting at 60 can end on a hyphen; with the id suffix that made "--", which breaks the slug contract.
+    .replace(/-+$/, "");
 
 export type ArticleOutcome =
   | { status: "already-done" }
