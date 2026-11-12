@@ -10,6 +10,7 @@
 import type { Db } from "@autosoccer/db";
 import type { Logger } from "../../log.ts";
 import { managerRoundHook } from "../agents/service.ts";
+import { rolloverSeason } from "../league/rollover.ts";
 import { type AdvanceResult, advanceSeason } from "../league/service.ts";
 
 const LEADER_LOCK = 727275;
@@ -17,12 +18,19 @@ const LEADER_LOCK = 727275;
 export interface TickResult {
   leader: boolean;
   seasons: Array<{ slug: string; result: AdvanceResult }>;
+  /** Slug of a season created by rollover in this tick. */
+  rolledOver?: string | null;
 }
 
-export async function schedulerTick(
-  db: Db,
-  opts: { respectSchedule: boolean; log?: Logger; now?: Date },
-): Promise<TickResult> {
+export interface TickOptions {
+  respectSchedule: boolean;
+  log?: Logger;
+  now?: Date;
+  /** When set, a completed league starts its next season (see league/rollover.ts). */
+  rollover?: { managerModel: string; editorialModel: string };
+}
+
+export async function schedulerTick(db: Db, opts: TickOptions): Promise<TickResult> {
   const conn = await db.reserve();
   try {
     const [lock] = await conn<{ ok: boolean }[]>`select pg_try_advisory_lock(${LEADER_LOCK}) as ok`;
@@ -52,7 +60,10 @@ export async function schedulerTick(
           opts.log?.info("season completed", { season: s.slug });
         }
       }
-      return { leader: true, seasons: out };
+      const rolledOver = opts.rollover
+        ? await rolloverSeason(db, { ...opts.rollover, now: opts.now, log: opts.log })
+        : null;
+      return { leader: true, seasons: out, rolledOver };
     } finally {
       await conn`select pg_advisory_unlock(${LEADER_LOCK})`;
     }
@@ -76,10 +87,7 @@ export async function heartbeat(db: Db, workerId: string, role: "worker" | "sche
 }
 
 /** Scheduler loop (stop() to end). Runs alongside the job worker in the worker process. */
-export function startScheduler(
-  db: Db,
-  opts: { intervalMs: number; respectSchedule: boolean; log?: Logger; schedulerId: string },
-) {
+export function startScheduler(db: Db, opts: TickOptions & { intervalMs: number; schedulerId: string }) {
   let running = true;
   const loop = (async () => {
     while (running) {

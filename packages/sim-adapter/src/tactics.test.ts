@@ -107,7 +107,7 @@ describe("contrasting tactics in the simulator", () => {
   };
 
   it("produce observable, reproducible differences (both venues)", async () => {
-    const totals = { aggressive: { pl: 0, comp: 0, drib: 0 }, block: { pl: 0, comp: 0, drib: 0 } };
+    const totals = { aggressive: { pl: 0, fwd: 0, drib: 0 }, block: { pl: 0, fwd: 0, drib: 0 } };
     let heightGap = 0;
     for (const seed of [1, 2, 3, 4]) {
       const swap = seed % 2 === 0;
@@ -122,8 +122,8 @@ describe("contrasting tactics in the simulator", () => {
       heightGap += (agg.avgTeamHeight - blk.avgTeamHeight) / 4;
       totals.aggressive.pl += agg.avgPassLength;
       totals.block.pl += blk.avgPassLength;
-      totals.aggressive.comp += agg.passesCompleted;
-      totals.block.comp += blk.passesCompleted;
+      totals.aggressive.fwd += agg.forwardPassShare / 4;
+      totals.block.fwd += blk.forwardPassShare / 4;
       totals.aggressive.drib += agg.dribbleTouches;
       totals.block.drib += blk.dribbleTouches;
       expect(result.diagnostics.controllerFailures).toEqual([]);
@@ -135,7 +135,7 @@ describe("contrasting tactics in the simulator", () => {
     }
     expect(heightGap).toBeGreaterThan(15);
     expect(totals.aggressive.pl).toBeGreaterThan(totals.block.pl); // direct = longer passes
-    expect(totals.block.comp).toBeGreaterThan(totals.aggressive.comp); // safe/patient = more completed
+    expect(totals.aggressive.fwd).toBeGreaterThan(totals.block.fwd); // direct = more of its passes go forward
     expect(totals.aggressive.drib).toBeGreaterThan(totals.block.drib); // "often" dribbles more
   }, 60_000);
 });

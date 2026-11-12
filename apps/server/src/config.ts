@@ -32,6 +32,8 @@ const Env = z.object({
   SCHEDULER_INTERVAL_MS: z.coerce.number().int().positive().default(5000),
   /** Wait for each round's scheduled kickoff time; "false" plays rounds back to back (demos). */
   SCHEDULE_RESPECT_KICKOFF: z.enum(["true", "false"]).default("true"),
+  /** Start the next season automatically when the latest one completes (same clubs, budgets and spacing). */
+  SEASON_ROLLOVER: z.enum(["true", "false"]).default("true"),
   OPS_TOKEN: z.string().optional(),
   /** A running job not finished within this lease is reclaimed by another worker (crash recovery). */
   WORKER_LEASE_MS: z.coerce.number().int().positive().default(300_000),

@@ -41,6 +41,10 @@ const scheduler =
     ? startScheduler(db, {
         intervalMs: config.SCHEDULER_INTERVAL_MS,
         respectSchedule: config.SCHEDULE_RESPECT_KICKOFF === "true",
+        rollover:
+          config.SEASON_ROLLOVER === "true"
+            ? { managerModel: config.MANAGER_MODEL, editorialModel: config.EDITORIAL_MODEL }
+            : undefined,
         log: log.child({ component: "scheduler" }),
         schedulerId: `${worker.workerId}:scheduler`,
       })
