@@ -1,6 +1,7 @@
 /** Read-model queries shared by the league API routes (and later the editorial facts). */
 import type {
   FixtureView,
+  RecordsResponse,
   ScorerRow,
   Season,
   SeasonSummary,
@@ -77,6 +78,60 @@ export async function scorers(db: Db, seasonId: string | null, limit = 10): Prom
       matches: r.matches,
     };
   });
+}
+
+/** League records from completed seasons only (a record can't be set halfway through a season). */
+export async function leagueRecords(db: Db): Promise<RecordsResponse> {
+  const seasons = await db<{ id: string; slug: string; name: string }[]>`
+    select id, slug, name from seasons where status = 'completed' order by starts_at nulls last, created_at`;
+  const teams = new Map((await db<TeamRow[]>`select * from teams`).map((t) => [t.id, toTeam(t)]));
+  const out: RecordsResponse = { mostPoints: [], perfectSeasons: [], mostGoalsInSeason: [], biggestWin: [] };
+  const best = <T>(list: T[], key: (x: T) => number) => {
+    const top = Math.max(...list.map(key));
+    return Number.isFinite(top) ? list.filter((x) => key(x) === top) : [];
+  };
+  const points: RecordsResponse["mostPoints"] = [];
+  const scorersBySeason: RecordsResponse["mostGoalsInSeason"] = [];
+  const wins: RecordsResponse["biggestWin"] = [];
+  for (const s of seasons) {
+    const ref = { slug: s.slug, name: s.name };
+    const { rows } = await standingRows(db, s.id);
+    for (const r of rows) {
+      points.push({ season: ref, team: r.team, points: r.points, played: r.played });
+      if (r.played > 0 && r.won === r.played) out.perfectSeasons.push({ season: ref, team: r.team, won: r.won });
+    }
+    for (const sc of await scorers(db, s.id, 3))
+      scorersBySeason.push({ season: ref, name: sc.name, team: sc.team, goals: sc.goals });
+    const ms = await db<
+      {
+        id: string;
+        round: number;
+        home_team_id: string;
+        away_team_id: string;
+        home_score: number;
+        away_score: number;
+      }[]
+    >`select m.id, f.round, f.home_team_id, f.away_team_id, m.home_score, m.away_score
+      from matches m join fixtures f on f.id = m.fixture_id where f.season_id = ${s.id} and m.status = 'completed'`;
+    for (const m of ms) {
+      const margin = Math.abs(m.home_score - m.away_score);
+      if (!margin) continue;
+      const homeWon = m.home_score > m.away_score;
+      wins.push({
+        season: ref,
+        round: m.round,
+        matchId: m.id,
+        winner: teams.get(homeWon ? m.home_team_id : m.away_team_id)!,
+        loser: teams.get(homeWon ? m.away_team_id : m.home_team_id)!,
+        score: `${m.home_score}–${m.away_score}`,
+        margin,
+      });
+    }
+  }
+  out.mostPoints = best(points, (x) => x.points);
+  out.mostGoalsInSeason = best(scorersBySeason, (x) => x.goals);
+  out.biggestWin = best(wins, (x) => x.margin);
+  return out;
 }
 
 /** The roll of honour: every non-draft season, newest first, from the official record. */
