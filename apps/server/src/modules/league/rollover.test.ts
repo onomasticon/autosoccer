@@ -79,6 +79,23 @@ describe("season rollover", () => {
     expect((await schedulerTick(t.db, { respectSchedule: true, rollover: MODELS })).rolledOver).toBe("season-3");
   });
 
+  it("at the daily pace, the next season fits in a day: a 4-hour break, then six rounds 4 hours apart", async () => {
+    await t.db`update seasons set status = 'completed', completed_at = now()`;
+    const now = new Date("2026-11-13T08:00:00Z");
+    const slug = await rolloverSeason(t.db, { ...MODELS, roundMinutes: 240, now });
+    const kicks = await t.db<{ at: Date }[]>`
+      select distinct f.scheduled_at as at from fixtures f join seasons s on s.id = f.season_id
+      where s.slug = ${slug} order by 1`;
+    expect(kicks.map((k) => k.at.toISOString())).toEqual([
+      "2026-11-13T12:00:00.000Z",
+      "2026-11-13T16:00:00.000Z",
+      "2026-11-13T20:00:00.000Z",
+      "2026-11-14T00:00:00.000Z",
+      "2026-11-14T04:00:00.000Z",
+      "2026-11-14T08:00:00.000Z",
+    ]);
+  });
+
   it("derives season numbers and seeds deterministically", () => {
     expect(seasonNumber("season-12")).toBe(12);
     expect(seasonNumber("summer-cup")).toBeNull();

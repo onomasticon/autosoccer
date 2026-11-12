@@ -34,6 +34,8 @@ const Env = z.object({
   SCHEDULE_RESPECT_KICKOFF: z.enum(["true", "false"]).default("true"),
   /** Start the next season automatically when the latest one completes (same clubs, budgets and spacing). */
   SEASON_ROLLOVER: z.enum(["true", "false"]).default("true"),
+  /** Minutes between rounds of rolled-over seasons. 240 = one season per day (6 rounds + a 4-hour break). */
+  SEASON_ROUND_MINUTES: z.coerce.number().int().min(5).default(240),
   OPS_TOKEN: z.string().optional(),
   /** A running job not finished within this lease is reclaimed by another worker (crash recovery). */
   WORKER_LEASE_MS: z.coerce.number().int().positive().default(300_000),

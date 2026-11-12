@@ -27,7 +27,7 @@ export interface TickOptions {
   log?: Logger;
   now?: Date;
   /** When set, a completed league starts its next season (see league/rollover.ts). */
-  rollover?: { managerModel: string; editorialModel: string };
+  rollover?: { managerModel: string; editorialModel: string; roundMinutes?: number };
 }
 
 export async function schedulerTick(db: Db, opts: TickOptions): Promise<TickResult> {

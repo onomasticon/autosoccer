@@ -21,6 +21,12 @@ export const LEAGUE_TEAM_SIZE: TeamSize = 7;
 export interface RolloverOptions {
   managerModel: string;
   editorialModel: string;
+  /**
+   * Minutes between rounds of the new season (and from the end of the last season to round 1).
+   * Default: the spacing of the season that just ended. 240 gives one season per day:
+   * a 4-hour break, then six rounds 4 hours apart.
+   */
+  roundMinutes?: number;
   /** Earliest kick-off for the new season (default: now). */
   now?: Date;
   log?: Logger;
@@ -56,7 +62,7 @@ export async function rolloverSeason(db: Db, opts: RolloverOptions): Promise<str
   if (open) return null;
   const [last] = await db<LastSeason[]>`
     select id, slug, name, seed, status, budget_per_team_micro_usd, editorial_budget_micro_usd
-    from seasons order by starts_at desc nulls last, created_at desc limit 1`;
+    from seasons order by created_at desc limit 1`; // the newest season, whatever its calendar says
   if (!last || last.status !== "completed") return null;
   const n = seasonNumber(last.slug);
   if (n === null) {
@@ -65,11 +71,11 @@ export async function rolloverSeason(db: Db, opts: RolloverOptions): Promise<str
   }
   const teams = await db<{ slug: string }[]>`
     select t.slug from season_teams st join teams t on t.id = st.team_id where st.season_id = ${last.id} order by t.slug`;
-  // Same spacing between rounds as the season that just ended (hourly on the demo cadence).
+  // The configured pace, else the same spacing between rounds as the season that just ended.
   const [gap] = await db<{ minutes: number | null }[]>`
     select extract(epoch from (max(scheduled_at) - min(scheduled_at)))::float / 60 / nullif(count(distinct round) - 1, 0) as minutes
     from fixtures where season_id = ${last.id}`;
-  const minutes = Math.max(5, Math.round(gap?.minutes ?? 60));
+  const minutes = Math.max(5, Math.round(opts.roundMinutes ?? gap?.minutes ?? 60));
   const now = opts.now ?? new Date();
   const startsAt = new Date(Math.ceil((now.getTime() + minutes * 60_000) / 60_000) * 60_000);
   const slug = `season-${n + 1}`;
