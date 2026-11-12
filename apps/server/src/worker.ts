@@ -43,7 +43,11 @@ const scheduler =
         respectSchedule: config.SCHEDULE_RESPECT_KICKOFF === "true",
         rollover:
           config.SEASON_ROLLOVER === "true"
-            ? { managerModel: config.MANAGER_MODEL, editorialModel: config.EDITORIAL_MODEL }
+            ? {
+                managerModel: config.MANAGER_MODEL,
+                editorialModel: config.EDITORIAL_MODEL,
+                roundMinutes: config.SEASON_ROUND_MINUTES,
+              }
             : undefined,
         log: log.child({ component: "scheduler" }),
         schedulerId: `${worker.workerId}:scheduler`,

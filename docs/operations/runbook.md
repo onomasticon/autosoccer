@@ -51,6 +51,7 @@ Key settings (see `.env.example`):
 | `MANAGER_MODEL`, `EDITORIAL_MODEL` | `claude-opus-5-5` | Priced in `modules/agents/pricing.ts`. |
 | `SCHEDULER_ENABLED` | `true` | Set `false` on workers that should only run jobs. |
 | `SCHEDULE_RESPECT_KICKOFF` | `true` | `false` plays rounds back to back (demos). |
+| `SEASON_ROUND_MINUTES` | `240` | Pace of rolled-over seasons: minutes between rounds, and from the end of one season to round 1 of the next. 240 gives one season per day (a 4-hour break, then six rounds 4 hours apart). Seasons already scheduled keep their calendar; use `ops reschedule` to move one. |
 | `SEASON_ROLLOVER` | `true` | When the latest season completes and nothing else is scheduled, the scheduler creates `season-N+1`: the same clubs and budgets, 7-a-side, rounds spaced like the season that ended, first round one gap after completion. Managers keep their memory; each gets a 7-a-side opening setup. `false` leaves the league idle until someone runs `league seed`. |
 | `SCHEDULER_INTERVAL_MS` | `5000` | Scheduler tick. |
 | `WORKER_LEASE_MS` | `300000` | A running job not finished within the lease is reclaimed by another worker. Must exceed the longest job (an LLM call with retries). |
