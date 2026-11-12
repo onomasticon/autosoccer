@@ -528,8 +528,11 @@ function checkTable(sentence: string, ms: Mention[], ledger: Ledger, errors: str
       const k = rec[1]!.toLowerCase();
       // "unbeaten in their last two" is about the recent run (form), not the whole season.
       const win =
-        /\b(?:in|from|over|across)\s+(?:their|its|the|his|her)\s+(?:last|past|previous)\s+(\d|one|two|three|four|five|six)\b/i.exec(
+        /\b(?:in|from|over|across)\s+(?:(?:their|its|the|his|her)\s+)?(?:(?:last|past|previous)\s+)?(\d|one|two|three|four|five|six)\b(?!\s*(?:points?|goals?|[–-]))/i.exec(
           rest,
+        ) ??
+        /\b(\d|one|two|three|four|five|six)\s+(?:league\s+)?(?:games|matches|outings|fixtures)\s+(?:without|unbeaten)\b/i.exec(
+          sentence,
         );
       const n = win ? (WORDS[win[1]!.toLowerCase()] ?? Number(win[1])) : null;
       let results: Array<"W" | "D" | "L"> | null = null;

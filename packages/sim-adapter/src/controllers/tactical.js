@@ -75,11 +75,24 @@ function keeper(obs, gk, out) {
   const b = obs.ball;
   const dir = obs.attackingDirection;
   if (b.heldBy === gk.id) {
-    const field = obs.teammates.filter((p) => p.role !== "GK");
-    const target =
-      P.keeperRelease === "long"
-        ? field.reduce((a, c) => (Soccer.forward(obs, c) > Soccer.forward(obs, a) ? c : a))
-        : Soccer.nearest(field, gk);
+    // Only release to team-mates in front of the keeper (a ball rolled back toward the line can go in);
+    // with nobody clear in front, throw it out toward the wing.
+    const ahead = obs.teammates.filter((p) => p.role !== "GK" && Soccer.forward(obs, p) > Soccer.forward(obs, gk) + 4);
+    const target = ahead.length
+      ? P.keeperRelease === "long"
+        ? ahead.reduce((a, c) => (Soccer.forward(obs, c) > Soccer.forward(obs, a) ? c : a))
+        : Soccer.nearest(ahead, gk)
+      : { x: gk.x + dir * 14, y: gk.y >= 0 ? HW * 0.6 : -HW * 0.6 };
+    // The held ball sits on the side the keeper faces: turn upfield first, or the release hits the keeper.
+    if (!Soccer.facingOk(gk, target.x - gk.x, target.y - gk.y, R)) {
+      out.push({
+        type: "moveTo",
+        player: gk.id,
+        x: gk.x + (target.x - gk.x) * 0.05,
+        y: gk.y + (target.y - gk.y) * 0.05,
+      });
+      return;
+    }
     out.push({
       type: "releaseBall",
       player: gk.id,

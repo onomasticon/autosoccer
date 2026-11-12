@@ -6,6 +6,7 @@ export const NAV = [
   { to: "/news", label: "News" },
   { to: "/fixtures", label: "Matches", also: "/matches/" },
   { to: "/table", label: "Table" },
+  { to: "/history", label: "History" },
   { to: "/teams", label: "Teams" },
   { to: "/journalists", label: "Personalities" },
 ] as const;

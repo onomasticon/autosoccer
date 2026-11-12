@@ -74,11 +74,23 @@ function analysis(c: EditorialContext): ArticleDraft {
   };
 }
 
+const teamName = (f: Fact) => (f.value as { team?: { name?: string } } | null)?.team?.name ?? "";
+const points = (f: Fact) => Number((f.value as { points?: number } | null)?.points ?? 0);
+
+/** A headline that says what the table says: who leads and by how much (never the same line twice). */
+export function columnHeadline(table: Fact[], round: number): string {
+  const [top, second] = table;
+  if (!top || !second) return `The table after round ${round}`;
+  const gap = points(top) - points(second);
+  if (gap === 0) return `${teamName(top)} and ${teamName(second)} level on points at the top after round ${round}`;
+  return `${teamName(top)} lead by ${gap} point${gap === 1 ? "" : "s"} after round ${round}`;
+}
+
 function column(c: EditorialContext): ArticleDraft {
   const table = byKind(c.facts.facts, "standing");
   const [top, , , bottom] = table;
   return {
-    headline: `After round ${c.round}, the table is starting to talk`,
+    headline: columnHeadline(table, c.round),
     standfirst: "Opinion: who the numbers favour, and who needs a rethink.",
     body: [
       `${top!.statement}. For my money, that is the most convincing record in the league so far.`,
