@@ -56,6 +56,8 @@ export interface Ledger {
   matches: MatchRec[];
   standings: StandingRec[];
   afterRound: number | null;
+  /** Round of the article's own match (match reports); null for round-wide pieces. */
+  currentRound: number | null;
   /** alias (lower case) → canonical team name, longest aliases first */
   aliases: Array<[string, string]>;
 }
@@ -146,6 +148,7 @@ export function buildLedger(ef: EditorialFacts): Ledger {
     matches: [...matches.values()],
     standings,
     afterRound: ef.generatedFrom.standingsAfterRound,
+    currentRound: ef.match?.round ?? null,
     aliases,
   };
 }
@@ -192,9 +195,20 @@ const outcome = (m: MatchRec, s: Side): "won" | "lost" | "drew" => {
 };
 const pct = (v: number) => Math.round(v * 100);
 
+/** Words that point a sentence at an earlier meeting rather than the article's own match. */
+const EARLIER =
+  /\b(?:earlier|previous|first|last|reverse|this season|season'?s|both meetings|both matches|twice|again)\b/i;
+
 function roundScope(sentence: string, ledger: Ledger): MatchRec[] {
   const r = /\bround (\d+)\b/i.exec(sentence);
-  if (!r) return ledger.matches;
+  if (!r) {
+    // In a match report, an unqualified result claim is about this match, not an earlier meeting.
+    if (ledger.currentRound !== null && !EARLIER.test(sentence)) {
+      const own = ledger.matches.filter((m) => m.round === ledger.currentRound);
+      if (own.length) return own;
+    }
+    return ledger.matches;
+  }
   const n = Number(r[1]);
   const inRound = ledger.matches.filter((m) => m.round === n);
   return inRound.length ? inRound : ledger.matches;
