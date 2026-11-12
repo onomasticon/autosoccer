@@ -1,16 +1,15 @@
-import type { FixturesResponse, SeasonResponse } from "@autosoccer/contracts";
+import type { FixturesResponse } from "@autosoccer/contracts";
 import { FixtureCard } from "../components/MatchScoreCard";
 import { RouteError } from "../components/RouteError";
 import { SectionHeader } from "../components/SectionHeader";
 import { EmptyState } from "../components/States";
-import { apiOr404 } from "../lib/api.server";
+import { apiOr404, seasonSlugFrom } from "../lib/api.server";
 import { formatDate } from "../lib/format";
 import { seo } from "../lib/seo";
 import type { Route } from "./+types/fixtures";
 
-export async function loader() {
-  const { season } = await apiOr404<SeasonResponse>("/api/v1/seasons/current");
-  return apiOr404<FixturesResponse>(`/api/v1/seasons/${season.slug}/fixtures`);
+export async function loader({ request }: Route.LoaderArgs) {
+  return apiOr404<FixturesResponse>(`/api/v1/seasons/${await seasonSlugFrom(request)}/fixtures`);
 }
 
 export const meta: Route.MetaFunction = ({ data }) =>

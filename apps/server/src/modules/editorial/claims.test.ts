@@ -331,6 +331,8 @@ describe("record claims over a recent run use form, not the season record", () =
     "Saltmarsh are unbeaten in their last two league games.",
     "Saltmarsh Athletic are unbeaten in their last three.",
     "Northgate Comets are without a win in their last two.",
+    "Saltmarsh are unbeaten in three.",
+    "Northgate Comets have gone two games without a win.",
   ])("accepts a true run: %s", (text) => {
     expect(errs(text, after5)).toEqual([]);
   });
@@ -338,6 +340,7 @@ describe("record claims over a recent run use form, not the season record", () =
     ["Saltmarsh Athletic are unbeaten in their last four games.", /last 4 results after round 5: LDWW/],
     ["Northgate Comets are without a win in their last four.", /last 4 results after round 5: WDLL/],
     ["Saltmarsh Athletic are unbeaten this season.", /W3 D1 L1/],
+    ["Saltmarsh are unbeaten in four.", /last 4 results after round 5: LDWW/],
   ])("rejects a false run: %s", (text, re) => {
     expect(errs(text, after5).join("\n")).toMatch(re);
   });

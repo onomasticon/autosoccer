@@ -1,5 +1,5 @@
 /** Read-model queries shared by the league API routes (and later the editorial facts). */
-import type { FixtureView, Season, StandingRow, Team, TeamSize } from "@autosoccer/contracts";
+import type { FixtureView, Season, SeasonSummary, StandingRow, Team, TeamSize } from "@autosoccer/contracts";
 import type { Db } from "@autosoccer/db";
 import { type FixtureRow, type TeamRow, toFixtureView, toTeam } from "../mappers.ts";
 import { seasonStandings } from "./service.ts";
@@ -33,6 +33,46 @@ export const toSeason = (r: SeasonRow): Season => ({
 export async function seasonTeamSize(db: Db, seasonId: string): Promise<TeamSize> {
   const [s] = await db<{ players_per_team: number }[]>`select players_per_team from seasons where id = ${seasonId}`;
   return s?.players_per_team === 7 ? 7 : 5;
+}
+
+/** The roll of honour: every non-draft season, newest first, from the official record. */
+export async function seasonSummaries(db: Db): Promise<SeasonSummary[]> {
+  const seasons = await db<SeasonRow[]>`
+    select * from seasons where status <> 'draft' order by starts_at desc nulls last, created_at desc`;
+  const out: SeasonSummary[] = [];
+  for (const s of seasons) {
+    const { rows, afterRound } = await standingRows(db, s.id);
+    const [r] = await db<
+      { n: number }[]
+    >`select coalesce(max(round), 0)::int as n from fixtures where season_id = ${s.id}`;
+    const goals = await db<{ scorer_id: string; team_id: string; name: string; goals: number }[]>`
+      select g->>'scorerId' as scorer_id, p.team_id, p.name, count(*)::int as goals
+      from matches m join fixtures f on f.id = m.fixture_id
+        cross join lateral jsonb_array_elements(m.events) g
+        join players p on p.id = (g->>'scorerId')::uuid
+      where f.season_id = ${s.id} and m.status = 'completed' and g->>'type' = 'goal'
+        and coalesce((g->>'ownGoal')::boolean, false) = false and g->>'scorerId' is not null
+      group by 1, 2, 3 order by goals desc, p.name`;
+    const [tot] = await db<{ matches: number; goals: number }[]>`
+      select count(*)::int as matches, coalesce(sum(m.home_score + m.away_score), 0)::int as goals
+      from matches m join fixtures f on f.id = m.fixture_id where f.season_id = ${s.id} and m.status = 'completed'`;
+    const teams = await seasonTeams(db, s.id);
+    const best = goals[0]?.goals ?? 0;
+    const played = rows.some((x) => x.played > 0);
+    out.push({
+      season: toSeason(s),
+      roundsPlayed: afterRound,
+      rounds: r!.n,
+      leader: played ? (rows[0] ?? null) : null,
+      runnerUp: played ? (rows[1] ?? null) : null,
+      margin: played && rows[1] ? rows[0]!.points - rows[1].points : null,
+      topScorers: goals
+        .filter((g) => g.goals === best && teams.has(g.team_id))
+        .map((g) => ({ playerId: g.scorer_id, name: g.name, team: teams.get(g.team_id)!, goals: g.goals })),
+      goalsPerMatch: tot!.matches ? Math.round((tot!.goals / tot!.matches) * 100) / 100 : 0,
+    });
+  }
+  return out;
 }
 
 /** The season the site shows: the active one, else the most recently started/created. */

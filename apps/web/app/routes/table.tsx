@@ -1,14 +1,14 @@
-import type { SeasonResponse, StandingsResponse } from "@autosoccer/contracts";
+import type { StandingsResponse } from "@autosoccer/contracts";
+import { Link } from "react-router";
 import { RouteError } from "../components/RouteError";
 import { SectionHeader } from "../components/SectionHeader";
 import { StandingsTable } from "../components/StandingsTable";
-import { apiOr404 } from "../lib/api.server";
+import { apiOr404, seasonSlugFrom } from "../lib/api.server";
 import { seo } from "../lib/seo";
 import type { Route } from "./+types/table";
 
-export async function loader() {
-  const { season } = await apiOr404<SeasonResponse>("/api/v1/seasons/current");
-  return apiOr404<StandingsResponse>(`/api/v1/seasons/${season.slug}/standings`);
+export async function loader({ request }: Route.LoaderArgs) {
+  return apiOr404<StandingsResponse>(`/api/v1/seasons/${await seasonSlugFrom(request)}/standings`);
 }
 
 export const meta: Route.MetaFunction = ({ data }) =>
@@ -21,9 +21,20 @@ export default function Table({ loaderData }: Route.ComponentProps) {
       <SectionHeader
         as="h1"
         banner
-        eyebrow={afterRound ? `${season.name} · after round ${afterRound}` : season.name}
+        eyebrow={
+          season.status === "completed"
+            ? `${season.name} · final`
+            : afterRound
+              ? `${season.name} · after round ${afterRound}`
+              : season.name
+        }
         title="League table"
       />
+      <p className="text-sm">
+        <Link to="/history" className="font-semibold underline underline-offset-4 hover:text-violet-deep">
+          Past seasons and champions
+        </Link>
+      </p>
       <StandingsTable
         rows={rows}
         caption={`${season.name} league table${afterRound ? ` after round ${afterRound}` : ""}`}

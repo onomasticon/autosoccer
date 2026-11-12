@@ -158,7 +158,7 @@ describe("LeagueHeader", () => {
       within(main)
         .getAllByRole("link")
         .map((l) => l.textContent),
-    ).toEqual(["Home", "News", "Matches", "Table", "Teams", "Personalities"]);
+    ).toEqual(["Home", "News", "Matches", "Table", "History", "Teams", "Personalities"]);
     expect(screen.getByRole("link", { name: "Skip to content" }).getAttribute("href")).toBe("#main");
     const button = screen.getByRole("button", { name: "Menu" });
     expect(button.getAttribute("aria-expanded")).toBe("false");

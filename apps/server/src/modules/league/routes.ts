@@ -1,5 +1,6 @@
 import {
   FixturesResponse,
+  SeasonListResponse,
   SeasonResponse,
   StandingsResponse,
   TeamDetailResponse,
@@ -9,10 +10,20 @@ import type { Db } from "@autosoccer/db";
 import { Hono } from "hono";
 import { contractJson, notFound } from "../http.ts";
 import { type PlayerRow, type RevisionRow, type TeamRow, toPlayer, toTeam } from "../mappers.ts";
-import { currentSeason, fixtureViews, seasonBySlug, seasonTeams, standingRows, toSeason } from "./read.ts";
+import {
+  currentSeason,
+  fixtureViews,
+  seasonBySlug,
+  seasonSummaries,
+  seasonTeams,
+  standingRows,
+  toSeason,
+} from "./read.ts";
 
 export function leagueRoutes({ db }: { db: Db }) {
   const r = new Hono();
+
+  r.get("/seasons", async (c) => contractJson(c, SeasonListResponse, { items: await seasonSummaries(db) }));
 
   r.get("/seasons/current", async (c) => {
     const s = await currentSeason(db);

@@ -1,3 +1,4 @@
+import type { SeasonResponse } from "@autosoccer/contracts";
 /** Server-only API client used by route loaders. Page rendering never calls LLMs. */
 export const API_URL = process.env.API_URL ?? "http://localhost:4000";
 
@@ -48,4 +49,12 @@ export async function apiOptional<T>(path: string): Promise<T | null> {
     if (e instanceof ApiError && e.status === 404) return null;
     throw new Response("League data is temporarily unavailable", { status: 503 });
   }
+}
+
+/** ?season=season-2 picks a past season; anything else (or nothing) means the current one. */
+export async function seasonSlugFrom(request: Request): Promise<string> {
+  const asked = new URL(request.url).searchParams.get("season");
+  if (asked && /^[a-z0-9-]{1,60}$/.test(asked)) return asked;
+  const { season } = await apiOr404<SeasonResponse>("/api/v1/seasons/current");
+  return season.slug;
 }

@@ -1,4 +1,10 @@
-import { FixturesResponse, SeasonResponse, StandingsResponse, TeamDetailResponse } from "@autosoccer/contracts";
+import {
+  FixturesResponse,
+  SeasonListResponse,
+  SeasonResponse,
+  StandingsResponse,
+  TeamDetailResponse,
+} from "@autosoccer/contracts";
 import { createTestDatabase, type TestDatabase } from "@autosoccer/db/testing";
 import { MemoryReplayStore } from "@autosoccer/sim-adapter";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -116,6 +122,16 @@ describe("league season without AI", () => {
     expect(team.players).toHaveLength(10);
     expect(team.fixtures).toHaveLength(6);
     expect(team.standing?.played).toBe(6);
+    const history = SeasonListResponse.parse(await (await app.request("/api/v1/seasons")).json());
+    expect(history.items).toHaveLength(1);
+    const s1 = history.items[0]!;
+    const standings = StandingsResponse.parse(await (await app.request("/api/v1/seasons/season-1/standings")).json());
+    expect(s1).toMatchObject({ roundsPlayed: 6, rounds: 6, season: { status: "completed" } });
+    expect(s1.leader!.team.id).toBe(standings.rows[0]!.team.id);
+    expect(s1.margin).toBe(standings.rows[0]!.points - standings.rows[1]!.points);
+    const goals = standings.rows.reduce((n, r) => n + r.goalsFor, 0);
+    expect(s1.goalsPerMatch).toBeCloseTo(goals / 12, 2);
+    if (goals > 0) expect(s1.topScorers.length).toBeGreaterThan(0);
     expect((await app.request("/api/v1/teams/nope")).status).toBe(404);
     expect((await app.request("/api/v1/seasons/nope/standings")).status).toBe(404);
   });
