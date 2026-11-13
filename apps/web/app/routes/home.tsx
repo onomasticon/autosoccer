@@ -185,6 +185,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
               home={featured.fixture.home}
               away={featured.fixture.away}
               events={featured.events}
+              playerNames={new Map([...featured.lineups.home, ...featured.lineups.away].map((p) => [p.id, p.name]))}
               compact
             />
             <Link

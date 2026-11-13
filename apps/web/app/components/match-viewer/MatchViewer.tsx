@@ -2,6 +2,7 @@ import type { OfficialEvent, Team } from "@autosoccer/contracts";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { formatClock, onColor, readableChip } from "../../lib/format";
 import { ErrorState } from "../States";
+import { celebrationRate, celebrationTicks, type GoalEvent, goalCrossed } from "./celebration";
 import { aspect, drawFrame } from "./draw";
 import { type Frame, loadReplay, type ReplaySource } from "./replay-adapter";
 
@@ -17,6 +18,8 @@ export interface MatchViewerProps {
   initialSpeed?: (typeof SPEEDS)[number];
   /** Compact embed (homepage): fewer controls. */
   compact?: boolean;
+  /** Player id → name, for the scorer on the goal banner. */
+  playerNames?: ReadonlyMap<string, string>;
 }
 
 function periodClock(f: Frame | null) {
@@ -48,6 +51,7 @@ export function MatchViewer({
   autoplay = false,
   initialSpeed = 2,
   compact = false,
+  playerNames,
 }: MatchViewerProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -60,6 +64,13 @@ export function MatchViewer({
   const [playing, setPlaying] = useState(false);
   const [speed, setSpeed] = useState<number>(initialSpeed);
   const tickRef = useRef(0);
+  // Goal celebration: playback slows for a moment after each goal, with a banner over the pitch.
+  const [celebrating, setCelebrating] = useState<GoalEvent | null>(null);
+  const celebRef = useRef<{ goal: GoalEvent; until: number } | null>(null);
+  const goals = useMemo(
+    () => events.filter((e): e is GoalEvent => e.type === "goal").sort((a, b) => a.tick - b.tick),
+    [events],
+  );
 
   const chips = useMemo(
     () => ({ home: readableChip(home.colors.primary), away: readableChip(away.colors.primary) }),
@@ -132,17 +143,35 @@ export function MatchViewer({
     let raf = 0;
     let last = performance.now();
     let acc = 0;
+    const span = celebrationTicks(src.goalPauseTicks, src.tickRate);
     const loop = (now: number) => {
-      acc += ((now - last) / 1000) * src.tickRate * speed;
+      const rate = celebRef.current ? celebrationRate(span) : src.tickRate * speed;
+      acc += ((now - last) / 1000) * rate;
       last = now;
       const whole = Math.floor(acc);
       if (whole > 0) {
         acc -= whole;
-        const next = Math.min(src.finalTick, tickRef.current + whole);
+        let next = Math.min(src.finalTick, tickRef.current + whole);
+        if (celebRef.current) {
+          if (next >= celebRef.current.until) {
+            celebRef.current = null;
+            setCelebrating(null);
+          }
+        } else {
+          const g = goalCrossed(goals, tickRef.current, next);
+          if (g) {
+            next = g.tick; // stop on the goal itself, then play the celebration slowly
+            acc = 0;
+            celebRef.current = { goal: g, until: Math.min(src.finalTick, g.tick + span) };
+            setCelebrating(g);
+          }
+        }
         tickRef.current = next;
         setTick(next);
         render(next);
         if (next >= src.finalTick) {
+          celebRef.current = null;
+          setCelebrating(null);
           setPlaying(false);
           return;
         }
@@ -151,12 +180,14 @@ export function MatchViewer({
     };
     raf = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(raf);
-  }, [playing, speed, status, render]);
+  }, [playing, speed, status, render, goals]);
 
   const seek = (t: number) => {
     const src = srcRef.current;
     if (!src) return;
     const next = Math.max(0, Math.min(src.finalTick, Math.round(t)));
+    celebRef.current = null;
+    setCelebrating(null);
     tickRef.current = next;
     setTick(next);
     render(next);
@@ -175,7 +206,9 @@ export function MatchViewer({
   };
 
   const src = srcRef.current;
-  const goals = events.filter((e): e is Extract<OfficialEvent, { type: "goal" }> => e.type === "goal");
+  const goalSide = celebrating ? (celebrating.side === "home" ? home : away) : null;
+  const goalChip = celebrating ? chips[celebrating.side] : null;
+  const scorer = celebrating?.scorerId ? playerNames?.get(celebrating.scorerId) : undefined;
   const label = frame
     ? `Match replay at ${periodClock(frame)}: ${home.name} ${frame.score.home}, ${away.name} ${frame.score.away}`
     : "Match replay";
@@ -224,7 +257,10 @@ export function MatchViewer({
             >
               {home.shortName}
             </span>
-            <span className="parallelogram tabular -ml-2 bg-navy py-1.5 text-white">
+            <span
+              key={celebrating ? `goal-${celebrating.tick}` : "score"}
+              className={`parallelogram tabular -ml-2 py-1.5 ${celebrating ? "score-pop bg-yellow text-navy" : "bg-navy text-white"}`}
+            >
               {frame ? `${frame.score.home}–${frame.score.away}` : "–"}
             </span>
             <span className="parallelogram -ml-2 py-1.5" style={{ background: chips.away.bg, color: chips.away.fg }}>
@@ -234,6 +270,31 @@ export function MatchViewer({
               {shortClock(frame)}
             </span>
           </div>
+          {celebrating && goalSide && goalChip && (
+            <div
+              aria-hidden
+              className="pointer-events-none absolute inset-0 flex items-center justify-center"
+              data-testid="goal-banner"
+            >
+              <div className="goal-banner flex flex-col items-center gap-1 drop-shadow-[0_6px_0_rgb(27_31_73/0.85)] sm:gap-2">
+                <span
+                  className="parallelogram px-6 py-1 font-display text-5xl font-extrabold uppercase italic leading-none sm:px-10 sm:text-8xl"
+                  style={{ background: goalChip.bg, color: goalChip.fg }}
+                >
+                  {celebrating.ownGoal ? "Own goal!" : "Goal!"}
+                </span>
+                <span className="parallelogram bg-navy px-4 py-1 font-semi text-sm font-bold uppercase italic text-white sm:text-xl">
+                  {[
+                    scorer && `${scorer}${celebrating.ownGoal ? " (og)" : ""}`,
+                    goalSide.shortName,
+                    formatClock(celebrating.period, celebrating.clockSec),
+                  ]
+                    .filter(Boolean)
+                    .join(" · ")}
+                </span>
+              </div>
+            </div>
+          )}
           {status === "loading" && (
             <div
               role="status"
@@ -248,6 +309,11 @@ export function MatchViewer({
             </div>
           )}
         </div>
+        <p className="sr-only" aria-live="polite">
+          {celebrating && goalSide
+            ? `${celebrating.ownGoal ? "Own goal" : "Goal"} for ${goalSide.name}${scorer ? `, ${scorer}` : ""}. ${home.name} ${celebrating.score.home}, ${away.name} ${celebrating.score.away}.`
+            : ""}
+        </p>
         <div
           className={`flex items-center gap-1 rounded-b-xl bg-navy px-2 py-1.5 sm:gap-3 sm:px-3 ${status !== "ready" ? "pointer-events-none opacity-60" : ""}`}
         >
