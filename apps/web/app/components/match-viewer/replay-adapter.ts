@@ -65,6 +65,8 @@ export class ReplaySource {
   readonly pitch: ReplayFile["config"]["pitch"];
   readonly playerRadius: number;
   readonly engineVersion: string;
+  /** Ticks the engine leaves the ball in the net after a goal (undefined if the replay doesn't record it). */
+  readonly goalPauseTicks: number | undefined;
 
   constructor(readonly replay: ReplayFile) {
     assertSupported(replay);
@@ -74,6 +76,7 @@ export class ReplaySource {
     this.pitch = replay.config.pitch;
     this.playerRadius = replay.config.player.radius;
     this.engineVersion = replay.engineVersion;
+    this.goalPauseTicks = replay.config.match?.goalCelebrationTicks;
   }
 
   get tick() {
