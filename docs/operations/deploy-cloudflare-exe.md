@@ -66,7 +66,7 @@ exe.dev can serve a custom domain itself (a CNAME to `<vm>.exe.xyz` plus `ssh ex
   | `DEPLOY_SSH_KEY` | The private half of the VM-scoped deploy key (`deploy_key`) |
   | `DEPLOY_KNOWN_HOSTS` | The `ssh-keygen -F vm.exe.xyz` line from step 5 |
 
-- **Deploy workflow.** `.github/workflows/deploy.yml` builds and pushes both images after CI passes on `main`. It copies `compose.yml`, `deploy.sh` and `backup.sh` to `~/autosoccer` on the VM over SSH, then runs `./deploy.sh <sha>`. It can also be started by hand, with an optional commit.
+- **Deploy workflow.** Every push to `main` runs CI, and once validation passes its `deploy` job calls `.github/workflows/deploy.yml`, which builds and pushes both images. It copies `compose.yml`, `deploy.sh` and `backup.sh` to `~/autosoccer` on the VM over SSH, then runs `./deploy.sh <sha>`. It can also be started by hand, with an optional commit.
 
 ## Deploying
 ```sh
