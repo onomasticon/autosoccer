@@ -1,13 +1,13 @@
 import { gzipSync } from "node:zlib";
 import { MatchRequest, type MatchResult, type TeamMatchStats } from "@autosoccer/contracts";
 import { runSeriesMatch } from "@autosoccer/match-runner";
-import { type ConfigOverrides, makeConfig, SEVEN_A_SIDE } from "@autosoccer/sim-core";
+import { BALL_CONTROL, type ConfigOverrides, ELEVEN_A_SIDE, makeConfig, SEVEN_A_SIDE } from "@autosoccer/sim-core";
 import { canonicalJson, sha256 } from "./canonical.ts";
 import { controllerSource, type ParamsResolver } from "./controllers/index.ts";
 import { officialEvents } from "./events.ts";
 import type { ReplayStore } from "./replay-store.ts";
 import { resolveTactics } from "./tactics.ts";
-import { SIM_COMMIT, SIM_VERSION, VERSIONS } from "./version.ts";
+import { isSupportedSimPin, VERSIONS } from "./version.ts";
 
 export class SimVersionMismatchError extends Error {}
 
@@ -39,12 +39,16 @@ const roundStats = (s: TeamMatchStats): TeamMatchStats =>
  */
 export async function runMatch(input: MatchRequest, opts: RunMatchOptions): Promise<RunMatchOutput> {
   const request = MatchRequest.parse(input);
-  if (request.simVersion !== SIM_VERSION && request.simVersion !== SIM_COMMIT) {
-    throw new SimVersionMismatchError(`request pins sim ${request.simVersion}, adapter is built for ${SIM_VERSION}`);
+  if (!isSupportedSimPin(request)) {
+    throw new SimVersionMismatchError(
+      `request pins sim ${request.simVersion}${request.config.ballControl ? " with ball control" : ""}, adapter is built for ${VERSIONS.simCommit.slice(0, 7)}`,
+    );
   }
   const size = request.config.playersPerTeam ?? 5;
+  const control = request.config.ballControl === true;
   const config: ConfigOverrides = {
-    ...(size === 7 ? SEVEN_A_SIDE : {}),
+    ...(size === 11 ? ELEVEN_A_SIDE : size === 7 ? SEVEN_A_SIDE : {}),
+    ...(control ? BALL_CONTROL : {}),
     ...(request.config.halfDurationSec ? { halfDurationSec: request.config.halfDurationSec } : {}),
   };
   const simConfig = makeConfig(config);
@@ -53,11 +57,11 @@ export async function runMatch(input: MatchRequest, opts: RunMatchOptions): Prom
   const { summary, replay } = await runSeriesMatch(request.seed, {
     blue: {
       label: label(request.home, "home"),
-      source: controllerSource(request.home.deployment, opts.resolveParams ?? resolveTactics, size),
+      source: controllerSource(request.home.deployment, opts.resolveParams ?? resolveTactics, size, control),
     },
     red: {
       label: label(request.away, "away"),
-      source: controllerSource(request.away.deployment, opts.resolveParams ?? resolveTactics, size),
+      source: controllerSource(request.away.deployment, opts.resolveParams ?? resolveTactics, size, control),
     },
     config,
     replayEvery: 1,

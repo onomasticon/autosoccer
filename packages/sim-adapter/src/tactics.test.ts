@@ -49,7 +49,7 @@ describe("tactics/1 → controller mapping", () => {
     for (const c of allConfigs()) {
       const size = formationTeamSize(c.formation);
       const p = tacticalParams(c, size);
-      const [length, width] = size === 7 ? [60, 38] : [50, 32];
+      const [length, width] = size === 11 ? [74, 48] : size === 7 ? [60, 38] : [50, 32];
       expect(Object.keys(p.slots)).toHaveLength(size - 1);
       for (const s of Object.values(p.slots)) {
         expect(s.depth).toBeGreaterThan(0);
@@ -58,7 +58,7 @@ describe("tactics/1 → controller mapping", () => {
       }
       n++;
     }
-    expect(n).toBe(10 * 3 ** 7 * 2);
+    expect(n).toBe(15 * 3 ** 7 * 2);
   });
 
   it("is deterministic: equal configs render byte-identical controllers, different ones differ", () => {

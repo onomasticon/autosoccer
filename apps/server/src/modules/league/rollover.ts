@@ -10,13 +10,14 @@
 import { createHash } from "node:crypto";
 import type { TeamSize } from "@autosoccer/contracts";
 import type { Db } from "@autosoccer/db";
+import { SIM_COMMIT, SIM_VERSION } from "@autosoccer/sim-adapter";
 import type { Logger } from "../../log.ts";
 import { seedManagers } from "../agents/service.ts";
 import { seedJournalists } from "../editorial/service.ts";
-import { createSeason } from "./service.ts";
+import { createSeason, syncSquads } from "./service.ts";
 
 /** The league's format for new seasons. */
-export const LEAGUE_TEAM_SIZE: TeamSize = 7;
+export const LEAGUE_TEAM_SIZE: TeamSize = 11;
 
 export interface RolloverOptions {
   managerModel: string;
@@ -79,6 +80,8 @@ export async function rolloverSeason(db: Db, opts: RolloverOptions): Promise<str
   const now = opts.now ?? new Date();
   const startsAt = new Date(Math.ceil((now.getTime() + minutes * 60_000) / 60_000) * 60_000);
   const slug = `season-${n + 1}`;
+  const added = await syncSquads(db);
+  if (added) opts.log?.info("squads grew for the new format", { players: added, playersPerTeam: LEAGUE_TEAM_SIZE });
   const { seasonId, created } = await createSeason(db, {
     slug,
     name: `Season ${n + 1}`,
@@ -95,4 +98,47 @@ export async function rolloverSeason(db: Db, opts: RolloverOptions): Promise<str
   if (created)
     opts.log?.info("season rolled over", { from: last.slug, to: slug, startsAt: startsAt.toISOString(), minutes });
   return slug;
+}
+
+/**
+ * Brings a season that hasn't kicked off yet up to the current format and simulator: rollover
+ * creates the next season as soon as one ends, pinned to whatever sim was running, so without
+ * this an upgrade deployed between seasons would wait a whole season to take effect.
+ *
+ * Only touches the newest season, and only while nothing has happened in it: every fixture still
+ * scheduled, no match rows, no manager or journalist runs and no queued jobs for its fixtures.
+ * Then it re-pins the sim, sets the team size, grows squads, and replaces the opening setups.
+ * Returns the season's slug when it changed something.
+ */
+export async function refreshUpcomingSeason(
+  db: Db,
+  opts: Pick<RolloverOptions, "managerModel" | "log">,
+): Promise<string | null> {
+  const [s] = await db<{ id: string; slug: string; status: string; sim_version: string; players_per_team: number }[]>`
+    select id, slug, status, sim_version, players_per_team from seasons order by created_at desc limit 1`;
+  if (!s || (s.status !== "scheduled" && s.status !== "active")) return null;
+  const current = s.sim_version === SIM_VERSION || s.sim_version === SIM_COMMIT;
+  if (current && s.players_per_team === LEAGUE_TEAM_SIZE) return null;
+  const [started] = await db`
+    select 1 from fixtures f where f.season_id = ${s.id} and (
+      f.status <> 'scheduled'
+      or exists (select 1 from matches m where m.fixture_id = f.id)
+      or exists (select 1 from jobs j where j.payload->>'fixtureId' = f.id::text))
+    union all select 1 from agent_runs where season_id = ${s.id}
+    limit 1`;
+  if (started) return null;
+  await db.begin(async (tx) => {
+    await tx`update seasons set sim_version = ${SIM_VERSION}, players_per_team = ${LEAGUE_TEAM_SIZE} where id = ${s.id}`;
+    await tx`delete from tactical_revisions where season_id = ${s.id}`;
+  });
+  const added = await syncSquads(db);
+  await seedManagers(db, s.id, opts.managerModel);
+  opts.log?.info("upcoming season moved to the current format", {
+    season: s.slug,
+    simVersion: SIM_VERSION,
+    from: { simVersion: s.sim_version, playersPerTeam: s.players_per_team },
+    playersPerTeam: LEAGUE_TEAM_SIZE,
+    playersAdded: added,
+  });
+  return s.slug;
 }

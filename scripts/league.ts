@@ -1,3 +1,4 @@
+import { toTeamSize } from "@autosoccer/contracts";
 /**
  * League operations against the configured DATABASE_URL.
  *   bun run league seed [--season season-1] [--seed 20261109] [--budget 1.00] [--editorial-budget 3.00] [--cadence demo|weekly|twice-weekly] [--interval 60] [--start ISO] [--players 7]
@@ -61,7 +62,7 @@ try {
       roundIntervalMinutes: Number(opt("interval", "60")),
       cadence: parseCadence(opt("cadence", "demo"), Number(opt("interval", "60"))),
       startsAt: process.argv.includes("--start") ? new Date(opt("start", "")) : undefined,
-      playersPerTeam: opt("players", "7") === "5" ? 5 : 7,
+      playersPerTeam: toTeamSize(Number(opt("players", "11"))),
     });
     await seedManagers(db, seasonId, config.MANAGER_MODEL);
     await seedJournalists(db, config.EDITORIAL_MODEL);

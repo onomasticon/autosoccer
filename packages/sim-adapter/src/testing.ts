@@ -5,11 +5,12 @@ const uuid = (n: number) => `00000000-0000-4000-8000-${n.toString(16).padStart(1
 const POS = {
   5: ["GK", "DF", "DF", "MF", "FW"],
   7: ["GK", "DF", "DF", "MF", "MF", "MF", "FW"],
+  11: ["GK", "DF", "DF", "DF", "DF", "MF", "MF", "MF", "MF", "FW", "FW"],
 } as const;
 
-/** A valid MatchRequest with baseline tactics, for tests and demos (7-a-side when config.playersPerTeam is 7). */
+/** A valid MatchRequest with baseline tactics, for tests and demos (team size from config.playersPerTeam). */
 export function sampleRequest(over: Partial<MatchRequest> = {}): MatchRequest {
-  const size = over.config?.playersPerTeam === 7 ? 7 : 5;
+  const size = over.config?.playersPerTeam ?? 5;
   const side = (base: number, name: string) => ({
     teamId: uuid(base),
     name,

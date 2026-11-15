@@ -5,20 +5,24 @@
  *   bun scripts/match-probe.ts [--seed 1] [--players 7] [--home red-rock-rovers] [--away harbour-city]
  */
 import { gunzipSync } from "node:zlib";
-import { defaultTactics, type TeamSize } from "@autosoccer/contracts";
+import { defaultTactics, type TeamSize, toTeamSize } from "@autosoccer/contracts";
 import { MemoryReplayStore, runMatch } from "@autosoccer/sim-adapter";
 import { openingTactics, SEED_MANAGERS } from "../apps/server/src/modules/agents/managers-seed.ts";
 import { sampleRequest } from "../packages/sim-adapter/src/testing.ts";
 
 const args = process.argv.slice(2);
 const opt = (n: string, d: string) => (args.includes(`--${n}`) ? args[args.indexOf(`--${n}`) + 1]! : d);
-const size: TeamSize = opt("players", "7") === "5" ? 5 : 7;
+const size: TeamSize = toTeamSize(Number(opt("players", "11")));
+const ballControl = !process.argv.includes("--no-control");
 const tactics = (slug: string) => {
   const m = SEED_MANAGERS.find((x) => x.teamSlug === slug);
   return m ? openingTactics(m, size) : defaultTactics(size);
 };
 const dep = (slug: string) => ({ kind: "tactical" as const, schemaVersion: "tactics/1", config: tactics(slug) });
-const req = sampleRequest({ seed: Number(opt("seed", "1")), config: size === 7 ? { playersPerTeam: 7 } : {} });
+const req = sampleRequest({
+  seed: Number(opt("seed", "1")),
+  config: { ...(size !== 5 ? { playersPerTeam: size } : {}), ...(ballControl ? { ballControl } : {}) },
+});
 req.home.deployment = dep(opt("home", "red-rock-rovers"));
 req.away.deployment = dep(opt("away", "harbour-city"));
 const store = new MemoryReplayStore();

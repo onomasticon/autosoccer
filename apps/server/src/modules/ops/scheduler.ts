@@ -10,7 +10,7 @@
 import type { Db } from "@autosoccer/db";
 import type { Logger } from "../../log.ts";
 import { managerRoundHook } from "../agents/service.ts";
-import { rolloverSeason } from "../league/rollover.ts";
+import { refreshUpcomingSeason, rolloverSeason } from "../league/rollover.ts";
 import { type AdvanceResult, advanceSeason } from "../league/service.ts";
 
 const LEADER_LOCK = 727275;
@@ -36,6 +36,7 @@ export async function schedulerTick(db: Db, opts: TickOptions): Promise<TickResu
     const [lock] = await conn<{ ok: boolean }[]>`select pg_try_advisory_lock(${LEADER_LOCK}) as ok`;
     if (!lock!.ok) return { leader: false, seasons: [] };
     try {
+      if (opts.rollover) await refreshUpcomingSeason(db, { managerModel: opts.rollover.managerModel, log: opts.log });
       const seasons = await db<{ id: string; slug: string }[]>`
         select id, slug from seasons where status in ('scheduled', 'active') order by starts_at nulls last, created_at`;
       const hook = managerRoundHook(db);

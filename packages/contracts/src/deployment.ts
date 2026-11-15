@@ -22,11 +22,11 @@ export const ScriptedDeployment = z.object({
 export const ControllerDeployment = z.discriminatedUnion("kind", [TacticalDeployment, ScriptedDeployment]);
 export type ControllerDeployment = z.infer<typeof ControllerDeployment>;
 
-/** Five (5-a-side) or seven (7-a-side) starters, slot 1 is the goalkeeper; remaining squad members are reserves. */
+/** Five, seven or eleven starters (the season's format), slot 1 is the goalkeeper; the rest of the squad are reserves. */
 export const Lineup = z
   .object({
-    starters: z.array(Id).min(5).max(7),
-    reserves: z.array(Id).max(6),
+    starters: z.array(Id).min(5).max(11),
+    reserves: z.array(Id).max(15),
   })
   .refine((l) => new Set([...l.starters, ...l.reserves]).size === l.starters.length + l.reserves.length, {
     message: "a player can appear only once in a lineup",

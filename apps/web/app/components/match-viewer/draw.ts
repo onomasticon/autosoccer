@@ -88,7 +88,10 @@ export function drawFrame(ctx: CanvasRenderingContext2D, f: Frame, o: DrawOption
     ctx.strokeRect(X(gx0), Y(-pitch.goalWidth / 2), pitch.goalDepth * s, pitch.goalWidth * s);
   }
   // players
-  const r = Math.max(5, o.playerRadius * s * 1.15);
+  // Bigger pitches are drawn smaller, so players and ball are drawn relatively larger to stay
+  // readable (display only: 1 on the 50 m 5-a-side pitch, about 1.5 on the 74 m 11-a-side one).
+  const grow = Math.max(1, pitch.length / 50);
+  const r = Math.max(5, o.playerRadius * s * 1.15 * grow);
   for (const p of f.players) {
     ctx.globalAlpha = p.stunned ? 0.45 : 1;
     ctx.beginPath();
@@ -115,7 +118,7 @@ export function drawFrame(ctx: CanvasRenderingContext2D, f: Frame, o: DrawOption
     }
   }
   // ball: white with a dark centre panel, like a classic match ball
-  const br = Math.max(4, 0.26 * s);
+  const br = Math.max(4, 0.26 * s * grow);
   const bx = X(f.ball.x);
   const by = Y(f.ball.y);
   ctx.beginPath();

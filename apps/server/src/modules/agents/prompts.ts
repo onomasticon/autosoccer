@@ -1,7 +1,7 @@
 import { describeTactics, TacticalConfigV1, type TeamSize, tacticsSchemaFor } from "@autosoccer/contracts";
 import { z } from "zod";
 
-const NUMBER_WORDS: Record<TeamSize, string> = { 5: "five", 7: "seven" };
+const NUMBER_WORDS: Record<number, string> = { 4: "four", 5: "five", 6: "six", 7: "seven", 10: "ten", 11: "eleven" };
 
 /** What a manager decides before a match, for a team size. Starters are shirt numbers in slot order. */
 export function preMatchDecision(size: TeamSize) {
@@ -85,7 +85,7 @@ Only use the facts provided. Do not invent results, statistics, injuries or quot
 
 Tactical options (tactics/1, ${size}-a-side):
 ${options(size)}
-Formations list the ${NUMBER_WORDS[(size - 1) as TeamSize] ?? size - 1} outfield players back to front. Slot 1 is always the goalkeeper.`;
+Formations list the ${NUMBER_WORDS[size - 1] ?? size - 1} outfield players back to front. Slot 1 is always the goalkeeper.`;
 }
 
 const fmtMatch = (m: MatchSummaryFact) =>

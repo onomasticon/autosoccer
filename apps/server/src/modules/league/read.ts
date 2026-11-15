@@ -1,14 +1,15 @@
 /** Read-model queries shared by the league API routes (and later the editorial facts). */
-import type {
-  FixtureView,
-  RecordsResponse,
-  ScorerRow,
-  Season,
-  SeasonSummary,
-  StandingRow,
-  Team,
-  TeamSize,
-  TitleRace,
+import {
+  type FixtureView,
+  type RecordsResponse,
+  type ScorerRow,
+  type Season,
+  type SeasonSummary,
+  type StandingRow,
+  type Team,
+  type TeamSize,
+  type TitleRace,
+  toTeamSize,
 } from "@autosoccer/contracts";
 import type { Db } from "@autosoccer/db";
 import { type FixtureRow, type TeamRow, toFixtureView, toTeam } from "../mappers.ts";
@@ -34,7 +35,7 @@ export const toSeason = (r: SeasonRow): Season => ({
   status: r.status,
   seed: r.seed,
   simVersion: r.sim_version,
-  playersPerTeam: r.players_per_team === 7 ? 7 : 5,
+  playersPerTeam: toTeamSize(r.players_per_team),
   budgetPerTeamMicroUsd: r.budget_per_team_micro_usd,
   startsAt: r.starts_at?.toISOString() ?? null,
   completedAt: r.completed_at?.toISOString() ?? null,
@@ -43,7 +44,7 @@ export const toSeason = (r: SeasonRow): Season => ({
 /** Players per side in a season (5 for every season before 7-a-side). */
 export async function seasonTeamSize(db: Db, seasonId: string): Promise<TeamSize> {
   const [s] = await db<{ players_per_team: number }[]>`select players_per_team from seasons where id = ${seasonId}`;
-  return s?.players_per_team === 7 ? 7 : 5;
+  return toTeamSize(s?.players_per_team);
 }
 
 /** Top scorers for a season, or across all seasons (seasonId null). Own goals don't count. */

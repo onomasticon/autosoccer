@@ -97,7 +97,8 @@ For each round, at its kickoff time, the scheduler:
 1. Bump the `vendor/autosoccer-sim` submodule and `SIM_COMMIT` in `packages/sim-adapter/src/version.ts`.
    The test suite enforces that they match.
 2. Run `bun run test` and `bun run sim:check`.
-3. Only seasons created after the upgrade use the new version, because seasons pin `sim_version`.
+3. Seasons pin `sim_version`. A season already under way keeps its pin and finishes on it, but only if the new build lists the old commit in `COMPATIBLE_SIM_COMMITS` (`packages/sim-adapter/src/version.ts`). List a commit there only when requests pinned to it still run identically, and pin that with tests. Otherwise deploy between seasons.
+4. The next season moves to the new sim and the league format (`LEAGUE_TEAM_SIZE`) automatically, as long as it hasn't kicked off (no fixture played or queued and no manager runs). Its opening setups are reseeded, and club squads grow to the format's size from the seed data.
 
 ## Verify a release
 ```sh

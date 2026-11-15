@@ -1,10 +1,18 @@
-import type { ControllerDeployment, Lineup, MatchRequest, MatchResult, TeamSize } from "@autosoccer/contracts";
+import {
+  type ControllerDeployment,
+  type Lineup,
+  type MatchRequest,
+  type MatchResult,
+  type TeamSize,
+  toTeamSize,
+} from "@autosoccer/contracts";
 import type { Db } from "@autosoccer/db";
 import {
   type ParamsResolver,
   type ReplayStore,
   requestHash,
   runMatch,
+  SIM_COMMIT,
   SIM_VERSION,
   VERSIONS,
 } from "@autosoccer/sim-adapter";
@@ -65,7 +73,10 @@ export async function buildMatchRequest(deps: MatchDeps, fixtureId: string): Pro
     select f.season_id, f.home_team_id, f.away_team_id, f.seed, s.sim_version, s.players_per_team
     from fixtures f join seasons s on s.id = f.season_id where f.id = ${fixtureId}`;
   if (!f) throw new PermanentJobError(`fixture ${fixtureId} not found`);
-  const size: TeamSize = f.players_per_team === 7 ? 7 : 5;
+  const size: TeamSize = toTeamSize(f.players_per_team);
+  // Seasons created on this simulator play with ball control; a season pinned to an earlier
+  // (compatible) sim finishes exactly as it started.
+  const ballControl = f.sim_version === SIM_VERSION || f.sim_version === SIM_COMMIT;
   const entry = async (teamId: string) => {
     const [team] = await db<{ name: string }[]>`select name from teams where id = ${teamId}`;
     const sel = await teamSelection(db, f.season_id, teamId, size);
@@ -88,7 +99,8 @@ export async function buildMatchRequest(deps: MatchDeps, fixtureId: string): Pro
     away: await entry(f.away_team_id),
     config: {
       ...(deps.halfDurationSec ? { halfDurationSec: deps.halfDurationSec } : {}),
-      ...(size === 7 ? { playersPerTeam: 7 as const } : {}),
+      ...(size !== 5 ? { playersPerTeam: size } : {}),
+      ...(ballControl ? { ballControl: true } : {}),
     },
   };
 }

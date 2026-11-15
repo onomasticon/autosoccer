@@ -16,11 +16,11 @@ export type SimVersionInfo = z.infer<typeof SimVersionInfo>;
 export const MatchTeamEntry = z.object({
   teamId: Id,
   name: z.string(),
-  /** Starters in simulator slot order, goalkeeper first: five in 5-a-side, seven in 7-a-side (config.playersPerTeam). */
+  /** Starters in simulator slot order, goalkeeper first: config.playersPerTeam of them (5, 7 or 11). */
   starters: z
     .array(z.object({ playerId: Id, name: z.string(), shirtNumber: z.number().int(), position: Position }))
     .min(5)
-    .max(7),
+    .max(11),
   tacticalRevisionId: Id.nullable(),
   deployment: ControllerDeployment,
 });
@@ -39,7 +39,12 @@ export const MatchRequest = z
       .object({
         halfDurationSec: z.number().positive().optional(),
         /** Players per side; absent means 5 (every request before 7-a-side). */
-        playersPerTeam: z.union([z.literal(5), z.literal(7)]).optional(),
+        playersPerTeam: z.union([z.literal(5), z.literal(7), z.literal(11)]).optional(),
+        /**
+         * Ball control (sim engine 0.5 and controller 3.0): players settle loose balls, dribble
+         * with close control and shield. Absent on every request before it, which replay as before.
+         */
+        ballControl: z.boolean().optional(),
       })
       .default({}),
   })

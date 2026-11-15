@@ -19,9 +19,20 @@ const SEVEN_A_SIDE_SHAPE: Partial<Record<Formation, Formation>> = {
   "3-1": "3-2-1",
 };
 
+/** …and to the 11-a-side shape with the same intent. */
+const ELEVEN_A_SIDE_SHAPE: Partial<Record<Formation, Formation>> = {
+  "2-1-1": "4-3-3",
+  "1-2-1": "4-2-3-1",
+  "2-2": "4-4-2",
+  "1-1-2": "3-5-2",
+  "3-1": "5-3-2",
+};
+
 /** A manager's opening setup for a season's team size. */
 export function openingTactics(m: SeedManager, size: TeamSize): TacticalConfigV1 {
   if (size === 5) return m.openingTactics;
+  if (size === 11)
+    return { ...m.openingTactics, formation: ELEVEN_A_SIDE_SHAPE[m.openingTactics.formation] ?? "4-4-2" };
   return { ...m.openingTactics, formation: SEVEN_A_SIDE_SHAPE[m.openingTactics.formation] ?? "2-3-1" };
 }
 
