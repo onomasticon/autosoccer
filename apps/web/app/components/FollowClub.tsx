@@ -2,11 +2,12 @@
  * Follow a club (stored on this device only) and the homepage "Your Club" module.
  * Server render and hydration show the neutral state; the followed club appears after hydration.
  */
-import type { ArticleCardView, FixtureView, ManagerStory, Team } from "@autosoccer/contracts";
-import { useId, useState } from "react";
+import type { ArticleCardView, FixtureStory, FixtureView, ManagerStory, Team } from "@autosoccer/contracts";
+import { useEffect, useId, useState } from "react";
 import { Link } from "react-router";
 import { useFollowedClub } from "../lib/follow";
-import { formatDate } from "../lib/format";
+import { type CatchUp, catchUp, nextSeen, readSeen, resultLine, untilKickoff, writeSeen } from "../lib/lastSeen";
+import { kickoffUtc, matchdayHref, nextMatchStatus } from "../lib/matchday";
 import { ArticleCard } from "./ArticleCard";
 import { DECISION_TEXT, ProvenanceChip } from "./Dugout";
 import { FixtureCard } from "./MatchScoreCard";
@@ -88,17 +89,32 @@ export function YourClub({
   fixtures,
   stories,
   articles,
+  season = "",
+  nextStories = {},
 }: {
   teams: Team[];
   fixtures: FixtureView[];
   stories: ManagerStory[] | null;
   articles: ArticleCardView[];
+  /** Current season slug (for "since you last checked"). */
+  season?: string;
+  /** Fixture stories for the next round, by fixture id. */
+  nextStories?: Record<string, FixtureStory>;
 }) {
   const { slug, known, follow, unfollow } = useFollowedClub();
   const [picking, setPicking] = useState(false);
   const headingId = useId();
+  const team = known ? teams.find((t) => t.slug === slug) : undefined;
+  // Catch-up: compare with what this browser saw last time, then remember this visit.
+  const [update, setUpdate] = useState<CatchUp | null>(null);
+  const [now, setNow] = useState<number | null>(null);
+  useEffect(() => {
+    if (!team || !season) return;
+    setUpdate(catchUp(readSeen(), season, team, fixtures));
+    writeSeen(nextSeen(season, team, fixtures));
+    setNow(Date.now());
+  }, [team, season, fixtures]);
   if (!known || !teams.length) return null;
-  const team = teams.find((t) => t.slug === slug);
   const pick = (s: string) => {
     follow(s);
     setPicking(false);
@@ -145,6 +161,12 @@ export function YourClub({
   const lastChapter = story && [...story.chapters].reverse().find((c) => c.status === "completed");
   const nextChapter = story?.chapters.find((c) => c.status === "upcoming");
   const related = articles.filter((a) => a.teamIds.includes(team.id)).slice(0, 2);
+  const nextStory = next ? (nextStories[next.id] ?? null) : null;
+  const status = next ? nextMatchStatus(next, nextStory) : null;
+  const stakes = (nextStory?.prematch.lines ?? [])
+    .filter((l) => l.kind !== "fixture" && l.kind !== "tactics")
+    .slice(0, 2);
+  const countdown = next && now !== null ? untilKickoff(next.scheduledAt, now) : null;
 
   return (
     <Panel
@@ -154,24 +176,83 @@ export function YourClub({
       action={{ to: `/teams/${team.slug}`, label: "Club page" }}
       bodyClassName="p-4"
     >
+      {update?.kind === "updates" && (
+        <div className="mb-4 rounded-xl bg-lavender/60 p-3 text-sm" data-testid="catch-up">
+          <p className="font-semibold">
+            Since your last visit: {update.fixtures.length} result{update.fixtures.length === 1 ? "" : "s"}
+          </p>
+          <ul className="mt-1 space-y-0.5">
+            {update.fixtures.slice(-3).map((f) => (
+              <li key={f.id}>
+                {resultLine(f, team.id)}.{" "}
+                <Link
+                  to={matchdayHref(f.id)}
+                  className="font-semibold text-violet-deep underline-offset-4 hover:underline"
+                >
+                  Reaction
+                </Link>
+              </li>
+            ))}
+          </ul>
+          {update.fixtures.length > 3 && (
+            <p className="text-xs text-muted-text">And {update.fixtures.length - 3} earlier: see the club page.</p>
+          )}
+        </div>
+      )}
+      {update?.kind === "new-season" && (
+        <p className="mb-4 rounded-xl bg-lavender/60 p-3 text-sm" data-testid="catch-up">
+          A new season has started since your last visit. {team.name} start again from zero.
+        </p>
+      )}
       <div className="grid gap-5 lg:grid-cols-3">
         <div className="space-y-2">
-          <h3 className="text-xs font-bold uppercase tracking-wider text-muted-text">Last result</h3>
-          {last ? <FixtureCard fixture={last} /> : <p className="text-sm text-muted-text">No matches played yet.</p>}
-          <h3 className="pt-2 text-xs font-bold uppercase tracking-wider text-muted-text">Next match</h3>
-          {next ? (
-            <>
+          <h3 className="text-xs font-bold uppercase tracking-wider text-muted-text">Next match</h3>
+          {next && status ? (
+            <div className="space-y-2" data-testid="next-match">
               <FixtureCard fixture={next} />
-              {next.scheduledAt && (
-                <p className="text-xs text-muted-text">
-                  Kick-off {formatDate(next.scheduledAt, { weekday: true, time: true })}
-                </p>
+              <p className="text-sm">
+                <span className="mr-2 rounded-md bg-ink px-2 py-0.5 text-xs font-bold uppercase tracking-wider text-white">
+                  {status.label}
+                </span>
+                <span className="text-muted-text">{status.detail}</span>
+              </p>
+              <p className="text-sm">
+                <span className="font-semibold">Kick-off:</span> {kickoffUtc(next.scheduledAt)}
+                {countdown && <span className="text-muted-text"> ({countdown})</span>}
+              </p>
+              {stakes.length > 0 && (
+                <ul className="space-y-1 text-sm">
+                  {stakes.map((l) => (
+                    <li key={l.text}>{l.text}</li>
+                  ))}
+                </ul>
               )}
-            </>
+              <Link
+                to={matchdayHref(next.id)}
+                className="inline-flex min-h-10 items-center rounded-lg bg-coral px-3 py-1.5 text-sm font-bold text-ink hover:brightness-95"
+              >
+                {next.status === "playing" ? "Follow the matchday" : "See the build-up"}{" "}
+                <span aria-hidden>&nbsp;→</span>
+              </Link>
+            </div>
           ) : (
             <p className="text-sm text-muted-text">
               {story?.seasonComplete ? "Season complete." : "No upcoming fixture scheduled."}
             </p>
+          )}
+          <h3 className="pt-2 text-xs font-bold uppercase tracking-wider text-muted-text">Last result</h3>
+          {last ? (
+            <>
+              <FixtureCard fixture={last} />
+              <Link
+                to={matchdayHref(last.id)}
+                className="text-sm font-semibold text-violet-deep underline-offset-4 hover:underline"
+              >
+                The reaction <span aria-hidden>→</span>
+              </Link>
+            </>
+          ) : (
+            <p className="text-sm text-muted-text">No matches played yet.</p>
           )}
         </div>
         <div className="space-y-2 text-sm">
@@ -212,8 +293,11 @@ export function YourClub({
               {story?.manager ? "Their first decisions and review appear after round 1." : "No AI manager on record."}
             </p>
           )}
-          <Link to={`/teams/${team.slug}#dugout`} className="inline-block font-semibold underline underline-offset-4">
-            The full dugout story <span aria-hidden>→</span>
+          <Link
+            to={`/teams/${team.slug}#manager-story`}
+            className="inline-block font-semibold underline underline-offset-4"
+          >
+            The manager's story <span aria-hidden>→</span>
           </Link>
         </div>
         <div className="space-y-2">

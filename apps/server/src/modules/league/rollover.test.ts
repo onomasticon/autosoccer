@@ -101,6 +101,23 @@ describe("season rollover", () => {
     ]);
   });
 
+  it("on a public calendar, the next season's rounds land on the cadence's slots (UTC), at least a day out", async () => {
+    await t.db`update seasons set status = 'completed', completed_at = now()`;
+    const now = new Date("2026-11-18T20:00:00Z"); // a Wednesday, just after the 19:00 slot
+    const slug = await rolloverSeason(t.db, { ...MODELS, roundMinutes: 240, cadence: "twice-weekly", now });
+    const kicks = await t.db<{ at: Date }[]>`
+      select distinct f.scheduled_at as at from fixtures f join seasons s on s.id = f.season_id
+      where s.slug = ${slug} order by 1`;
+    expect(kicks.map((k) => k.at.toISOString())).toEqual([
+      "2026-11-21T19:00:00.000Z", // the first slot at least a day after the season ended
+      "2026-11-25T19:00:00.000Z",
+      "2026-11-28T19:00:00.000Z",
+      "2026-12-02T19:00:00.000Z",
+      "2026-12-05T19:00:00.000Z",
+      "2026-12-09T19:00:00.000Z",
+    ]);
+  });
+
   it("moves a season that hasn't kicked off to the current format and sim, and leaves a started one alone", async () => {
     await t.db`update seasons set status = 'completed', completed_at = now()`;
     const slug = await rolloverSeason(t.db, { ...MODELS, now: new Date("2026-11-14T08:00:00Z") });

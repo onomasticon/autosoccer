@@ -28,7 +28,12 @@ export interface TickOptions {
   log?: Logger;
   now?: Date;
   /** When set, a completed league starts its next season (see league/rollover.ts). */
-  rollover?: { managerModel: string; editorialModel: string; roundMinutes?: number };
+  rollover?: {
+    managerModel: string;
+    editorialModel: string;
+    roundMinutes?: number;
+    cadence?: "interval" | "weekly" | "twice-weekly";
+  };
   /** Enqueue match previews for each season's next round (needs the editorial job handlers). */
   previews?: boolean;
 }

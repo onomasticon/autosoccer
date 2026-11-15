@@ -49,6 +49,7 @@ const scheduler =
                 managerModel: config.MANAGER_MODEL,
                 editorialModel: config.EDITORIAL_MODEL,
                 roundMinutes: config.SEASON_ROUND_MINUTES,
+                cadence: config.SEASON_CADENCE,
               }
             : undefined,
         log: log.child({ component: "scheduler" }),
