@@ -1,4 +1,5 @@
 import type { Frame } from "./replay-adapter";
+import { type Camera, FULL_VIEW, MARGIN, sprites } from "./view";
 
 export interface DrawOptions {
   pitch: {
@@ -12,9 +13,15 @@ export interface DrawOptions {
   };
   playerRadius: number;
   colors: { home: string; away: string; homeText: string; awayText: string };
+  /** Follow-ball framing (default: the whole pitch). */
+  camera?: Camera;
+  /** Ring the player on the ball (recorded carrier). Default on. */
+  carrier?: boolean;
+  /** Sim id of a player the viewer has picked out. */
+  selected?: string | null;
+  /** Sim id → real shirt number (from the lineup); without it, the simulator's slot number. */
+  shirts?: ReadonlyMap<string, number>;
 }
-
-const MARGIN = 2.5; // metres of run-off drawn around the pitch
 
 /** Pitch aspect (incl. run-off) for responsive sizing. */
 export const aspect = (p: DrawOptions["pitch"]) => (p.length + 2 * MARGIN) / (p.width + 2 * MARGIN);
@@ -26,9 +33,15 @@ export function drawFrame(ctx: CanvasRenderingContext2D, f: Frame, o: DrawOption
   const X = (x: number) => (x + pitch.length / 2 + MARGIN) * s;
   const Y = (y: number) => (y + pitch.width / 2 + MARGIN) * s;
   ctx.clearRect(0, 0, cssW, cssH);
-  // run-off and stripes
   ctx.fillStyle = "#2f7d33";
   ctx.fillRect(0, 0, cssW, cssH);
+  // Camera: zoom about the view centre onto the camera's pitch point (identity for the full view).
+  const cam = o.camera ?? FULL_VIEW;
+  ctx.save();
+  ctx.translate(cssW / 2, cssH / 2);
+  ctx.scale(cam.zoom, cam.zoom);
+  ctx.translate(-X(cam.cx), -Y(cam.cy));
+  // run-off and stripes
   for (let i = 0; i < pitch.length / 5; i++) {
     ctx.fillStyle = i % 2 ? "#3f9a3f" : "#3a9139";
     ctx.fillRect(X(-pitch.length / 2 + i * 5), Y(-pitch.width / 2), 5 * s, pitch.width * s);
@@ -87,11 +100,32 @@ export function drawFrame(ctx: CanvasRenderingContext2D, f: Frame, o: DrawOption
     ctx.lineWidth = Math.max(2, s * 0.16);
     ctx.strokeRect(X(gx0), Y(-pitch.goalWidth / 2), pitch.goalDepth * s, pitch.goalWidth * s);
   }
-  // players
-  // Bigger pitches are drawn smaller, so players and ball are drawn relatively larger to stay
-  // readable (display only: 1 on the 50 m 5-a-side pitch, about 1.5 on the 74 m 11-a-side one).
-  const grow = Math.max(1, pitch.length / 50);
-  const r = Math.max(5, o.playerRadius * s * 1.15 * grow);
+  // players (sizes: see sprites() in view.ts)
+  // Sizes are worked out on screen (after zoom), then drawn in the zoomed space.
+  const px = 1 / cam.zoom; // one CSS pixel, in the zoomed drawing space
+  const size = sprites(pitch, o.playerRadius, cssW, cam.zoom);
+  const r = size.player * px;
+  // The player on the ball: a yellow ring under them, so the carrier reads at a glance.
+  const carrier = o.carrier === false ? null : f.players.find((p) => p.id === f.carrier);
+  if (carrier) {
+    ctx.beginPath();
+    ctx.arc(X(carrier.x), Y(carrier.y), r + 4 * px, 0, Math.PI * 2);
+    ctx.fillStyle = "rgba(255,203,69,0.45)";
+    ctx.fill();
+    ctx.lineWidth = 2.5 * px;
+    ctx.strokeStyle = "#ffcb45";
+    ctx.stroke();
+  }
+  const selected = o.selected ? f.players.find((p) => p.id === o.selected) : undefined;
+  if (selected) {
+    ctx.beginPath();
+    ctx.arc(X(selected.x), Y(selected.y), r + 7 * px, 0, Math.PI * 2);
+    ctx.setLineDash([4 * px, 3 * px]);
+    ctx.lineWidth = 2.5 * px;
+    ctx.strokeStyle = "#ffffff";
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
   for (const p of f.players) {
     ctx.globalAlpha = p.stunned ? 0.45 : 1;
     ctx.beginPath();
@@ -109,18 +143,23 @@ export function drawFrame(ctx: CanvasRenderingContext2D, f: Frame, o: DrawOption
     ctx.lineWidth = 2;
     ctx.stroke();
     ctx.globalAlpha = 1;
-    if (r >= 8) {
+    if (size.numbers) {
       ctx.fillStyle = p.side === "home" ? o.colors.homeText : o.colors.awayText;
       ctx.font = `700 ${Math.round(r * 1.05)}px Inter, sans-serif`;
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
-      ctx.fillText(String(p.number), X(p.x), Y(p.y) + 0.5);
+      ctx.fillText(String(o.shirts?.get(p.id) ?? p.number), X(p.x), Y(p.y) + 0.5 * px);
     }
   }
   // ball: white with a dark centre panel, like a classic match ball
-  const br = Math.max(4, 0.26 * s * grow);
+  const br = size.ball * px;
   const bx = X(f.ball.x);
   const by = Y(f.ball.y);
+  // A dark halo keeps the ball visible against white or pale shirts and the pitch lines.
+  ctx.beginPath();
+  ctx.arc(bx, by, br + 2 * px, 0, Math.PI * 2);
+  ctx.fillStyle = "rgba(32,32,59,0.5)";
+  ctx.fill();
   ctx.beginPath();
   ctx.arc(bx, by, br, 0, Math.PI * 2);
   ctx.fillStyle = "#ffffff";
@@ -131,12 +170,13 @@ export function drawFrame(ctx: CanvasRenderingContext2D, f: Frame, o: DrawOption
   ctx.beginPath();
   for (let i = 0; i < 5; i++) {
     const a = -Math.PI / 2 + (i * 2 * Math.PI) / 5;
-    const px = bx + Math.cos(a) * br * 0.42;
-    const py = by + Math.sin(a) * br * 0.42;
-    if (i === 0) ctx.moveTo(px, py);
-    else ctx.lineTo(px, py);
+    const qx = bx + Math.cos(a) * br * 0.42;
+    const qy = by + Math.sin(a) * br * 0.42;
+    if (i === 0) ctx.moveTo(qx, qy);
+    else ctx.lineTo(qx, qy);
   }
   ctx.closePath();
   ctx.fillStyle = "#20203b";
   ctx.fill();
+  ctx.restore();
 }

@@ -297,6 +297,7 @@ export default function MatchCentre({ loaderData }: Route.ComponentProps) {
               away={fixture.away}
               events={events}
               playerNames={names}
+              lineups={lineups}
             />
           ) : (
             <EmptyState title={done ? "Replay unavailable" : "Not played yet"}>
