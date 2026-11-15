@@ -26,6 +26,11 @@ export interface Frame {
   clockSec: number;
   score: { home: number; away: number };
   ball: { x: number; y: number; held: boolean };
+  /**
+   * The player on the ball, from recorded state only: the keeper holding it, else the last player
+   * to touch it while it's still at their feet (within CARRY_RANGE metres). Null for a loose ball.
+   */
+  carrier: string | null;
   players: Array<{
     id: string;
     side: "home" | "away";
@@ -38,6 +43,15 @@ export interface Frame {
   }>;
 }
 
+/** How close (m) the last toucher must be for the ball to count as at their feet. */
+export const CARRY_RANGE = 1.6;
+
+function carrierOf(s: WorldState): string | null {
+  if (s.ball.heldBy) return s.ball.heldBy;
+  const p = s.ball.lastTouch ? s.players.find((x) => x.id === s.ball.lastTouch) : undefined;
+  return p && Math.hypot(p.x - s.ball.x, p.y - s.ball.y) <= CARRY_RANGE ? p.id : null;
+}
+
 export function toFrame(s: WorldState, tickRate: number): Frame {
   return {
     tick: s.tick,
@@ -45,6 +59,7 @@ export function toFrame(s: WorldState, tickRate: number): Frame {
     clockSec: s.match.halfTicks / tickRate,
     score: { home: s.match.score.blue, away: s.match.score.red },
     ball: { x: s.ball.x, y: s.ball.y, held: s.ball.heldBy !== null },
+    carrier: carrierOf(s),
     players: s.players.map((p: PlayerState) => ({
       id: p.id,
       side: p.team === "blue" ? "home" : "away",
@@ -67,6 +82,8 @@ export class ReplaySource {
   readonly engineVersion: string;
   /** Ticks the engine leaves the ball in the net after a goal (undefined if the replay doesn't record it). */
   readonly goalPauseTicks: number | undefined;
+  /** The replay's own event log (what the engine recorded, by tick). */
+  readonly events: ReplayFile["events"];
 
   constructor(readonly replay: ReplayFile) {
     assertSupported(replay);
@@ -77,6 +94,7 @@ export class ReplaySource {
     this.playerRadius = replay.config.player.radius;
     this.engineVersion = replay.engineVersion;
     this.goalPauseTicks = replay.config.match?.goalCelebrationTicks;
+    this.events = Array.isArray(replay.events) ? replay.events : [];
   }
 
   get tick() {

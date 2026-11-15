@@ -4,7 +4,9 @@ import { formatClock, onColor, readableChip } from "../../lib/format";
 import { ErrorState } from "../States";
 import { celebrationRate, celebrationTicks, type GoalEvent, goalCrossed } from "./celebration";
 import { aspect, drawFrame } from "./draw";
+import { buildHighlights, type HighlightsIndex, type Moment, reelNext } from "./highlights";
 import { type Frame, loadReplay, type ReplaySource } from "./replay-adapter";
+import { type Camera, easeCamera, FULL_VIEW, followCamera, kitColours, nearestPlayer, slotOf, toPitch } from "./view";
 
 const SPEEDS = [0.5, 1, 2, 4, 8] as const;
 
@@ -20,7 +22,15 @@ export interface MatchViewerProps {
   compact?: boolean;
   /** Player id → name, for the scorer on the goal banner. */
   playerNames?: ReadonlyMap<string, string>;
+  /** Starting lineups in slot order (the simulator's player 1, 2, …), to name a tapped player. */
+  lineups?: {
+    home: ReadonlyArray<{ name: string; shirtNumber: number }>;
+    away: ReadonlyArray<{ name: string; shirtNumber: number }>;
+  };
 }
+
+/** Zoom used by "Follow the ball". */
+const FOLLOW_ZOOM = 2.5;
 
 function periodClock(f: Frame | null) {
   if (!f) return "";
@@ -52,6 +62,7 @@ export function MatchViewer({
   initialSpeed = 2,
   compact = false,
   playerNames,
+  lineups,
 }: MatchViewerProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -64,6 +75,19 @@ export function MatchViewer({
   const [playing, setPlaying] = useState(false);
   const [speed, setSpeed] = useState<number>(initialSpeed);
   const tickRef = useRef(0);
+  // Highlights mode plays windows of this same replay around verified moments (highlights.ts).
+  const [highlights, setHighlights] = useState<HighlightsIndex | null>(null);
+  const [mode, setMode] = useState<"full" | "highlights">("full");
+  const modeRef = useRef(mode);
+  modeRef.current = mode;
+  // Display aids: follow-the-ball framing and a picked-out player (both off by default).
+  const [follow, setFollow] = useState(false);
+  const followRef = useRef(follow);
+  followRef.current = follow;
+  const camRef = useRef<Camera>(FULL_VIEW);
+  const [selected, setSelected] = useState<string | null>(null);
+  const selectedRef = useRef(selected);
+  selectedRef.current = selected;
   // Goal celebration: playback slows for a moment after each goal, with a banner over the pitch.
   const [celebrating, setCelebrating] = useState<GoalEvent | null>(null);
   const celebRef = useRef<{ goal: GoalEvent; until: number } | null>(null);
@@ -76,22 +100,33 @@ export function MatchViewer({
     () => ({ home: readableChip(home.colors.primary), away: readableChip(away.colors.primary) }),
     [home.colors.primary, away.colors.primary],
   );
+  // Real shirt numbers by simulator id (blue-1 is the home side's first starter, and so on).
+  const shirts = useMemo(
+    () =>
+      new Map(
+        (["home", "away"] as const).flatMap((side) =>
+          (lineups?.[side] ?? []).map(
+            (p, i) => [`${side === "home" ? "blue" : "red"}-${i + 1}`, p.shirtNumber] as const,
+          ),
+        ),
+      ),
+    [lineups],
+  );
+  // Kits that clash on the pitch: the away side wears its secondary colour (display only).
+  const kits = useMemo(() => kitColours(home.colors, away.colors), [home.colors, away.colors]);
   const colors = useMemo(
-    () => ({
-      home: home.colors.primary,
-      away: away.colors.primary,
-      homeText: onColor(home.colors.primary),
-      awayText: onColor(away.colors.primary),
-    }),
-    [home.colors.primary, away.colors.primary],
+    () => ({ home: kits.home, away: kits.away, homeText: onColor(kits.home), awayText: onColor(kits.away) }),
+    [kits],
   );
 
   const render = useCallback(
-    (t: number) => {
+    (t: number, snap = false) => {
       const src = srcRef.current;
       const canvas = canvasRef.current;
       if (!src || !canvas) return;
       const f = src.frameAt(t);
+      const target = followRef.current ? followCamera(src.pitch, f.ball, FOLLOW_ZOOM) : FULL_VIEW;
+      camRef.current = snap ? target : easeCamera(camRef.current, target);
       const dpr = window.devicePixelRatio || 1;
       const w = canvas.clientWidth;
       const h = w / aspect(src.pitch);
@@ -102,10 +137,23 @@ export function MatchViewer({
       const ctx = canvas.getContext("2d");
       if (!ctx) return;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      drawFrame(ctx, f, { pitch: src.pitch, playerRadius: src.playerRadius, colors }, w, h);
+      drawFrame(
+        ctx,
+        f,
+        {
+          pitch: src.pitch,
+          playerRadius: src.playerRadius,
+          colors,
+          camera: camRef.current,
+          selected: selectedRef.current,
+          shirts,
+        },
+        w,
+        h,
+      );
       setFrame(f);
     },
-    [colors],
+    [colors, shirts],
   );
 
   useEffect(() => {
@@ -123,6 +171,19 @@ export function MatchViewer({
       });
     return () => ac.abort();
   }, [replayUrl, autoplay]);
+
+  // The highlights index, once the replay (and its own event log) is loaded.
+  useEffect(() => {
+    const src = srcRef.current;
+    if (status !== "ready" || !src) return;
+    setHighlights(buildHighlights(events, { finalTick: src.finalTick, tickRate: src.tickRate, events: src.events }));
+  }, [status, events]);
+
+  // Repaint when a display aid changes while paused.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: follow/selected are read through refs in render
+  useEffect(() => {
+    if (status === "ready") render(tickRef.current, true);
+  }, [follow, selected, status, render]);
 
   // first paint + resize
   useEffect(() => {
@@ -152,12 +213,27 @@ export function MatchViewer({
       if (whole > 0) {
         acc -= whole;
         let next = Math.min(src.finalTick, tickRef.current + whole);
+        let jumped = false;
+        if (modeRef.current === "highlights" && highlights) {
+          const r = reelNext(highlights.reel, next);
+          if (r === null) {
+            // End of the reel: stop at the last moment's window.
+            setPlaying(false);
+            setMode("full");
+            return;
+          }
+          if (r > next) {
+            next = r;
+            jumped = true;
+            acc = 0;
+          }
+        }
         if (celebRef.current) {
           if (next >= celebRef.current.until) {
             celebRef.current = null;
             setCelebrating(null);
           }
-        } else {
+        } else if (!jumped) {
           const g = goalCrossed(goals, tickRef.current, next);
           if (g) {
             next = g.tick; // stop on the goal itself, then play the celebration slowly
@@ -168,7 +244,7 @@ export function MatchViewer({
         }
         tickRef.current = next;
         setTick(next);
-        render(next);
+        render(next, jumped);
         if (next >= src.finalTick) {
           celebRef.current = null;
           setCelebrating(null);
@@ -180,7 +256,7 @@ export function MatchViewer({
     };
     raf = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(raf);
-  }, [playing, speed, status, render, goals]);
+  }, [playing, speed, status, render, goals, highlights]);
 
   const seek = (t: number) => {
     const src = srcRef.current;
@@ -190,7 +266,30 @@ export function MatchViewer({
     setCelebrating(null);
     tickRef.current = next;
     setTick(next);
-    render(next);
+    render(next, true);
+  };
+
+  const watchHighlights = () => {
+    const first = highlights?.reel[0];
+    if (!first) return;
+    setMode("highlights");
+    seek(first.start);
+    setPlaying(true);
+  };
+  const watchFull = () => {
+    setMode("full");
+    setPlaying(false);
+  };
+
+  // Tap or click a player to see who it is (and tap again, or elsewhere, to clear).
+  const onPitchClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    const src = srcRef.current;
+    if (!src || !frame) return;
+    const box = e.currentTarget.getBoundingClientRect();
+    const h = box.width / aspect(src.pitch);
+    const at = toPitch(src.pitch, box.width, h, camRef.current, e.clientX - box.left, e.clientY - box.top);
+    const p = nearestPlayer(frame, at.x, at.y, Math.max(2, src.playerRadius * 4) / camRef.current.zoom);
+    setSelected((cur) => (p && p.id !== cur ? p.id : null));
   };
 
   const onKey = (e: React.KeyboardEvent) => {
@@ -206,6 +305,17 @@ export function MatchViewer({
   };
 
   const src = srcRef.current;
+  const who = (simId: string | null) => {
+    if (!simId) return null;
+    const slot = slotOf(simId);
+    const p = frame?.players.find((x) => x.id === simId);
+    if (!slot || !p) return null;
+    const named = lineups?.[slot.side][slot.index];
+    const team = slot.side === "home" ? home : away;
+    return { number: named?.shirtNumber ?? p.number, name: named?.name ?? null, team, side: slot.side };
+  };
+  const picked = who(selected);
+  const onBall = who(frame?.carrier ?? null);
   const goalSide = celebrating ? (celebrating.side === "home" ? home : away) : null;
   const goalChip = celebrating ? chips[celebrating.side] : null;
   const scorer = celebrating?.scorerId ? playerNames?.get(celebrating.scorerId) : undefined;
@@ -245,7 +355,27 @@ export function MatchViewer({
             aria-label={label}
             className="block h-auto w-full"
             style={{ aspectRatio: "55 / 37" }}
+            onClick={onPitchClick}
           />
+          {picked && (
+            <div
+              className="absolute right-2 top-2 rounded-lg bg-navy/90 px-2.5 py-1 text-xs font-semibold text-white sm:text-sm"
+              data-testid="picked-player"
+            >
+              <span className="tabular">#{picked.number}</span> {picked.name ?? "Player"} · {picked.team.shortName}
+            </div>
+          )}
+          {onBall && !playing && !picked && (
+            <div className="pointer-events-none absolute bottom-2 right-2 rounded-md bg-navy/85 px-2 py-0.5 text-xs font-semibold text-white sm:text-sm">
+              On the ball: <span className="tabular">#{onBall.number}</span> {onBall.name ?? ""} (
+              {onBall.team.shortName})
+            </div>
+          )}
+          {mode === "highlights" && (
+            <div className="pointer-events-none absolute bottom-2 left-2 rounded-md bg-yellow px-2 py-0.5 font-display text-xs font-extrabold uppercase italic text-navy sm:text-sm">
+              Highlights · same replay
+            </div>
+          )}
           <div
             aria-hidden
             className="pointer-events-none absolute left-0 top-0 flex items-stretch font-semi text-base font-extrabold uppercase italic leading-none shadow-lg sm:text-[1.6rem]"
@@ -364,6 +494,28 @@ export function MatchViewer({
           </button>
           <button
             type="button"
+            className={`${ctrl} ${follow ? "bg-white/15" : ""}`}
+            onClick={() => setFollow((v) => !v)}
+            aria-pressed={follow}
+            aria-label="Follow the ball (zoom in)"
+            title="Follow the ball"
+            disabled={status !== "ready"}
+          >
+            <svg
+              aria-hidden
+              viewBox="0 0 20 20"
+              width="18"
+              height="18"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+            >
+              <circle cx="9" cy="9" r="6" />
+              <path d="M13.5 13.5 L18 18 M9 6.5 V11.5 M6.5 9 H11.5" />
+            </svg>
+          </button>
+          <button
+            type="button"
             className={ctrl}
             onClick={toggleFullscreen}
             aria-label="Full screen"
@@ -383,26 +535,165 @@ export function MatchViewer({
           </button>
         </div>
       </section>
-      {!compact && goals.length > 0 && (
-        <div className="mt-3 flex flex-wrap items-center gap-2 text-sm">
-          <span className="font-semibold text-muted-text">Jump to goal:</span>
-          {goals.map((g) => (
-            <button
-              key={g.tick}
-              type="button"
-              onClick={() => seek(g.tick - 4 * (src?.tickRate ?? 60))}
-              className="rounded-full bg-lavender px-2.5 py-0.5 font-semibold text-violet-deep hover:bg-lavender-strong"
-            >
-              {formatClock(g.period, g.clockSec)} · {g.side === "home" ? home.shortName : away.shortName} {g.score.home}
-              –{g.score.away}
-            </button>
-          ))}
-        </div>
+      {!compact && status === "ready" && highlights && (
+        <KeyMoments
+          index={highlights}
+          home={home}
+          away={away}
+          playerNames={playerNames}
+          mode={mode}
+          tick={tick}
+          tickRate={src?.tickRate ?? 60}
+          lineups={lineups}
+          onSeek={(t) => {
+            setMode("full");
+            seek(t);
+          }}
+          onHighlights={watchHighlights}
+          onFull={watchFull}
+          onPick={setSelected}
+          selected={selected}
+        />
       )}
       <p className="mt-2 text-xs text-muted-text">
         Genuine top-down replay from the autosoccer-sim engine{src ? ` v${src.engineVersion}` : ""}
         {compact ? "." : ": players are simulated as circles, exactly as the simulator models them."}
       </p>
+    </div>
+  );
+}
+
+const momentLabel = (
+  m: Moment,
+  home: MatchViewerProps["home"],
+  away: MatchViewerProps["away"],
+  names?: ReadonlyMap<string, string>,
+) => {
+  const team = m.side === "home" ? home : away;
+  if (m.kind === "goal" && m.goal) {
+    const scorer = m.goal.scorerId ? names?.get(m.goal.scorerId) : undefined;
+    return {
+      kind: m.goal.ownGoal ? "Own goal" : "Goal",
+      text: `${formatClock(m.goal.period, m.goal.clockSec)} · ${team.shortName} ${m.goal.score.home}–${m.goal.score.away}${scorer ? ` · ${scorer}${m.goal.ownGoal ? " (og)" : ""}` : ""}`,
+    };
+  }
+  return { kind: "Keeper catch", text: `${team.shortName} keeper · ${Math.round(m.catch?.speed ?? 0)} m/s ball` };
+};
+
+/** Chapters, verified key moments, the highlights toggle and a keyboard way to pick out a player. */
+function KeyMoments({
+  index,
+  home,
+  away,
+  playerNames,
+  mode,
+  tick,
+  tickRate,
+  lineups,
+  onSeek,
+  onHighlights,
+  onFull,
+  onPick,
+  selected,
+}: {
+  index: HighlightsIndex;
+  home: MatchViewerProps["home"];
+  away: MatchViewerProps["away"];
+  playerNames?: ReadonlyMap<string, string>;
+  mode: "full" | "highlights";
+  tick: number;
+  tickRate: number;
+  lineups?: MatchViewerProps["lineups"];
+  onSeek: (tick: number) => void;
+  onHighlights: () => void;
+  onFull: () => void;
+  onPick: (simId: string | null) => void;
+  selected: string | null;
+}) {
+  const active = index.moments.findIndex((m) => tick >= m.start && tick <= m.end);
+  const pill = "rounded-full px-2.5 py-0.5 text-sm font-semibold";
+  return (
+    <div className="mt-3 space-y-3" data-testid="key-moments">
+      <div className="flex flex-wrap items-center gap-2">
+        {index.reel.length > 0 ? (
+          mode === "highlights" ? (
+            <button type="button" onClick={onFull} className={`${pill} bg-ink text-white`}>
+              Back to the full replay
+            </button>
+          ) : (
+            <button type="button" onClick={onHighlights} className={`${pill} bg-coral text-ink`}>
+              ▶ Watch highlights ({index.moments.length})
+            </button>
+          )
+        ) : (
+          <span className="text-sm text-muted-text">
+            No verified highlights: the record has no goals or fast keeper catches in this match.
+          </span>
+        )}
+        <span className="text-xs text-muted-text">Highlights replay moments of this same recorded match.</span>
+      </div>
+      {index.moments.length > 0 && (
+        <ol className="flex flex-wrap gap-2" aria-label="Key moments">
+          {index.moments.map((m, i) => {
+            const l = momentLabel(m, home, away, playerNames);
+            return (
+              <li key={`${m.kind}-${m.tick}`}>
+                <button
+                  type="button"
+                  onClick={() => onSeek(m.start)}
+                  aria-current={i === active ? "true" : undefined}
+                  className={`${pill} ${m.kind === "goal" ? "bg-lavender text-violet-deep hover:bg-lavender-strong" : "border border-line bg-surface text-ink hover:bg-canvas"} ${i === active ? "ring-2 ring-violet" : ""}`}
+                >
+                  <span className="mr-1 text-[11px] font-bold uppercase tracking-wider">{l.kind}</span>
+                  {l.text}
+                </button>
+              </li>
+            );
+          })}
+        </ol>
+      )}
+      <div className="flex flex-wrap items-center gap-2 text-sm">
+        <span className="font-semibold text-muted-text">Chapters:</span>
+        {index.chapters.map((c) => (
+          <button
+            key={`${c.label}-${c.tick}`}
+            type="button"
+            onClick={() => onSeek(c.tick)}
+            className="rounded-md px-2 py-0.5 font-semibold text-violet-deep underline-offset-4 hover:underline"
+          >
+            {c.label}{" "}
+            <span className="tabular text-muted-text">
+              ({Math.floor(c.tick / tickRate / 60)}:{String(Math.floor((c.tick / tickRate) % 60)).padStart(2, "0")})
+            </span>
+          </button>
+        ))}
+      </div>
+      {lineups && (
+        <label className="flex flex-wrap items-center gap-2 text-sm">
+          <span className="font-semibold text-muted-text">Pick out a player:</span>
+          <select
+            value={selected ?? ""}
+            onChange={(e) => onPick(e.target.value || null)}
+            className="rounded-md border border-line bg-surface px-2 py-1"
+          >
+            <option value="">None</option>
+            {(["home", "away"] as const).map((side) => (
+              <optgroup key={side} label={(side === "home" ? home : away).name}>
+                {lineups[side].map((p, i) => (
+                  <option key={`${side}-${p.shirtNumber}`} value={`${side === "home" ? "blue" : "red"}-${i + 1}`}>
+                    #{p.shirtNumber} {p.name}
+                  </option>
+                ))}
+              </optgroup>
+            ))}
+          </select>
+        </label>
+      )}
+      {index.notes.map((n) => (
+        <p key={n} className="text-xs text-muted-text">
+          {n}
+        </p>
+      ))}
     </div>
   );
 }
