@@ -16,7 +16,7 @@ import {
   TacticalRevision,
   Team,
 } from "./domain.ts";
-import { DugoutResponse, TeamDugoutResponse } from "./dugout.ts";
+import { DugoutResponse, ManagerProfile, TeamDugoutResponse } from "./dugout.ts";
 import { Match, OfficialEvent, TeamMatchStats } from "./match.ts";
 import { FixtureStory } from "./story.ts";
 
@@ -434,4 +434,16 @@ ROUTES.push({
   params: { id: Id },
   response: FixtureStory,
   responseName: "FixtureStory",
+});
+
+ROUTES.push({
+  method: "get",
+  path: "/teams/{team}/manager-profile",
+  operationId: "getManagerProfile",
+  summary:
+    "Manager profile (manager-profile/1): patterns in the AI manager's recorded decisions across seasons (or ?season=), each with the matches that support it, plus notable decisions and the latest lesson",
+  params: { team: Slug },
+  query: { season: Slug.optional() },
+  response: ManagerProfile,
+  responseName: "ManagerProfile",
 });

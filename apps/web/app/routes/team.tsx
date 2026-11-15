@@ -1,6 +1,7 @@
 import type {
   ArticleListResponse,
   BudgetResponse,
+  ManagerProfile,
   Position,
   SeasonResponse,
   TeamDetailResponse,
@@ -11,6 +12,7 @@ import { ArticleCard } from "../components/ArticleCard";
 import { BudgetMeter } from "../components/BudgetMeter";
 import { DugoutTimeline } from "../components/Dugout";
 import { FollowButton } from "../components/FollowClub";
+import { ManagerArc } from "../components/ManagerArc";
 import { FixtureCard } from "../components/MatchScoreCard";
 import { OverallBadge, PlayerRatings } from "../components/PlayerRatings";
 import { RouteError } from "../components/RouteError";
@@ -32,8 +34,10 @@ export async function loader({ params }: Route.LoaderArgs) {
   const dugout = season
     ? await apiMaybe<TeamDugoutResponse>(`/api/v1/teams/${encodeURIComponent(params.slug)}/dugout`)
     : null;
+  const profile = await apiMaybe<ManagerProfile>(`/api/v1/teams/${encodeURIComponent(params.slug)}/manager-profile`);
   return {
     ...detail,
+    profile,
     news: news?.items ?? [],
     budget: budgetRow,
     dugout: dugout?.story ?? null,
@@ -65,6 +69,7 @@ export default function Team({ loaderData }: Route.ComponentProps) {
     history,
     goals,
     memoryWrittenAfter,
+    profile,
   } = loaderData;
   const results = fixtures.filter((f) => f.status === "completed");
   const upcoming = fixtures.filter((f) => f.status !== "completed");
@@ -113,6 +118,12 @@ export default function Team({ loaderData }: Route.ComponentProps) {
 
       <div className="grid gap-8 lg:grid-cols-12">
         <div className="space-y-8 lg:col-span-8">
+          {profile && (
+            <section aria-labelledby="manager-story" className="scroll-mt-24">
+              <SectionHeader id="manager-story" title="Manager story" meta="From recorded decisions" />
+              <ManagerArc profile={profile} />
+            </section>
+          )}
           <section aria-labelledby="dugout" className="scroll-mt-24">
             <SectionHeader
               id="dugout"
