@@ -16,8 +16,11 @@ import { seedManagers } from "../agents/service.ts";
 import { seedJournalists } from "../editorial/service.ts";
 import { createSeason, syncSquads } from "./service.ts";
 
-/** The league's format for new seasons. */
-export const LEAGUE_TEAM_SIZE: TeamSize = 11;
+/**
+ * The league's format for new seasons. Season 5 was due to be the first 11-a-side season; the
+ * league went back to 7-a-side (with ball control and ratings) before it kicked off.
+ */
+export const LEAGUE_TEAM_SIZE: TeamSize = 7;
 
 export interface RolloverOptions {
   managerModel: string;

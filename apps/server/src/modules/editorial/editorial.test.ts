@@ -123,7 +123,7 @@ describe("AI newsroom over a season", () => {
         store: new MemoryReplayStore(),
         llm: offlineManagerLlm(MODEL),
         editorialLlm: newsroom().llm,
-        halfDurationSec: 10,
+        halfDurationSec: 30, // long enough that the season has decisive results to write about
       }),
     });
     const hook = managerRoundHook(t.db);

@@ -4,7 +4,10 @@
  * presets, and records per-match outcomes. Read-only research: it never touches the database
  * or any official result.
  *
- *   bun scripts/sim-stats.ts play --matches 1200 [--start-seed 1] [--shard 0/4] [--players 5|7|11] [--no-control] --out out/sim-stats
+ *   bun scripts/sim-stats.ts play --matches 1200 [--start-seed 1] [--shard 0/4] [--players 5|7|11] [--no-control] [--rated] --out out/sim-stats
+ *
+ * --rated gives each club preset its first-choice players (the club's lowest shirt numbers) with
+ * their league ratings; the baseline preset stays unrated (every rating 60).
  *   bun scripts/sim-stats.ts report --out out/sim-stats      # aggregates every shard → report.md + summary.json
  */
 import { appendFileSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -12,6 +15,8 @@ import { join } from "node:path";
 import { defaultTactics, type TacticalConfigV1, type TeamSize, toTeamSize } from "@autosoccer/contracts";
 import { MemoryReplayStore, runMatch, SIM_VERSION } from "@autosoccer/sim-adapter";
 import { openingTactics, SEED_MANAGERS } from "../apps/server/src/modules/agents/managers-seed.ts";
+import { playerAttributes } from "../apps/server/src/modules/league/attributes.ts";
+import { SEED_TEAMS } from "../apps/server/src/modules/league/seed-data.ts";
 import { sampleRequest } from "../packages/sim-adapter/src/testing.ts";
 
 const args = process.argv.slice(2);
@@ -22,6 +27,7 @@ mkdirSync(out, { recursive: true });
 
 const players: TeamSize = toTeamSize(Number(opt("players", "11")));
 const ballControl = !args.includes("--no-control");
+const rated = args.includes("--rated");
 /** The four clubs' opening setups plus the league baseline, for the team size. */
 const PRESETS: Array<{ name: string; config: TacticalConfigV1 }> = [
   ...SEED_MANAGERS.map((m) => ({ name: m.teamSlug, config: openingTactics(m, players) })),
@@ -63,6 +69,20 @@ if (cmd === "play") {
     });
     req.home.deployment = dep(h.config);
     req.away.deployment = dep(a.config);
+    if (rated) {
+      for (const [side, preset] of [
+        [req.home, h],
+        [req.away, a],
+      ] as const) {
+        const club = SEED_TEAMS.find((t) => t.slug === preset.name);
+        if (!club) continue;
+        side.starters = side.starters.map((s, k) => {
+          const p = club.players[k]!;
+          const attributes = playerAttributes({ name: p.name, shirtNumber: p.number, position: p.position });
+          return { ...s, name: p.name, shirtNumber: p.number, position: p.position, attributes };
+        });
+      }
+    }
     const r = (await runMatch(req, { store: new MemoryReplayStore() })).result;
     const goals = r.events.filter((e) => e.type === "goal");
     const row: Row = {
