@@ -14,12 +14,15 @@ import {
   runMatch,
   SIM_COMMIT,
   SimVersionMismatchError,
+  simFeatures,
   UnsupportedDeploymentError,
 } from "./index.ts";
 import { resolveTactics } from "./tactics.ts";
 import { sampleRequest } from "./testing.ts";
 
 const SHORT = { halfDurationSec: 30 };
+/** Controller 3.0 rendered for the default 11-a-side tactics, as at sim 9709cfa. */
+const CONTROL_11_HASH = "132324f9f54fb7aff63679ed5c8d735cec5c3be4d198fa4e5f86b88e5e1dcfe5";
 
 describe("sim pin", () => {
   it("SIM_COMMIT matches the vendored autosoccer-sim submodule", () => {
@@ -149,13 +152,23 @@ describe("sim pin compatibility", () => {
   const d = { kind: "tactical" as const, schemaVersion: "tactics/1", config: {} };
   const hash = (s: string) => createHash("sha256").update(s).digest("hex");
 
-  it("plays requests pinned to an earlier compatible sim, but only without ball control", () => {
-    const old = COMPATIBLE_SIM_COMMITS[0]!;
-    expect(isSupportedSimPin({ simVersion: old.slice(0, 7), config: {} })).toBe(true);
-    expect(isSupportedSimPin({ simVersion: old, config: { ballControl: false } })).toBe(true);
-    expect(isSupportedSimPin({ simVersion: old.slice(0, 7), config: { ballControl: true } })).toBe(false);
-    expect(isSupportedSimPin({ simVersion: SIM_COMMIT.slice(0, 7), config: { ballControl: true } })).toBe(true);
+  const PRE_CONTROL = "0bc52c0"; // 7-a-side seasons
+  const PRE_RATINGS = "9709cfa"; // first 11-a-side seasons, ball control without ratings
+  const rated = (ballControl: boolean) => {
+    const r = sampleRequest({ config: { playersPerTeam: 11, ballControl } });
+    r.home.starters[0]!.attributes = RATED;
+    return r;
+  };
+
+  it("plays each earlier pin's requests, but only with the features that pin had", () => {
+    expect(COMPATIBLE_SIM_COMMITS.map((c) => c.slice(0, 7))).toEqual([PRE_RATINGS, PRE_CONTROL]);
+    expect(isSupportedSimPin({ simVersion: PRE_CONTROL, config: {} })).toBe(true);
+    expect(isSupportedSimPin({ simVersion: PRE_CONTROL, config: { ballControl: true } })).toBe(false);
+    expect(isSupportedSimPin({ simVersion: PRE_RATINGS, config: { ballControl: true } })).toBe(true);
+    expect(isSupportedSimPin({ ...rated(true), simVersion: PRE_RATINGS })).toBe(false);
+    expect(isSupportedSimPin({ ...rated(true), simVersion: SIM_COMMIT.slice(0, 7) })).toBe(true);
     expect(isSupportedSimPin({ simVersion: "deadbee", config: {} })).toBe(false);
+    expect(simFeatures(PRE_RATINGS)).toEqual({ ballControl: true, attributes: false });
   });
 
   it("gives requests without ball control the byte-identical controller 2.0 they had on the earlier pin", () => {
@@ -167,15 +180,51 @@ describe("sim pin compatibility", () => {
       "cd986f843da06bafd6f8c0a69fc8e3a45a56b5ae0c3cc5a285a8407cfc1bd9fb",
     );
     expect(controllerSource(d, resolveTactics, 7, true)).toContain('version: "3.0.0"');
+    // …and ball-control requests the controller 3.0 they had at 9709cfa.
+    expect(hash(controllerSource(d, resolveTactics, 11, true))).toBe(CONTROL_11_HASH);
   });
 
   it("still plays a 7-a-side request pinned to the earlier sim", async () => {
     const req = sampleRequest({
       seed: 4,
-      simVersion: COMPATIBLE_SIM_COMMITS[0]!.slice(0, 7),
+      simVersion: "0bc52c0",
       config: { ...SHORT, playersPerTeam: 7 },
     });
     const { result } = await runMatch(req, { store: new MemoryReplayStore() });
     expect(result.replay.verified).toBe(true);
+  });
+});
+
+const RATED = {
+  pace: 90,
+  acceleration: 85,
+  agility: 80,
+  stamina: 70,
+  control: 75,
+  passing: 60,
+  shooting: 88,
+  power: 82,
+  tackling: 40,
+  goalkeeping: 20,
+};
+
+describe("player attributes", () => {
+  it("plays starters with their ratings and records them in the replay config", async () => {
+    const store = new MemoryReplayStore();
+    const req = sampleRequest({ seed: 6, config: { ...SHORT, playersPerTeam: 11, ballControl: true } });
+    req.home.starters[9]!.attributes = RATED;
+    req.away.starters[0]!.attributes = { ...RATED, goalkeeping: 90 };
+    const { result } = await runMatch(req, { store });
+    expect(result.replay.verified).toBe(true);
+    const replay = JSON.parse(gunzipSync(await store.get(result.replay.uri)).toString());
+    expect(replay.config.players["blue-10"]).toEqual(RATED);
+    expect(replay.config.players["red-1"].goalkeeping).toBe(90);
+    expect(Object.keys(replay.config.players)).toHaveLength(2);
+  });
+
+  it("refuses ratings on a request pinned to a sim without them", async () => {
+    const req = sampleRequest({ simVersion: "9709cfa", config: { ...SHORT, playersPerTeam: 11, ballControl: true } });
+    req.home.starters[0]!.attributes = RATED;
+    await expect(runMatch(req, { store: new MemoryReplayStore() })).rejects.toThrow(SimVersionMismatchError);
   });
 });

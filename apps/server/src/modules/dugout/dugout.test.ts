@@ -50,7 +50,7 @@ describe("Inside the Dugout read model", () => {
     ({ seasonId } = await createSeason(t.db, {
       slug: "season-1",
       name: "Season 1",
-      seed: 99,
+      seed: 100, // round 1 has a loser, so an offline manager changes its setup for round 2
       budgetPerTeamMicroUsd: 1_000_000,
       teamSlugs: SEED_TEAMS.map((x) => x.slug),
     }));

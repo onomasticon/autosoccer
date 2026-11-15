@@ -18,12 +18,46 @@ export const Team = z.object({
 });
 export type Team = z.infer<typeof Team>;
 
+/** Player ratings, 1–99 (60 is an average professional in this league). Matches the simulator's attributes. */
+export const ATTRIBUTE_NAMES = [
+  "pace",
+  "acceleration",
+  "agility",
+  "stamina",
+  "control",
+  "passing",
+  "shooting",
+  "power",
+  "tackling",
+  "goalkeeping",
+] as const;
+export type AttributeName = (typeof ATTRIBUTE_NAMES)[number];
+const Rating = z.number().int().min(1).max(99);
+export const PlayerAttributes = z
+  .object({
+    pace: Rating.describe("top speed"),
+    acceleration: Rating.describe("how quickly they reach top speed and stop"),
+    agility: Rating.describe("how sharply they turn"),
+    stamina: Rating.describe("how slowly they tire when sprinting, and how fast they recover"),
+    control: Rating.describe("first touch, close control and shielding"),
+    passing: Rating.describe("accuracy of passes and throws"),
+    shooting: Rating.describe("accuracy of shots"),
+    power: Rating.describe("how hard they can strike the ball"),
+    tackling: Rating.describe("chance of winning a tackle"),
+    goalkeeping: Rating.describe("reach and handling (goalkeepers)"),
+  })
+  .strict();
+export type PlayerAttributes = z.infer<typeof PlayerAttributes>;
+
 export const Player = z.object({
   id: Id,
   teamId: Id,
   name: z.string().min(1).max(60),
   shirtNumber: z.number().int().min(1).max(99),
   position: Position,
+  attributes: PlayerAttributes,
+  /** Position-weighted average of the attributes, 1–99. */
+  overall: Rating,
 });
 export type Player = z.infer<typeof Player>;
 

@@ -46,9 +46,18 @@ export async function runMatch(input: MatchRequest, opts: RunMatchOptions): Prom
   }
   const size = request.config.playersPerTeam ?? 5;
   const control = request.config.ballControl === true;
+  // Player attributes, by simulator ID: starters are in slot order, home is blue.
+  const rated = Object.fromEntries(
+    (["blue", "red"] as const).flatMap((team) =>
+      (team === "blue" ? request.home : request.away).starters.flatMap((s, i) =>
+        s.attributes ? [[`${team}-${i + 1}`, s.attributes]] : [],
+      ),
+    ),
+  );
   const config: ConfigOverrides = {
     ...(size === 11 ? ELEVEN_A_SIDE : size === 7 ? SEVEN_A_SIDE : {}),
     ...(control ? BALL_CONTROL : {}),
+    ...(Object.keys(rated).length ? { players: rated } : {}),
     ...(request.config.halfDurationSec ? { halfDurationSec: request.config.halfDurationSec } : {}),
   };
   const simConfig = makeConfig(config);

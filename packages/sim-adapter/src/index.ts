@@ -23,6 +23,9 @@ export {
   COMPATIBLE_SIM_COMMITS,
   isSupportedSimPin,
   SIM_COMMIT,
+  SIM_PINS,
   SIM_VERSION,
+  type SimFeatures,
+  simFeatures,
   VERSIONS,
 } from "./version.ts";

@@ -12,6 +12,7 @@ import { BudgetMeter } from "../components/BudgetMeter";
 import { DugoutTimeline } from "../components/Dugout";
 import { FollowButton } from "../components/FollowClub";
 import { FixtureCard } from "../components/MatchScoreCard";
+import { OverallBadge, PlayerRatings } from "../components/PlayerRatings";
 import { RouteError } from "../components/RouteError";
 import { SectionHeader } from "../components/SectionHeader";
 import { FormGuide } from "../components/StandingsTable";
@@ -228,18 +229,40 @@ export default function Team({ loaderData }: Route.ComponentProps) {
             <SectionHeader id="squad" title="Squad" />
             <ul className="card-surface divide-y divide-line">
               {players.map((p) => (
-                <li key={p.id} className="flex items-center gap-3 px-4 py-2.5">
-                  <span className="tabular inline-flex size-8 items-center justify-center rounded-full bg-canvas font-display text-lg font-extrabold">
-                    {p.shirtNumber}
-                  </span>
-                  <span className="flex-1 font-medium">{p.name}</span>
-                  <PlayerGoals g={goals.find((g) => g.playerId === p.id)} />
-                  <span className="text-xs font-semibold uppercase tracking-wider text-muted-text">
-                    <abbr title={POSITION_NAME[p.position]}>{p.position}</abbr>
-                  </span>
+                <li key={p.id}>
+                  <details className="group">
+                    <summary className="flex cursor-pointer list-none items-center gap-3 px-4 py-2.5 hover:bg-panel [&::-webkit-details-marker]:hidden">
+                      <span className="tabular inline-flex size-8 items-center justify-center rounded-full bg-canvas font-display text-lg font-extrabold">
+                        {p.shirtNumber}
+                      </span>
+                      <span className="flex-1 font-medium">{p.name}</span>
+                      <PlayerGoals g={goals.find((g) => g.playerId === p.id)} />
+                      <span className="w-6 text-xs font-semibold uppercase tracking-wider text-muted-text">
+                        <abbr title={POSITION_NAME[p.position]}>{p.position}</abbr>
+                      </span>
+                      <OverallBadge overall={p.overall} />
+                      <svg
+                        aria-hidden
+                        viewBox="0 0 12 12"
+                        width="12"
+                        height="12"
+                        className="shrink-0 text-muted-text transition-transform group-open:rotate-180"
+                      >
+                        <path d="M2 4 L6 8 L10 4" fill="none" stroke="currentColor" strokeWidth="1.8" />
+                      </svg>
+                    </summary>
+                    <div className="border-t border-line bg-panel px-4 py-3">
+                      <PlayerRatings player={p} />
+                    </div>
+                  </details>
                 </li>
               ))}
             </ul>
+            <p className="mt-2 text-xs text-muted-text">
+              Ratings run 1–99 and are fixed for each player. In seasons that started after ratings arrived, they set
+              how fast each player runs and turns and how well they control, pass, shoot and tackle. Open a player to
+              see all ten.
+            </p>
           </section>
         </aside>
       </div>

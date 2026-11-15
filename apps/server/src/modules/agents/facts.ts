@@ -124,7 +124,13 @@ export async function managerFacts(
     team: { name: team!.name },
     format: { playersPerTeam: size },
     fixture: { round: fixture.round, venue: home ? "home" : "away", opponent: opp!.name },
-    squad: squad.map((p) => ({ shirt: p.shirtNumber, name: p.name, position: p.position })),
+    squad: squad.map((p) => ({
+      shirt: p.shirtNumber,
+      name: p.name,
+      position: p.position,
+      overall: p.overall,
+      attributes: p.attributes,
+    })),
     current: { tactics: parsed?.success ? parsed.data : null, starters: lineup.starters.map((id) => shirt.get(id)!) },
     table: rows.map((r) => ({
       position: r.position,

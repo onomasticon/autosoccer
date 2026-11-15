@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { Id, Position, Sha256, Side, Timestamp } from "./common.ts";
 import { ControllerDeployment } from "./deployment.ts";
+import { PlayerAttributes } from "./domain.ts";
 
 /** Versions that fully identify how a match was produced. */
 export const SimVersionInfo = z.object({
@@ -18,7 +19,16 @@ export const MatchTeamEntry = z.object({
   name: z.string(),
   /** Starters in simulator slot order, goalkeeper first: config.playersPerTeam of them (5, 7 or 11). */
   starters: z
-    .array(z.object({ playerId: Id, name: z.string(), shirtNumber: z.number().int(), position: Position }))
+    .array(
+      z.object({
+        playerId: Id,
+        name: z.string(),
+        shirtNumber: z.number().int(),
+        position: Position,
+        /** Ratings the simulator plays this player with; absent on requests before player attributes. */
+        attributes: PlayerAttributes.optional(),
+      }),
+    )
     .min(5)
     .max(11),
   tacticalRevisionId: Id.nullable(),

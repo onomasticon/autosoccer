@@ -1,4 +1,10 @@
-import { describeTactics, TacticalConfigV1, type TeamSize, tacticsSchemaFor } from "@autosoccer/contracts";
+import {
+  describeTactics,
+  type PlayerAttributes,
+  TacticalConfigV1,
+  type TeamSize,
+  tacticsSchemaFor,
+} from "@autosoccer/contracts";
 import { z } from "zod";
 
 const NUMBER_WORDS: Record<number, string> = { 4: "four", 5: "five", 6: "six", 7: "seven", 10: "ten", 11: "eleven" };
@@ -58,7 +64,7 @@ export interface ManagerFacts {
   team: { name: string };
   format: { playersPerTeam: TeamSize };
   fixture: { round: number; venue: "home" | "away"; opponent: string };
-  squad: Array<{ shirt: number; name: string; position: string }>;
+  squad: Array<{ shirt: number; name: string; position: string; overall?: number; attributes?: PlayerAttributes }>;
   current: { tactics: TacticalConfigV1 | null; starters: number[] };
   table: Array<{ position: number; team: string; played: number; points: number; goalDifference: number }>;
   recent: MatchSummaryFact[];
@@ -88,6 +94,16 @@ ${options(size)}
 Formations list the ${NUMBER_WORDS[size - 1] ?? size - 1} outfield players back to front. Slot 1 is always the goalkeeper.`;
 }
 
+/** "9 · Omar Said · FW · overall 74 · pace 81, acceleration 77, …" (ratings 1–99). */
+function squadLine(p: ManagerFacts["squad"][number]): string {
+  const head = `${p.shirt} · ${p.name} · ${p.position}`;
+  if (!p.attributes) return head;
+  const r = Object.entries(p.attributes)
+    .map(([k, v]) => `${k} ${v}`)
+    .join(", ");
+  return `${head} · overall ${p.overall} · ${r}`;
+}
+
 const fmtMatch = (m: MatchSummaryFact) =>
   `R${m.round} ${m.venue === "home" ? "vs" : "at"} ${m.opponent}: ${m.result} ${m.goalsFor}–${m.goalsAgainst} · possession ${Math.round(m.possession * 100)}% · shots ${m.shots}–${m.shotsAgainst} · passes completed ${m.passesCompleted} · team height ${m.avgTeamHeight.toFixed(1)} m · our tactics: ${m.tactics} · their tactics: ${m.opponentTactics}`;
 
@@ -107,7 +123,7 @@ ${f.recent.map(fmtMatch).join("\n") || "(none yet)"}
 ${f.opponentRecent.map(fmtMatch).join("\n") || "(none yet)"}
 
 ## Squad (shirt · name · position)
-${f.squad.map((p) => `${p.shirt} · ${p.name} · ${p.position}`).join("\n")}
+${f.squad.map(squadLine).join("\n")}
 
 ## Current setup
 Tactics: ${f.current.tactics ? describeTactics(f.current.tactics) : "league baseline"}

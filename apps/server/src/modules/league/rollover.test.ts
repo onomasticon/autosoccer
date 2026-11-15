@@ -122,6 +122,16 @@ describe("season rollover", () => {
     const req = await buildMatchRequest({ db: t.db } as never, f!.id);
     expect(req.config).toMatchObject({ playersPerTeam: 11, ballControl: true });
     expect(req.home.starters).toHaveLength(11);
+    // …and with player ratings.
+    for (const st of [...req.home.starters, ...req.away.starters]) expect(st.attributes).toBeDefined();
+
+    // An 11-a-side season pinned to the sim before ratings plays with ball control but no ratings.
+    await t.db`update fixtures set status = 'ready' where id = ${f!.id}`;
+    await t.db`update seasons set sim_version = '9709cfa' where id = ${s!.id}`;
+    const pre = await buildMatchRequest({ db: t.db } as never, f!.id);
+    expect(pre.config).toMatchObject({ playersPerTeam: 11, ballControl: true });
+    for (const st of pre.home.starters) expect(st.attributes).toBeUndefined();
+    expect(await refreshUpcomingSeason(t.db, MODELS)).toBeNull(); // started: keeps its pin
 
     // Once anything has happened in the season, it keeps the format it started with.
     await t.db`update seasons set sim_version = '0bc52c0', players_per_team = 7 where id = ${s!.id}`;

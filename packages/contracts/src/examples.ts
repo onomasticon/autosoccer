@@ -43,14 +43,75 @@ export const exampleTeams: Team[] = [
 ];
 const [home, away] = exampleTeams as [Team, Team];
 
+/** Illustrative ratings by position (the league derives each player's own). */
+const exampleRatings = {
+  GK: {
+    pace: 48,
+    acceleration: 52,
+    agility: 64,
+    stamina: 55,
+    control: 50,
+    passing: 57,
+    shooting: 30,
+    power: 60,
+    tackling: 33,
+    goalkeeping: 74,
+  },
+  DF: {
+    pace: 61,
+    acceleration: 57,
+    agility: 55,
+    stamina: 68,
+    control: 55,
+    passing: 60,
+    shooting: 41,
+    power: 63,
+    tackling: 74,
+    goalkeeping: 20,
+  },
+  MF: {
+    pace: 63,
+    acceleration: 64,
+    agility: 67,
+    stamina: 73,
+    control: 70,
+    passing: 74,
+    shooting: 57,
+    power: 59,
+    tackling: 57,
+    goalkeeping: 20,
+  },
+  FW: {
+    pace: 74,
+    acceleration: 71,
+    agility: 69,
+    stamina: 61,
+    control: 67,
+    passing: 56,
+    shooting: 75,
+    power: 71,
+    tackling: 36,
+    goalkeeping: 20,
+  },
+} as const;
+const OVERALL = { GK: 67, DF: 64, MF: 68, FW: 70 } as const;
+const examplePlayer = (n: number, name: string, shirtNumber: number, position: keyof typeof OVERALL): Player => ({
+  id: uuid(n),
+  teamId: home.id,
+  name,
+  shirtNumber,
+  position,
+  attributes: { ...exampleRatings[position] },
+  overall: OVERALL[position],
+});
 export const examplePlayers: Player[] = [
-  { id: uuid(101), teamId: home.id, name: "Ada Okafor", shirtNumber: 1, position: "GK" },
-  { id: uuid(102), teamId: home.id, name: "Bruno Lind", shirtNumber: 2, position: "DF" },
-  { id: uuid(103), teamId: home.id, name: "Chen Wu", shirtNumber: 3, position: "DF" },
-  { id: uuid(104), teamId: home.id, name: "Dara Quinn", shirtNumber: 4, position: "MF" },
-  { id: uuid(105), teamId: home.id, name: "Eli Moreau", shirtNumber: 5, position: "FW" },
-  { id: uuid(106), teamId: home.id, name: "Femi Adeyemi", shirtNumber: 6, position: "MF" },
-  { id: uuid(107), teamId: home.id, name: "Gus Varga", shirtNumber: 7, position: "FW" },
+  examplePlayer(101, "Ada Okafor", 1, "GK"),
+  examplePlayer(102, "Bruno Lind", 2, "DF"),
+  examplePlayer(103, "Chen Wu", 3, "DF"),
+  examplePlayer(104, "Dara Quinn", 4, "MF"),
+  examplePlayer(105, "Eli Moreau", 5, "FW"),
+  examplePlayer(106, "Femi Adeyemi", 6, "MF"),
+  examplePlayer(107, "Gus Varga", 7, "FW"),
 ];
 const awayStarters = [201, 202, 203, 204, 205].map((n, i) => ({
   playerId: uuid(n),
@@ -318,6 +379,8 @@ export const exampleMatchDetail: z.infer<typeof MatchDetailResponse> = {
       name: s.name,
       shirtNumber: s.shirtNumber,
       position: s.position,
+      attributes: { ...exampleRatings[s.position] },
+      overall: OVERALL[s.position],
     })),
   },
   replay: {

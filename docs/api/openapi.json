@@ -3636,6 +3636,89 @@
                     "MF",
                     "FW"
                   ]
+                },
+                "attributes": {
+                  "type": "object",
+                  "properties": {
+                    "pace": {
+                      "description": "top speed",
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 99
+                    },
+                    "acceleration": {
+                      "description": "how quickly they reach top speed and stop",
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 99
+                    },
+                    "agility": {
+                      "description": "how sharply they turn",
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 99
+                    },
+                    "stamina": {
+                      "description": "how slowly they tire when sprinting, and how fast they recover",
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 99
+                    },
+                    "control": {
+                      "description": "first touch, close control and shielding",
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 99
+                    },
+                    "passing": {
+                      "description": "accuracy of passes and throws",
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 99
+                    },
+                    "shooting": {
+                      "description": "accuracy of shots",
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 99
+                    },
+                    "power": {
+                      "description": "how hard they can strike the ball",
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 99
+                    },
+                    "tackling": {
+                      "description": "chance of winning a tackle",
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 99
+                    },
+                    "goalkeeping": {
+                      "description": "reach and handling (goalkeepers)",
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 99
+                    }
+                  },
+                  "required": [
+                    "pace",
+                    "acceleration",
+                    "agility",
+                    "stamina",
+                    "control",
+                    "passing",
+                    "shooting",
+                    "power",
+                    "tackling",
+                    "goalkeeping"
+                  ],
+                  "additionalProperties": false
+                },
+                "overall": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 99
                 }
               },
               "required": [
@@ -3643,7 +3726,9 @@
                 "teamId",
                 "name",
                 "shirtNumber",
-                "position"
+                "position",
+                "attributes",
+                "overall"
               ],
               "additionalProperties": false
             }
@@ -5403,6 +5488,89 @@
                         "MF",
                         "FW"
                       ]
+                    },
+                    "attributes": {
+                      "type": "object",
+                      "properties": {
+                        "pace": {
+                          "description": "top speed",
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 99
+                        },
+                        "acceleration": {
+                          "description": "how quickly they reach top speed and stop",
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 99
+                        },
+                        "agility": {
+                          "description": "how sharply they turn",
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 99
+                        },
+                        "stamina": {
+                          "description": "how slowly they tire when sprinting, and how fast they recover",
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 99
+                        },
+                        "control": {
+                          "description": "first touch, close control and shielding",
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 99
+                        },
+                        "passing": {
+                          "description": "accuracy of passes and throws",
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 99
+                        },
+                        "shooting": {
+                          "description": "accuracy of shots",
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 99
+                        },
+                        "power": {
+                          "description": "how hard they can strike the ball",
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 99
+                        },
+                        "tackling": {
+                          "description": "chance of winning a tackle",
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 99
+                        },
+                        "goalkeeping": {
+                          "description": "reach and handling (goalkeepers)",
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 99
+                        }
+                      },
+                      "required": [
+                        "pace",
+                        "acceleration",
+                        "agility",
+                        "stamina",
+                        "control",
+                        "passing",
+                        "shooting",
+                        "power",
+                        "tackling",
+                        "goalkeeping"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "overall": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 99
                     }
                   },
                   "required": [
@@ -5410,7 +5578,9 @@
                     "teamId",
                     "name",
                     "shirtNumber",
-                    "position"
+                    "position",
+                    "attributes",
+                    "overall"
                   ],
                   "additionalProperties": false
                 }
@@ -5450,6 +5620,89 @@
                         "MF",
                         "FW"
                       ]
+                    },
+                    "attributes": {
+                      "type": "object",
+                      "properties": {
+                        "pace": {
+                          "description": "top speed",
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 99
+                        },
+                        "acceleration": {
+                          "description": "how quickly they reach top speed and stop",
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 99
+                        },
+                        "agility": {
+                          "description": "how sharply they turn",
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 99
+                        },
+                        "stamina": {
+                          "description": "how slowly they tire when sprinting, and how fast they recover",
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 99
+                        },
+                        "control": {
+                          "description": "first touch, close control and shielding",
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 99
+                        },
+                        "passing": {
+                          "description": "accuracy of passes and throws",
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 99
+                        },
+                        "shooting": {
+                          "description": "accuracy of shots",
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 99
+                        },
+                        "power": {
+                          "description": "how hard they can strike the ball",
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 99
+                        },
+                        "tackling": {
+                          "description": "chance of winning a tackle",
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 99
+                        },
+                        "goalkeeping": {
+                          "description": "reach and handling (goalkeepers)",
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 99
+                        }
+                      },
+                      "required": [
+                        "pace",
+                        "acceleration",
+                        "agility",
+                        "stamina",
+                        "control",
+                        "passing",
+                        "shooting",
+                        "power",
+                        "tackling",
+                        "goalkeeping"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "overall": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 99
                     }
                   },
                   "required": [
@@ -5457,7 +5710,9 @@
                     "teamId",
                     "name",
                     "shirtNumber",
-                    "position"
+                    "position",
+                    "attributes",
+                    "overall"
                   ],
                   "additionalProperties": false
                 }
