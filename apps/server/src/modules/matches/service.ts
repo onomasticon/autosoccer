@@ -20,6 +20,7 @@ import {
 import { enqueue } from "../../jobs/queue.ts";
 import { PermanentJobError } from "../../jobs/worker.ts";
 import type { Logger } from "../../log.ts";
+import { ratedPlayer, seasonRatings } from "../league/careers.ts";
 import { type PlayerRow, toPlayer } from "../mappers.ts";
 import { DEFAULT_DEPLOYMENT, defaultLineup } from "./lineup.ts";
 
@@ -79,11 +80,16 @@ export async function buildMatchRequest(deps: MatchDeps, fixtureId: string): Pro
   // earlier (compatible) sim finishes exactly as it started.
   const features = simFeatures(f.sim_version);
   const ballControl = features?.ballControl ?? false;
+  // Ratings as of this season (its snapshot; the baseline for seasons from before snapshots).
+  const snapshot = features?.attributes ? await seasonRatings(db, f.season_id) : new Map();
   const entry = async (teamId: string) => {
     const [team] = await db<{ name: string }[]>`select name from teams where id = ${teamId}`;
     const sel = await teamSelection(db, f.season_id, teamId, size);
     const players = new Map(
-      (await db<PlayerRow[]>`select * from players where team_id = ${teamId}`).map((p) => [p.id, toPlayer(p)]),
+      (await db<PlayerRow[]>`select * from players where team_id = ${teamId}`).map((p) => [
+        p.id,
+        ratedPlayer(p, snapshot),
+      ]),
     );
     const starters = sel.lineup.starters.map((id) => {
       const p = players.get(id);

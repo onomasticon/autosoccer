@@ -1,5 +1,6 @@
 import {
   FixturesResponse,
+  PlayerCareersResponse,
   RecordsResponse,
   ScorersResponse,
   SeasonListResponse,
@@ -11,7 +12,8 @@ import {
 import type { Db } from "@autosoccer/db";
 import { Hono } from "hono";
 import { contractJson, notFound } from "../http.ts";
-import { type PlayerRow, type RevisionRow, type TeamRow, toPlayer, toTeam } from "../mappers.ts";
+import { type PlayerRow, type RevisionRow, type TeamRow, toTeam } from "../mappers.ts";
+import { ratedPlayer, seasonRatings, teamCareers } from "./careers.ts";
 import {
   currentSeason,
   fixtureViews,
@@ -76,11 +78,20 @@ export function leagueRoutes({ db }: { db: Db }) {
     return contractJson(c, TeamListResponse, { items: rows.map(toTeam) });
   });
 
+  r.get("/teams/:team/careers", async (c) => {
+    const [t] = await db<TeamRow[]>`select * from teams where slug = ${c.req.param("team")}`;
+    if (!t) return notFound(c, "Team");
+    return contractJson(c, PlayerCareersResponse, await teamCareers(db, toTeam(t)));
+  });
+
   r.get("/teams/:team", async (c) => {
     const [t] = await db<TeamRow[]>`select * from teams where slug = ${c.req.param("team")}`;
     if (!t) return notFound(c, "Team");
+    // Ratings as of the current season (its snapshot, else the baseline).
+    const cur = await currentSeason(db);
+    const snapshot = cur ? await seasonRatings(db, cur.id) : new Map();
     const players = (await db<PlayerRow[]>`select * from players where team_id = ${t.id} order by shirt_number`).map(
-      toPlayer,
+      (p) => ratedPlayer(p, snapshot),
     );
     const [mgr] = await db<
       {
