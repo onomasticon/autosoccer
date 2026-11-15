@@ -12,8 +12,8 @@ import {
   type ReplayStore,
   requestHash,
   runMatch,
-  SIM_COMMIT,
   SIM_VERSION,
+  simFeatures,
   VERSIONS,
 } from "@autosoccer/sim-adapter";
 import { enqueue } from "../../jobs/queue.ts";
@@ -74,9 +74,10 @@ export async function buildMatchRequest(deps: MatchDeps, fixtureId: string): Pro
     from fixtures f join seasons s on s.id = f.season_id where f.id = ${fixtureId}`;
   if (!f) throw new PermanentJobError(`fixture ${fixtureId} not found`);
   const size: TeamSize = toTeamSize(f.players_per_team);
-  // Seasons created on this simulator play with ball control; a season pinned to an earlier
-  // (compatible) sim finishes exactly as it started.
-  const ballControl = f.sim_version === SIM_VERSION || f.sim_version === SIM_COMMIT;
+  // A season plays with the features of the simulator it was created on, so a season pinned to an
+  // earlier (compatible) sim finishes exactly as it started.
+  const features = simFeatures(f.sim_version);
+  const ballControl = features?.ballControl ?? false;
   const entry = async (teamId: string) => {
     const [team] = await db<{ name: string }[]>`select name from teams where id = ${teamId}`;
     const sel = await teamSelection(db, f.season_id, teamId, size);
@@ -86,7 +87,13 @@ export async function buildMatchRequest(deps: MatchDeps, fixtureId: string): Pro
     const starters = sel.lineup.starters.map((id) => {
       const p = players.get(id);
       if (!p) throw new PermanentJobError(`lineup player ${id} is not in ${team!.name}'s squad`);
-      return { playerId: p.id, name: p.name, shirtNumber: p.shirtNumber, position: p.position };
+      return {
+        playerId: p.id,
+        name: p.name,
+        shirtNumber: p.shirtNumber,
+        position: p.position,
+        ...(features?.attributes ? { attributes: p.attributes } : {}),
+      };
     });
     return { teamId, name: team!.name, starters, tacticalRevisionId: sel.revisionId, deployment: sel.deployment };
   };

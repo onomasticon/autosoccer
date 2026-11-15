@@ -20,49 +20,140 @@
       "teamId": "00000000-0000-4000-8000-000000000001",
       "name": "Ada Okafor",
       "shirtNumber": 1,
-      "position": "GK"
+      "position": "GK",
+      "attributes": {
+        "pace": 48,
+        "acceleration": 52,
+        "agility": 64,
+        "stamina": 55,
+        "control": 50,
+        "passing": 57,
+        "shooting": 30,
+        "power": 60,
+        "tackling": 33,
+        "goalkeeping": 74
+      },
+      "overall": 67
     },
     {
       "id": "00000000-0000-4000-8000-000000000066",
       "teamId": "00000000-0000-4000-8000-000000000001",
       "name": "Bruno Lind",
       "shirtNumber": 2,
-      "position": "DF"
+      "position": "DF",
+      "attributes": {
+        "pace": 61,
+        "acceleration": 57,
+        "agility": 55,
+        "stamina": 68,
+        "control": 55,
+        "passing": 60,
+        "shooting": 41,
+        "power": 63,
+        "tackling": 74,
+        "goalkeeping": 20
+      },
+      "overall": 64
     },
     {
       "id": "00000000-0000-4000-8000-000000000067",
       "teamId": "00000000-0000-4000-8000-000000000001",
       "name": "Chen Wu",
       "shirtNumber": 3,
-      "position": "DF"
+      "position": "DF",
+      "attributes": {
+        "pace": 61,
+        "acceleration": 57,
+        "agility": 55,
+        "stamina": 68,
+        "control": 55,
+        "passing": 60,
+        "shooting": 41,
+        "power": 63,
+        "tackling": 74,
+        "goalkeeping": 20
+      },
+      "overall": 64
     },
     {
       "id": "00000000-0000-4000-8000-000000000068",
       "teamId": "00000000-0000-4000-8000-000000000001",
       "name": "Dara Quinn",
       "shirtNumber": 4,
-      "position": "MF"
+      "position": "MF",
+      "attributes": {
+        "pace": 63,
+        "acceleration": 64,
+        "agility": 67,
+        "stamina": 73,
+        "control": 70,
+        "passing": 74,
+        "shooting": 57,
+        "power": 59,
+        "tackling": 57,
+        "goalkeeping": 20
+      },
+      "overall": 68
     },
     {
       "id": "00000000-0000-4000-8000-000000000069",
       "teamId": "00000000-0000-4000-8000-000000000001",
       "name": "Eli Moreau",
       "shirtNumber": 5,
-      "position": "FW"
+      "position": "FW",
+      "attributes": {
+        "pace": 74,
+        "acceleration": 71,
+        "agility": 69,
+        "stamina": 61,
+        "control": 67,
+        "passing": 56,
+        "shooting": 75,
+        "power": 71,
+        "tackling": 36,
+        "goalkeeping": 20
+      },
+      "overall": 70
     },
     {
       "id": "00000000-0000-4000-8000-00000000006a",
       "teamId": "00000000-0000-4000-8000-000000000001",
       "name": "Femi Adeyemi",
       "shirtNumber": 6,
-      "position": "MF"
+      "position": "MF",
+      "attributes": {
+        "pace": 63,
+        "acceleration": 64,
+        "agility": 67,
+        "stamina": 73,
+        "control": 70,
+        "passing": 74,
+        "shooting": 57,
+        "power": 59,
+        "tackling": 57,
+        "goalkeeping": 20
+      },
+      "overall": 68
     },
     {
       "id": "00000000-0000-4000-8000-00000000006b",
       "teamId": "00000000-0000-4000-8000-000000000001",
       "name": "Gus Varga",
       "shirtNumber": 7,
-      "position": "FW"
+      "position": "FW",
+      "attributes": {
+        "pace": 74,
+        "acceleration": 71,
+        "agility": 69,
+        "stamina": 61,
+        "control": 67,
+        "passing": 56,
+        "shooting": 75,
+        "power": 71,
+        "tackling": 36,
+        "goalkeeping": 20
+      },
+      "overall": 70
     }
   ],
   "history": [

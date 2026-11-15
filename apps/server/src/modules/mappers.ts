@@ -11,6 +11,7 @@ import type {
   TacticalRevision,
   Team,
 } from "@autosoccer/contracts";
+import { overallRating, playerAttributes } from "./league/attributes.ts";
 
 const iso = (d: Date | null) => (d ? d.toISOString() : null);
 
@@ -41,13 +42,17 @@ export interface PlayerRow {
   shirt_number: number;
   position: Player["position"];
 }
-export const toPlayer = (r: PlayerRow): Player => ({
-  id: r.id,
-  teamId: r.team_id,
-  name: r.name,
-  shirtNumber: r.shirt_number,
-  position: r.position,
-});
+export const toPlayer = (r: PlayerRow): Player => {
+  const p = { name: r.name, shirtNumber: r.shirt_number, position: r.position };
+  const attributes = playerAttributes(p);
+  return {
+    id: r.id,
+    teamId: r.team_id,
+    ...p,
+    attributes,
+    overall: overallRating(attributes, r.position),
+  };
+};
 
 export interface FixtureRow {
   id: string;
