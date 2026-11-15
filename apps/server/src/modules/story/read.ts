@@ -139,7 +139,7 @@ function prematchLines(
   }
   for (const m of facts.filter((f) => f.kind === "score" && f.statement.startsWith("Earlier meeting")))
     lines.push(rec("meeting", `${m.statement}.`, [m.id]));
-  for (const m of facts.filter((f) => f.kind === "score" && f.statement.includes("'s last match")))
+  for (const m of facts.filter((f) => f.kind === "score" && /'s? last match \(round/.test(f.statement)))
     lines.push(rec("form", `${m.statement}.`, [m.id]));
   for (const f of facts.filter((x) => x.kind === "form")) lines.push(rec("form", `${f.statement}.`, [f.id]));
   for (const f of facts.filter((x) => x.id.startsWith("scorers:")))

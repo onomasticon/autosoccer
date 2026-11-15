@@ -410,6 +410,9 @@ interface FixtureRow {
   away_name: string;
 }
 
+/** "Harbour City's", "Northgate Comets'". */
+export const possessive = (name: string) => (name.endsWith("s") ? `${name}'` : `${name}'s`);
+
 const kickoffText = (d: Date | null) =>
   d ? `${d.toISOString().slice(0, 10)} at ${d.toISOString().slice(11, 16)} UTC` : "a time still to be confirmed";
 
@@ -484,7 +487,7 @@ export async function prematchFacts(db: Db, fixtureId: string): Promise<Editoria
   ] as const) {
     const last = played.filter((x) => x.home_id === teamId || x.away_id === teamId).at(-1);
     if (last && !seen.has(last.id)) {
-      facts.push(scoreFact(last, `${name}'s last match (round ${last.round}): ${line(last)}`));
+      facts.push(scoreFact(last, `${possessive(name)} last match (round ${last.round}): ${line(last)}`));
       seen.add(last.id);
     }
     const form = asOf > 0 ? await formFact(db, f.season_id, teamId, name, asOf) : null;
@@ -507,7 +510,7 @@ export async function prematchFacts(db: Db, fixtureId: string): Promise<Editoria
       facts.push({
         id: `scorers:${f.season_id}:r${asOf}:${teamId}`,
         kind: "stat",
-        statement: `${name}'s leading league scorer${leaders.length > 1 ? "s" : ""} before round ${f.round}: ${leaders.join(" and ")} (${best} goal${best === 1 ? "" : "s"}${leaders.length > 1 ? " each" : ""})`,
+        statement: `${possessive(name)} leading league scorer${leaders.length > 1 ? "s" : ""} before round ${f.round}: ${leaders.join(" and ")} (${best} goal${best === 1 ? "" : "s"}${leaders.length > 1 ? " each" : ""})`,
         value: { team: { id: teamId, name }, throughRound: asOf, players: leaders, goals: best },
         source: { table: "matches", id: `season:${f.season_id}` },
       });
@@ -521,7 +524,7 @@ export async function prematchFacts(db: Db, fixtureId: string): Promise<Editoria
       facts.push({
         id: `fixture:${f.id}:tactics:${teamId}`,
         kind: "tactics",
-        statement: `${name}'s AI manager has committed to ${tacticsText(rev.deployment)} for this match (tactical revision v${rev.version})`,
+        statement: `${possessive(name)} AI manager has committed to ${tacticsText(rev.deployment)} for this match (tactical revision v${rev.version})`,
         value: { revisionVersion: rev.version },
         source: { table: "tactical_revisions", id: rev.id },
       });

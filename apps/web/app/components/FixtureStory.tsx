@@ -44,6 +44,7 @@ export function StoryCard({
   headingId,
   as: Heading = "h2",
   collapsed = false,
+  linkMatchday = false,
 }: {
   story: FixtureStory;
   mode: "before" | "after";
@@ -53,6 +54,8 @@ export function StoryCard({
   as?: "h2" | "h3";
   /** Keep the lines behind a disclosure (e.g. the pre-match story on a finished match). */
   collapsed?: boolean;
+  /** Link to the fixture's matchday page (for cards shown elsewhere). */
+  linkMatchday?: boolean;
 }) {
   const after = mode === "after" && story.postmatch;
   const lines = (after ? story.postmatch!.lines : story.prematch.lines).filter(
@@ -94,6 +97,16 @@ export function StoryCard({
         )
       ) : (
         <p className="mt-3 text-sm text-muted-text">Nothing on record yet for this fixture.</p>
+      )}
+      {linkMatchday && (
+        <p className="mt-3 text-sm">
+          <Link
+            to={`/matchday/${story.fixtureId}`}
+            className="font-semibold text-violet-deep underline-offset-4 hover:underline"
+          >
+            Open the matchday <span aria-hidden>→</span>
+          </Link>
+        </p>
       )}
       {article && (
         <p className="mt-3 text-sm">

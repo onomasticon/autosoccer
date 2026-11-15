@@ -14,6 +14,7 @@ import { Link } from "react-router";
 import { VoicesStrip } from "../components/AgentProfileCard";
 import { ArticleCard } from "../components/ArticleCard";
 import { InsideTheDugout } from "../components/Dugout";
+import { FeaturedMatchday } from "../components/FeaturedMatchday";
 import { YourClub } from "../components/FollowClub";
 import { LeadStory } from "../components/LeadStory";
 import { FixtureRow } from "../components/MatchScoreCard";
@@ -163,6 +164,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     <div className="space-y-6">
       <h1 className="sr-only">Auto Soccer — {season.name}</h1>
       <YourClub teams={teams} fixtures={fixtures} stories={dugout?.stories ?? null} articles={articles} />
+      {!previous && <FeaturedMatchday fixtures={fixtures} />}
       <div className="grid items-stretch gap-6 lg:grid-cols-2">
         {previous ? (
           <OffSeasonCard previous={previous} next={season.name} firstKickoff={upcoming[0]?.scheduledAt ?? null} />
