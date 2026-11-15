@@ -15,6 +15,7 @@ import type { Logger } from "../../log.ts";
 import { seedManagers } from "../agents/service.ts";
 import { seedJournalists } from "../editorial/service.ts";
 import { CADENCES, type Cadence, kickoffs } from "./cadence.ts";
+import { developSeason } from "./careers.ts";
 import { createSeason, syncSquads } from "./service.ts";
 
 /**
@@ -106,6 +107,9 @@ export async function rolloverSeason(db: Db, opts: RolloverOptions): Promise<str
     cadence: calendar ?? { kind: "interval", minutes },
     playersPerTeam: LEAGUE_TEAM_SIZE,
   });
+  // Player careers: this season's ratings, developed from last season's record (idempotent).
+  const developed = await developSeason(db, seasonId, last.id);
+  if (developed) opts.log?.info("player ratings developed", { season: slug, players: developed });
   await seedManagers(db, seasonId, opts.managerModel);
   await seedJournalists(db, opts.editorialModel);
   if (created)
@@ -151,6 +155,10 @@ export async function refreshUpcomingSeason(
     await tx`delete from tactical_revisions where season_id = ${s.id}`;
   });
   const added = await syncSquads(db);
+  // Snapshots for any players the format change added (existing snapshots are kept).
+  const [prev] = await db<{ id: string }[]>`
+    select id from seasons where id <> ${s.id} and status = 'completed' order by created_at desc limit 1`;
+  await developSeason(db, s.id, prev?.id ?? null);
   await seedManagers(db, s.id, opts.managerModel);
   opts.log?.info("upcoming season moved to the current format", {
     season: s.slug,

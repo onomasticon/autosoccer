@@ -2,6 +2,7 @@ import type {
   ArticleListResponse,
   BudgetResponse,
   ManagerProfile,
+  PlayerCareersResponse,
   Position,
   SeasonResponse,
   TeamDetailResponse,
@@ -14,6 +15,7 @@ import { DugoutTimeline } from "../components/Dugout";
 import { FollowButton } from "../components/FollowClub";
 import { ManagerArc } from "../components/ManagerArc";
 import { FixtureCard } from "../components/MatchScoreCard";
+import { PlayerCareer } from "../components/PlayerCareer";
 import { OverallBadge, PlayerRatings } from "../components/PlayerRatings";
 import { RouteError } from "../components/RouteError";
 import { SectionHeader } from "../components/SectionHeader";
@@ -35,9 +37,11 @@ export async function loader({ params }: Route.LoaderArgs) {
     ? await apiMaybe<TeamDugoutResponse>(`/api/v1/teams/${encodeURIComponent(params.slug)}/dugout`)
     : null;
   const profile = await apiMaybe<ManagerProfile>(`/api/v1/teams/${encodeURIComponent(params.slug)}/manager-profile`);
+  const careers = await apiMaybe<PlayerCareersResponse>(`/api/v1/teams/${encodeURIComponent(params.slug)}/careers`);
   return {
     ...detail,
     profile,
+    careers: careers?.players ?? [],
     news: news?.items ?? [],
     budget: budgetRow,
     dugout: dugout?.story ?? null,
@@ -70,6 +74,7 @@ export default function Team({ loaderData }: Route.ComponentProps) {
     goals,
     memoryWrittenAfter,
     profile,
+    careers,
   } = loaderData;
   const results = fixtures.filter((f) => f.status === "completed");
   const upcoming = fixtures.filter((f) => f.status !== "completed");
@@ -264,15 +269,18 @@ export default function Team({ loaderData }: Route.ComponentProps) {
                     </summary>
                     <div className="border-t border-line bg-panel px-4 py-3">
                       <PlayerRatings player={p} />
+                      {careers.find((c) => c.playerId === p.id) && (
+                        <PlayerCareer career={careers.find((c) => c.playerId === p.id)!} />
+                      )}
                     </div>
                   </details>
                 </li>
               ))}
             </ul>
             <p className="mt-2 text-xs text-muted-text">
-              Ratings run 1–99 and are fixed for each player. In seasons that started after ratings arrived, they set
-              how fast each player runs and turns and how well they control, pass, shoot and tackle. Open a player to
-              see all ten.
+              Ratings run 1–99. In seasons that started after ratings arrived, they set how fast each player runs and
+              turns and how well they control, pass, shoot and tackle. From each new season they develop a little from
+              playing time and goals. Open a player to see all ten, and their career.
             </p>
           </section>
         </aside>

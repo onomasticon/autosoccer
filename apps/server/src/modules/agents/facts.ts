@@ -7,8 +7,9 @@ import {
   type TeamMatchStats,
 } from "@autosoccer/contracts";
 import type { Db } from "@autosoccer/db";
+import { ratedPlayer, seasonRatings } from "../league/careers.ts";
 import { seasonTeamSize, standingRows } from "../league/read.ts";
-import { type PlayerRow, toPlayer } from "../mappers.ts";
+import type { PlayerRow } from "../mappers.ts";
 import { defaultLineup } from "../matches/lineup.ts";
 import { latestValidRevision } from "../tactics/service.ts";
 import type { ManagerFacts, MatchSummaryFact, PostMatchFacts } from "./prompts.ts";
@@ -98,6 +99,37 @@ async function completedMatches(
     order by f.round desc limit ${limit}`;
 }
 
+/**
+ * Each player's starts and goals in the club's last three matches this season (official record:
+ * frozen lineups and goal events), through `upToRound`.
+ */
+async function squadForm(db: Db, seasonId: string, teamId: string, upToRound: number) {
+  const recent = await db<
+    {
+      side: "home" | "away";
+      request: Record<"home" | "away", { starters: Array<{ playerId: string }> }>;
+      events: Array<{ type: string; side?: string; scorerId?: string | null; ownGoal?: boolean }>;
+    }[]
+  >`
+    select case when f.home_team_id = ${teamId} then 'home' else 'away' end as side, m.request, m.events
+    from matches m join fixtures f on f.id = m.fixture_id
+    where f.season_id = ${seasonId} and m.status = 'completed' and f.round <= ${upToRound}
+      and ${teamId}::uuid in (f.home_team_id, f.away_team_id)
+    order by f.round desc limit 3`;
+  const out = new Map<string, { matches: number; starts: number; goals: number }>();
+  const get = (id: string) => {
+    const r = out.get(id) ?? { matches: recent.length, starts: 0, goals: 0 };
+    out.set(id, r);
+    return r;
+  };
+  for (const m of recent) {
+    for (const s of m.request[m.side].starters) get(s.playerId).starts++;
+    for (const e of m.events)
+      if (e.type === "goal" && !e.ownGoal && e.side === m.side && e.scorerId) get(e.scorerId).goals++;
+  }
+  return out;
+}
+
 export async function managerFacts(
   db: Db,
   fixture: FixtureCtx,
@@ -109,8 +141,9 @@ export async function managerFacts(
   const oppId = home ? fixture.away_team_id : fixture.home_team_id;
   const [team] = await db<{ name: string }[]>`select name from teams where id = ${teamId}`;
   const [opp] = await db<{ name: string }[]>`select name from teams where id = ${oppId}`;
+  const snapshot = await seasonRatings(db, fixture.season_id);
   const squad = (await db<PlayerRow[]>`select * from players where team_id = ${teamId} order by shirt_number`).map(
-    toPlayer,
+    (p) => ratedPlayer(p, snapshot),
   );
   const rev = await latestValidRevision(db, teamId, fixture.season_id);
   const size = await seasonTeamSize(db, fixture.season_id);
@@ -118,6 +151,7 @@ export async function managerFacts(
   const shirt = new Map(squad.map((p) => [p.id, p.shirtNumber]));
   const parsed = rev && rev.deployment.kind === "tactical" ? TacticalConfigV1.safeParse(rev.deployment.config) : null;
   const upTo = opts.includeRound ? fixture.round : fixture.round - 1;
+  const form = await squadForm(db, fixture.season_id, teamId, upTo);
   const { rows } = await standingRows(db, fixture.season_id);
   return {
     manager: { name: manager.name, persona: manager.persona, philosophy: manager.philosophy, memory: manager.memory },
@@ -130,6 +164,7 @@ export async function managerFacts(
       position: p.position,
       overall: p.overall,
       attributes: p.attributes,
+      form: form.get(p.id) ?? { matches: 0, starts: 0, goals: 0 },
     })),
     current: { tactics: parsed?.success ? parsed.data : null, starters: lineup.starters.map((id) => shirt.get(id)!) },
     table: rows.map((r) => ({

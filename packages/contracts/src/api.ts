@@ -3,6 +3,7 @@
  * parses with these schemas; the web app consumes them as types.
  */
 import { z } from "zod";
+import { PlayerCareersResponse } from "./careers.ts";
 import { ErrorEnvelope, Id, MicroUsd, Slug } from "./common.ts";
 import {
   AgentRun,
@@ -446,4 +447,15 @@ ROUTES.push({
   query: { season: Slug.optional() },
   response: ManagerProfile,
   responseName: "ManagerProfile",
+});
+
+ROUTES.push({
+  method: "get",
+  path: "/teams/{team}/careers",
+  operationId: "getTeamCareers",
+  summary:
+    "Player careers (player-careers/1): ratings season by season (snapshot or baseline, with the development rule's changes), starts and goals from the record, and recent form",
+  params: { team: Slug },
+  response: PlayerCareersResponse,
+  responseName: "PlayerCareersResponse",
 });

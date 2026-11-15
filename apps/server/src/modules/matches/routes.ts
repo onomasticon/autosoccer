@@ -1,8 +1,14 @@
-import { MatchDetailResponse, type OfficialEvent, type TeamMatchStats } from "@autosoccer/contracts";
+import {
+  MatchDetailResponse,
+  type OfficialEvent,
+  type PlayerAttributes,
+  type TeamMatchStats,
+} from "@autosoccer/contracts";
 import type { Db } from "@autosoccer/db";
 import type { ReplayStore } from "@autosoccer/sim-adapter";
 import { Hono } from "hono";
 import { contractJson, isUuid, notFound } from "../http.ts";
+import { ratedPlayer, seasonRatings } from "../league/careers.ts";
 import {
   type FixtureRow,
   type MatchRow,
@@ -12,7 +18,6 @@ import {
   type TeamRow,
   toFixtureView,
   toMatch,
-  toPlayer,
   toReplay,
   toTeam,
 } from "../mappers.ts";
@@ -34,14 +39,21 @@ export function matchRoutes({ db, store }: { db: Db; store: ReplayStore }) {
       ]),
     );
     const request = m.request as {
-      home: { starters: { playerId: string }[] };
-      away: { starters: { playerId: string }[] };
+      home: { starters: { playerId: string; attributes?: PlayerAttributes }[] };
+      away: { starters: { playerId: string; attributes?: PlayerAttributes }[] };
     };
     const starterIds = [...request.home.starters, ...request.away.starters].map((s) => s.playerId);
+    // The ratings this match was played with: its frozen request's, else its season's snapshot.
+    const snapshot = await seasonRatings(db, f!.season_id);
+    const frozen = new Map(
+      [...request.home.starters, ...request.away.starters]
+        .filter((s): s is typeof s & { attributes: PlayerAttributes } => "attributes" in s && !!s.attributes)
+        .map((s) => [s.playerId, s.attributes]),
+    );
     const players = new Map(
       (await db<PlayerRow[]>`select * from players where id = any(${starterIds}::uuid[])`).map((p) => [
         p.id,
-        toPlayer(p),
+        ratedPlayer(p, frozen.size ? frozen : snapshot),
       ]),
     );
     const [replay] = await db<ReplayRow[]>`select * from replay_artifacts where match_id = ${m.id}`;

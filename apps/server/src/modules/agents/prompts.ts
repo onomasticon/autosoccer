@@ -64,7 +64,15 @@ export interface ManagerFacts {
   team: { name: string };
   format: { playersPerTeam: TeamSize };
   fixture: { round: number; venue: "home" | "away"; opponent: string };
-  squad: Array<{ shirt: number; name: string; position: string; overall?: number; attributes?: PlayerAttributes }>;
+  squad: Array<{
+    shirt: number;
+    name: string;
+    position: string;
+    overall?: number;
+    attributes?: PlayerAttributes;
+    /** Starts and goals in the club's last few matches this season (official record). */
+    form?: { matches: number; starts: number; goals: number };
+  }>;
   current: { tactics: TacticalConfigV1 | null; starters: number[] };
   table: Array<{ position: number; team: string; played: number; points: number; goalDifference: number }>;
   recent: MatchSummaryFact[];
@@ -94,14 +102,17 @@ ${options(size)}
 Formations list the ${NUMBER_WORDS[size - 1] ?? size - 1} outfield players back to front. Slot 1 is always the goalkeeper.`;
 }
 
-/** "9 · Omar Said · FW · overall 74 · pace 81, acceleration 77, …" (ratings 1–99). */
+/** "9 · Omar Said · FW · overall 74 · last 3: 3 starts, 2 goals · pace 81, …" (ratings 1–99). */
 function squadLine(p: ManagerFacts["squad"][number]): string {
   const head = `${p.shirt} · ${p.name} · ${p.position}`;
   if (!p.attributes) return head;
   const r = Object.entries(p.attributes)
     .map(([k, v]) => `${k} ${v}`)
     .join(", ");
-  return `${head} · overall ${p.overall} · ${r}`;
+  const form = p.form?.matches
+    ? ` · last ${p.form.matches}: ${p.form.starts} start${p.form.starts === 1 ? "" : "s"}, ${p.form.goals} goal${p.form.goals === 1 ? "" : "s"}`
+    : "";
+  return `${head} · overall ${p.overall}${form} · ${r}`;
 }
 
 const fmtMatch = (m: MatchSummaryFact) =>

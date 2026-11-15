@@ -871,6 +871,47 @@
           }
         }
       }
+    },
+    "/teams/{team}/careers": {
+      "get": {
+        "operationId": "getTeamCareers",
+        "summary": "Player careers (player-careers/1): ratings season by season (snapshot or baseline, with the development rule's changes), starts and goals from the record, and recent form",
+        "parameters": [
+          {
+            "name": "team",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "type": "string",
+              "maxLength": 80,
+              "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlayerCareersResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -13611,6 +13652,372 @@
           "traits",
           "notable",
           "current"
+        ],
+        "additionalProperties": false
+      },
+      "PlayerCareersResponse": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "contract": {
+            "type": "string",
+            "const": "player-careers/1"
+          },
+          "team": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "description": "UUID primary key",
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              "slug": {
+                "type": "string",
+                "maxLength": 80,
+                "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+              },
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 60
+              },
+              "shortName": {
+                "type": "string",
+                "minLength": 2,
+                "maxLength": 4
+              },
+              "city": {
+                "type": "string",
+                "maxLength": 60
+              },
+              "colors": {
+                "type": "object",
+                "properties": {
+                  "primary": {
+                    "type": "string",
+                    "pattern": "^#[0-9A-Fa-f]{6}$"
+                  },
+                  "secondary": {
+                    "type": "string",
+                    "pattern": "^#[0-9A-Fa-f]{6}$"
+                  }
+                },
+                "required": [
+                  "primary",
+                  "secondary"
+                ],
+                "additionalProperties": false
+              },
+              "crest": {
+                "type": "object",
+                "properties": {
+                  "shape": {
+                    "type": "string",
+                    "enum": [
+                      "shield",
+                      "circle",
+                      "hexagon",
+                      "diamond"
+                    ]
+                  },
+                  "glyph": {
+                    "description": "short monogram rendered on the badge",
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 3
+                  }
+                },
+                "required": [
+                  "shape",
+                  "glyph"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "id",
+              "slug",
+              "name",
+              "shortName",
+              "city",
+              "colors",
+              "crest"
+            ],
+            "additionalProperties": false
+          },
+          "players": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "playerId": {
+                  "description": "UUID primary key",
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "shirtNumber": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "position": {
+                  "type": "string",
+                  "enum": [
+                    "GK",
+                    "DF",
+                    "MF",
+                    "FW"
+                  ]
+                },
+                "seasons": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "season": {
+                        "type": "object",
+                        "properties": {
+                          "slug": {
+                            "type": "string",
+                            "maxLength": 80,
+                            "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+                          },
+                          "name": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "slug",
+                          "name"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "source": {
+                        "type": "string",
+                        "enum": [
+                          "snapshot",
+                          "baseline"
+                        ]
+                      },
+                      "rule": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "overall": {
+                        "type": "integer",
+                        "minimum": -9007199254740991,
+                        "maximum": 9007199254740991
+                      },
+                      "attributes": {
+                        "type": "object",
+                        "properties": {
+                          "pace": {
+                            "description": "top speed",
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 99
+                          },
+                          "acceleration": {
+                            "description": "how quickly they reach top speed and stop",
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 99
+                          },
+                          "agility": {
+                            "description": "how sharply they turn",
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 99
+                          },
+                          "stamina": {
+                            "description": "how slowly they tire when sprinting, and how fast they recover",
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 99
+                          },
+                          "control": {
+                            "description": "first touch, close control and shielding",
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 99
+                          },
+                          "passing": {
+                            "description": "accuracy of passes and throws",
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 99
+                          },
+                          "shooting": {
+                            "description": "accuracy of shots",
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 99
+                          },
+                          "power": {
+                            "description": "how hard they can strike the ball",
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 99
+                          },
+                          "tackling": {
+                            "description": "chance of winning a tackle",
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 99
+                          },
+                          "goalkeeping": {
+                            "description": "reach and handling (goalkeepers)",
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 99
+                          }
+                        },
+                        "required": [
+                          "pace",
+                          "acceleration",
+                          "agility",
+                          "stamina",
+                          "control",
+                          "passing",
+                          "shooting",
+                          "power",
+                          "tackling",
+                          "goalkeeping"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "changes": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "attribute": {
+                              "type": "string",
+                              "enum": [
+                                "pace",
+                                "acceleration",
+                                "agility",
+                                "stamina",
+                                "control",
+                                "passing",
+                                "shooting",
+                                "power",
+                                "tackling",
+                                "goalkeeping"
+                              ]
+                            },
+                            "delta": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            "reasons": {
+                              "type": "array",
+                              "items": {
+                                "type": "string"
+                              }
+                            }
+                          },
+                          "required": [
+                            "attribute",
+                            "delta",
+                            "reasons"
+                          ],
+                          "additionalProperties": false
+                        }
+                      },
+                      "teamMatches": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 9007199254740991
+                      },
+                      "starts": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 9007199254740991
+                      },
+                      "goals": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 9007199254740991
+                      }
+                    },
+                    "required": [
+                      "season",
+                      "source",
+                      "rule",
+                      "overall",
+                      "attributes",
+                      "changes",
+                      "teamMatches",
+                      "starts",
+                      "goals"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "form": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "matchId": {
+                        "description": "UUID primary key",
+                        "type": "string",
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                      },
+                      "round": {
+                        "type": "integer",
+                        "minimum": -9007199254740991,
+                        "maximum": 9007199254740991
+                      },
+                      "started": {
+                        "type": "boolean"
+                      },
+                      "goals": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 9007199254740991
+                      }
+                    },
+                    "required": [
+                      "matchId",
+                      "round",
+                      "started",
+                      "goals"
+                    ],
+                    "additionalProperties": false
+                  }
+                }
+              },
+              "required": [
+                "playerId",
+                "name",
+                "shirtNumber",
+                "position",
+                "seasons",
+                "form"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "contract",
+          "team",
+          "players"
         ],
         "additionalProperties": false
       }
