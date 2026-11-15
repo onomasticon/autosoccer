@@ -8,6 +8,7 @@ import {
 } from "@autosoccer/contracts";
 import type { Db } from "@autosoccer/db";
 import {
+  isSupportedSimPin,
   type ParamsResolver,
   type ReplayStore,
   requestHash,
@@ -153,8 +154,11 @@ export async function playFixture(deps: MatchDeps, fixtureId: string, log?: Logg
       request = row!.request;
     }
   }
-  if (request.simVersion !== SIM_VERSION) {
-    throw new PermanentJobError(`fixture pinned to sim ${request.simVersion}, worker runs ${SIM_VERSION}`);
+  // A season keeps the sim it was created on: any pin this build still plays (SIM_PINS) is fine.
+  if (!isSupportedSimPin(request)) {
+    throw new PermanentJobError(
+      `fixture pinned to sim ${request.simVersion}, which worker sim ${SIM_VERSION} can't play`,
+    );
   }
 
   await db`update matches set status = 'running', started_at = coalesce(started_at, now()) where id = ${matchId} and status <> 'completed'`;

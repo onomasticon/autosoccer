@@ -1,7 +1,7 @@
 import { gunzipSync } from "node:zlib";
 import { MatchDetailResponse } from "@autosoccer/contracts";
 import { createTestDatabase, type TestDatabase } from "@autosoccer/db/testing";
-import { MemoryReplayStore, runMatch } from "@autosoccer/sim-adapter";
+import { COMPATIBLE_SIM_COMMITS, MemoryReplayStore, runMatch } from "@autosoccer/sim-adapter";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createApp } from "../../app.ts";
 import { createWorker } from "../../jobs/worker.ts";
@@ -115,6 +115,22 @@ describe("match jobs", () => {
     expect(rows).toHaveLength(1);
     expect(rows[0]).toMatchObject({ id: failed!.id, status: "completed", request_hash: failed!.request_hash });
   });
+
+  it.each(COMPATIBLE_SIM_COMMITS.map((c) => [c.slice(0, 7)]))(
+    "plays a fixture from a season still pinned to an earlier supported sim (%s)",
+    async (pin) => {
+      const s = await insertSeason(t.db, `pin-${pin}`, pin, 7);
+      const f = await insertFixture(t.db, s, home, away, 1, 11);
+      await enqueueFixture(t.db, f);
+      const w = createWorker({ db: t.db, handlers: { [MATCH_JOB]: matchJobHandler(deps()) } });
+      const r = await w.runOnce();
+      expect(r!.status).toBe("succeeded");
+      const [m] = await t.db<{ status: string; request: { simVersion: string } }[]>`
+        select status, request from matches where fixture_id = ${f}`;
+      expect(m).toMatchObject({ status: "completed", request: { simVersion: pin } });
+    },
+    60_000,
+  );
 
   it("refuses a fixture pinned to a different simulator version (permanent failure)", async () => {
     const s2 = await insertSeason(t.db, "old-sim", "0000000");
