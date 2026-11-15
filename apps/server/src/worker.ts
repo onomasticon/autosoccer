@@ -41,6 +41,8 @@ const scheduler =
     ? startScheduler(db, {
         intervalMs: config.SCHEDULER_INTERVAL_MS,
         respectSchedule: config.SCHEDULE_RESPECT_KICKOFF === "true",
+        // The worker always has the newsroom's job handlers (offline template writer without a key).
+        previews: true,
         rollover:
           config.SEASON_ROLLOVER === "true"
             ? {

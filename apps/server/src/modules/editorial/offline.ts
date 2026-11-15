@@ -107,9 +107,51 @@ function column(c: EditorialContext): ArticleDraft {
   };
 }
 
+/** A preview from the pre-kickoff facts only: the fixture, the table, form, meetings and history. */
+function preview(c: EditorialContext): ArticleDraft {
+  const facts = c.facts.facts;
+  const fixture = facts.find((f) => f.kind === "fixture")!;
+  const v = fixture.value as { homeTeam: { name: string }; awayTeam: { name: string } };
+  const [home, away] = [v.homeTeam.name, v.awayTeam.name];
+  const about = (f: Fact) => [home, away].some((n) => f.statement.startsWith(n) || f.statement.includes(`${n}'s`));
+  const table = byKind(facts, "standing").filter((f) => f.id.startsWith("standing:") && about(f));
+  const race = facts.find((f) => f.id.startsWith("race:"));
+  const meetings = byKind(facts, "score");
+  const form = byKind(facts, "form");
+  const scorers = facts.filter((f) => f.id.startsWith("scorers:"));
+  const tactics = byKind(facts, "tactics");
+  const defending = facts.find((f) => f.id.endsWith(":defending"));
+  const used = [
+    fixture,
+    ...table,
+    ...(race ? [race] : []),
+    ...meetings,
+    ...form,
+    ...scorers,
+    ...tactics,
+    ...(defending ? [defending] : []),
+  ];
+  const para = (fs: Fact[]) => fs.map((f) => `${f.statement}.`).join(" ");
+  return {
+    headline: `Preview: ${home} v ${away}, round ${c.round}`,
+    standfirst: `Where ${home} and ${away} stand before kickoff, from the official record.`,
+    body: [
+      `${fixture.statement}.`,
+      para([...table, ...(race ? [race] : [])]),
+      para([...meetings, ...form]),
+      para([...scorers, ...tactics]),
+      defending ? `${defending.statement}.` : "",
+    ]
+      .filter(Boolean)
+      .join("\n\n"),
+    citations: used.map((f) => cite(f)),
+  };
+}
+
 export function offlineEditorialLlm(pricedAs: string) {
   return new OfflineLlm(pricedAs, {
     "editorial.match_report": (ctx) => matchReport(ctx as EditorialContext),
+    "editorial.preview": (ctx) => preview(ctx as EditorialContext),
     "editorial.analysis": (ctx) => analysis(ctx as EditorialContext),
     "editorial.column": (ctx) => column(ctx as EditorialContext),
   });

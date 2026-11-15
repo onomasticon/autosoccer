@@ -10,7 +10,7 @@
  */
 import type { EditorialFacts } from "@autosoccer/contracts";
 import { z } from "zod";
-import { checkCitationClaims, checkClaims } from "./claims.ts";
+import { checkCitationClaims, checkClaims, sentences } from "./claims.ts";
 
 export const ArticleDraft = z
   .object({
@@ -31,6 +31,11 @@ export type ArticleDraft = z.infer<typeof ArticleDraft>;
 const SCORELINE = /\b(\d{1,2})\s*[–—-]\s*(\d{1,2})\b/g;
 const QUOTES = /["“”«»]|(?:^|\s)'[^']{3,}'(?=\s|[.,;!?]|$)/;
 const MINUTES = /\b\d{1,3}(?:st|nd|rd|th)[ -]minute\b|\bminute \d{1,3}\b/i;
+/** A preview stating the unplayed match's outcome as certain ("X will beat Y")… */
+const CERTAIN =
+  /\bwill\s+(?:surely\s+|definitely\s+|certainly\s+)?(?:win|beat|lose|draw|score|take (?:the )?(?:points|three points|title)|claim|seal|clinch|go top|finish|be crowned)\b/i;
+/** …unless it's hedged or labelled as a prediction. */
+const HEDGE = /\b(?:predict(?:ion|s|ed)?|could|might|may|if|expect(?:s|ed)?|likely|chance|perhaps|hope|should)\b/i;
 
 /**
  * A number pair is a formation, not a score, when it's part of a three-part shape ("2-1-1",
@@ -63,7 +68,11 @@ export function allowedScorelines(facts: EditorialFacts): Set<string> {
 export function checkGrounding(
   draft: ArticleDraft,
   facts: EditorialFacts,
-  opts: { requireScoreFact?: string } = {},
+  opts: {
+    requireScoreFact?: string;
+    /** A preview of an unplayed fixture: must cite the fixture, and may only predict, never report, its result. */
+    preview?: { fixtureFact: string };
+  } = {},
 ): string[] {
   const errors: string[] = [];
   const ids = new Set(facts.facts.map((f) => f.id));
@@ -72,7 +81,16 @@ export function checkGrounding(
   if (opts.requireScoreFact && !draft.citations.some((c) => c.factId === opts.requireScoreFact)) {
     errors.push(`a match report must cite the official score (${opts.requireScoreFact})`);
   }
+  if (opts.preview && !draft.citations.some((c) => c.factId === opts.preview!.fixtureFact)) {
+    errors.push(`a preview must cite the fixture it previews (${opts.preview.fixtureFact})`);
+  }
   const text = `${draft.headline}\n${draft.standfirst}\n${draft.body}`;
+  if (opts.preview)
+    for (const s of sentences(text))
+      if (CERTAIN.test(s) && !HEDGE.test(s))
+        errors.push(
+          `this match hasn't been played: label "${s.length > 100 ? `${s.slice(0, 97)}…` : s}" as a prediction or remove it`,
+        );
   if (QUOTES.test(text)) errors.push("remove quotation marks: no quotes are on record, so none may be printed");
   if (MINUTES.test(text))
     errors.push('use the simulator clock (e.g. "1:28 into the second half"), not football minutes');

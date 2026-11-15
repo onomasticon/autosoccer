@@ -1,5 +1,6 @@
 import type {
   ArticleListResponse,
+  FixtureStory,
   MatchDetailResponse,
   OfficialEvent,
   Player,
@@ -8,6 +9,7 @@ import type {
 import { useState } from "react";
 import { Link } from "react-router";
 import { ArticleCard } from "../components/ArticleCard";
+import { StoryCard } from "../components/FixtureStory";
 import { MatchViewer } from "../components/match-viewer/MatchViewer";
 import { RouteError } from "../components/RouteError";
 import { SectionHeader } from "../components/SectionHeader";
@@ -25,7 +27,8 @@ export async function loader({ params }: Route.LoaderArgs) {
   const reports = await apiMaybe<ArticleListResponse>(
     `/api/v1/articles?match=${encodeURIComponent(params.id)}&limit=3`,
   );
-  return { ...detail, reports: reports?.items ?? [] };
+  const story = await apiMaybe<FixtureStory>(`/api/v1/fixtures/${encodeURIComponent(detail.fixture.id)}/story`);
+  return { ...detail, reports: reports?.items ?? [], story };
 }
 
 export const meta: Route.MetaFunction = ({ data }) => {
@@ -218,7 +221,7 @@ function Lineup({ players, title }: { players: Player[]; title: string }) {
 }
 
 export default function MatchCentre({ loaderData }: Route.ComponentProps) {
-  const { match, fixture, events, stats, lineups, replay, revisions, reports } = loaderData;
+  const { match, fixture, events, stats, lineups, replay, revisions, reports, story } = loaderData;
   const names = new Map([...lineups.home, ...lineups.away].map((p) => [p.id, p.name]));
   const done = match.status === "completed";
   const tactics = (r: (typeof revisions)["home"]) =>
@@ -326,6 +329,8 @@ export default function MatchCentre({ loaderData }: Route.ComponentProps) {
           </section>
         </div>
         <aside className="space-y-8 lg:col-span-4" aria-label="Match details">
+          {story?.postmatch && <StoryCard story={story} mode="after" headingId="what-changed" />}
+          {story && <StoryCard story={story} mode="before" headingId="why-it-matters" collapsed={!!story.postmatch} />}
           <section aria-labelledby="stats">
             <SectionHeader id="stats" title="Statistics" />
             <div className="card-surface p-4">

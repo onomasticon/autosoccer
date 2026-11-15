@@ -1,7 +1,7 @@
 import type { EditorialFacts } from "@autosoccer/contracts";
 import type { SeedJournalist } from "./journalists.ts";
 
-export type ArticleKind = "match_report" | "analysis" | "column";
+export type ArticleKind = "match_report" | "preview" | "analysis" | "column";
 
 export interface EditorialContext {
   kind: ArticleKind;
@@ -27,6 +27,8 @@ Rules (articles that break them are rejected automatically):
 const BRIEF: Record<ArticleKind, string> = {
   match_report:
     "Write the match report: the result first, then the goals in order, then what the statistics say about how the match went, then where it leaves both teams in the table. If the facts include an earlier meeting or a run of form, you may use it for context; never imply history the facts don't show.",
+  preview:
+    'Write a match preview. This match has NOT been played: never state or imply its result, its scorers or the table after it. Explain why it matters using only what the facts say was known before kickoff: where both clubs stand, the title race, earlier meetings, form and leading scorers, and any tactics a manager has already committed. If a fact is missing (round 1 has no table), say less rather than guessing. You may end with one clearly labelled prediction (start the sentence with "Prediction:" and use could/might), but never present it as fact.',
   analysis:
     "Write a tactical analysis of the round: pick the most instructive contrast between teams' recorded tactics and their recorded statistics, and explain what the numbers show. Finish with what to watch next round.",
   column:
