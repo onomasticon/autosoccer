@@ -8,6 +8,7 @@ import { renderToString } from "react-dom/server";
 import { createRoutesStub } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { FOLLOW_KEY, followClub, parseFollow, readFollowedSlug, unfollowClub } from "../lib/follow";
+import { readSeen, SEEN_KEY } from "../lib/lastSeen";
 import { mockArticles, mockFixtures, mockTeams } from "../lib/mocks";
 import { FollowButton, YourClub } from "./FollowClub";
 
@@ -175,6 +176,44 @@ describe("YourClub", () => {
     expect(errors).toEqual([]);
     expect(el.textContent).toContain("Your club: Red Rock Rovers");
     el.remove();
+  });
+});
+
+describe("YourClub: next match and catch-up", () => {
+  it("shows the next match's status, kick-off in UTC and the way into the matchday", async () => {
+    followClub(RRR.slug);
+    const { container } = inRouter(yourClub({ season: "season-5" }));
+    const next = await screen.findByTestId("next-match");
+    expect(next.textContent).toContain("Prepared"); // the fixture is released ("ready")
+    expect(next.textContent).toMatch(/Kick-off:.*UTC/);
+    expect(
+      within(next)
+        .getByRole("link", { name: /See the build-up/ })
+        .getAttribute("href"),
+    ).toMatch(/^\/matchday\//);
+    expect(screen.getByRole("link", { name: /The reaction/ }).getAttribute("href")).toMatch(/^\/matchday\//);
+    await noAxe(container);
+  });
+
+  it("a returning visitor sees the results they missed, once; a first visit shows none", async () => {
+    followClub(RRR.slug);
+    // First visit: nothing to catch up on, but the visit is remembered.
+    inRouter(yourClub({ season: "season-5" }));
+    await screen.findByTestId("next-match");
+    expect(screen.queryByTestId("catch-up")).toBeNull();
+    expect(readSeen()).toMatchObject({ season: "season-5", club: RRR.slug });
+    cleanup();
+    // Came back after round 1 had been played: last time they'd seen nothing.
+    localStorage.setItem(SEEN_KEY, JSON.stringify({ v: 1, season: "season-5", club: RRR.slug, fixtures: [], at: "x" }));
+    inRouter(yourClub({ season: "season-5" }));
+    const c = await screen.findByTestId("catch-up");
+    expect(c.textContent).toMatch(/Since your last visit: 1 result/);
+    expect(c.textContent).toMatch(/Lost 1–2 at /);
+    cleanup();
+    // And again straight away: no repeat.
+    inRouter(yourClub({ season: "season-5" }));
+    await screen.findByTestId("next-match");
+    expect(screen.queryByTestId("catch-up")).toBeNull();
   });
 });
 

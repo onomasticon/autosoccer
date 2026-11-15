@@ -1,6 +1,7 @@
 import type {
   ArticleListResponse,
   DugoutResponse,
+  FixtureStory,
   FixturesResponse,
   FixtureView,
   JournalistListResponse,
@@ -46,6 +47,7 @@ export async function loader() {
       dugout: null,
       fixtures: [],
       previous: null,
+      nextStories: {},
     };
   const slug = current.season.slug;
   const [standings, fixtures, articles, journalists, dugout] = await Promise.all([
@@ -75,6 +77,14 @@ export async function loader() {
     }
   }
   const featured = latest?.matchId ? await apiMaybe<MatchDetailResponse>(`/api/v1/matches/${latest.matchId}`) : null;
+  // Stakes for the next round (each club plays once a round), for Your Club. Shared data only: the
+  // followed club is picked in the browser, so this page stays the same for every visitor.
+  const nextRound = Math.min(...all.filter((f) => f.status !== "completed").map((f) => f.round));
+  const nextStories: Record<string, FixtureStory> = {};
+  for (const f of all.filter((x) => x.round === nextRound && x.status !== "completed")) {
+    const s = await apiMaybe<FixtureStory>(`/api/v1/fixtures/${encodeURIComponent(f.id)}/story`);
+    if (s) nextStories[f.id] = s;
+  }
   return {
     season: current.season,
     teams: current.teams,
@@ -87,6 +97,7 @@ export async function loader() {
     dugout,
     fixtures: all,
     previous,
+    nextStories,
   };
 }
 
@@ -147,8 +158,20 @@ const pad2 = (n: number) => String(n).padStart(2, "0");
  * loop, the league's point of difference), then stories / table / schedule panels, then league voices.
  */
 export default function Home({ loaderData }: Route.ComponentProps) {
-  const { season, teams, standings, results, upcoming, featured, articles, journalists, dugout, fixtures, previous } =
-    loaderData;
+  const {
+    season,
+    teams,
+    standings,
+    results,
+    upcoming,
+    featured,
+    articles,
+    journalists,
+    dugout,
+    fixtures,
+    previous,
+    nextStories,
+  } = loaderData;
   if (!season)
     return (
       <EmptyState title="The league hasn't kicked off">
@@ -163,7 +186,14 @@ export default function Home({ loaderData }: Route.ComponentProps) {
   return (
     <div className="space-y-6">
       <h1 className="sr-only">Auto Soccer — {season.name}</h1>
-      <YourClub teams={teams} fixtures={fixtures} stories={dugout?.stories ?? null} articles={articles} />
+      <YourClub
+        teams={teams}
+        fixtures={fixtures}
+        stories={dugout?.stories ?? null}
+        articles={articles}
+        season={season.slug}
+        nextStories={nextStories}
+      />
       {!previous && <FeaturedMatchday fixtures={fixtures} />}
       <div className="grid items-stretch gap-6 lg:grid-cols-2">
         {previous ? (

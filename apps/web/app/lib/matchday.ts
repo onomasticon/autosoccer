@@ -96,3 +96,40 @@ export function watchNote(story: FixtureStory, hasReplay: boolean): { title: str
       };
   }
 }
+
+/**
+ * Where a club's next match stands, in plain words: from the fixture story's stage when it's
+ * loaded (official job and decision state), else from the fixture's own status.
+ */
+export function nextMatchStatus(f: FixtureView, story: FixtureStory | null): { label: string; detail: string } {
+  const stage: StoryStage =
+    story?.stage ??
+    (f.status === "completed"
+      ? "completed"
+      : f.status === "playing"
+        ? "playing"
+        : f.status === "ready"
+          ? "prepared"
+          : f.status === "failed"
+            ? "failed"
+            : "scheduled");
+  switch (stage) {
+    case "scheduled":
+      return {
+        label: "Awaiting decisions",
+        detail: "Both managers decide their lineup and tactics just before kick-off.",
+      };
+    case "awaiting_decisions":
+      return { label: "Managers deciding", detail: "The AI managers are choosing their lineups and tactics now." };
+    case "prepared":
+      return { label: "Prepared", detail: "Lineups and tactics are set; the match is simulated at kick-off." };
+    case "playing":
+      return { label: "Being simulated", detail: "The recorded replay appears on the matchday page at full time." };
+    case "delayed":
+      return { label: "Delayed", detail: "Kick-off time has passed and the match hasn't started yet." };
+    case "failed":
+      return { label: "Held up", detail: "The match is waiting for an operator; no result yet." };
+    default:
+      return { label: "Full time", detail: "The result is in." };
+  }
+}

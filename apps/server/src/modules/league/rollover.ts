@@ -14,6 +14,7 @@ import { SIM_COMMIT, SIM_VERSION } from "@autosoccer/sim-adapter";
 import type { Logger } from "../../log.ts";
 import { seedManagers } from "../agents/service.ts";
 import { seedJournalists } from "../editorial/service.ts";
+import { CADENCES, type Cadence, kickoffs } from "./cadence.ts";
 import { createSeason, syncSquads } from "./service.ts";
 
 /**
@@ -31,6 +32,11 @@ export interface RolloverOptions {
    * a 4-hour break, then six rounds 4 hours apart.
    */
   roundMinutes?: number;
+  /**
+   * A public calendar for the new season ("weekly" or "twice-weekly", UTC). Round 1 is the first
+   * slot at least `roundMinutes` (or a day) after the last season ends. Default: interval spacing.
+   */
+  cadence?: "interval" | "weekly" | "twice-weekly";
   /** Earliest kick-off for the new season (default: now). */
   now?: Date;
   log?: Logger;
@@ -81,7 +87,11 @@ export async function rolloverSeason(db: Db, opts: RolloverOptions): Promise<str
     from fixtures where season_id = ${last.id}`;
   const minutes = Math.max(5, Math.round(opts.roundMinutes ?? gap?.minutes ?? 60));
   const now = opts.now ?? new Date();
-  const startsAt = new Date(Math.ceil((now.getTime() + minutes * 60_000) / 60_000) * 60_000);
+  const calendar = opts.cadence && opts.cadence !== "interval" ? (CADENCES[opts.cadence] as Cadence) : null;
+  // On a calendar, leave at least a day for previews and the new season's opening setups.
+  const startsAt = calendar
+    ? kickoffs(new Date(now.getTime() + Math.max(minutes, 24 * 60) * 60_000), 1, calendar)[0]!
+    : new Date(Math.ceil((now.getTime() + minutes * 60_000) / 60_000) * 60_000);
   const slug = `season-${n + 1}`;
   const added = await syncSquads(db);
   if (added) opts.log?.info("squads grew for the new format", { players: added, playersPerTeam: LEAGUE_TEAM_SIZE });
@@ -93,13 +103,19 @@ export async function rolloverSeason(db: Db, opts: RolloverOptions): Promise<str
     editorialBudgetMicroUsd: Number(last.editorial_budget_micro_usd),
     teamSlugs: teams.map((t) => t.slug),
     startsAt,
-    cadence: { kind: "interval", minutes },
+    cadence: calendar ?? { kind: "interval", minutes },
     playersPerTeam: LEAGUE_TEAM_SIZE,
   });
   await seedManagers(db, seasonId, opts.managerModel);
   await seedJournalists(db, opts.editorialModel);
   if (created)
-    opts.log?.info("season rolled over", { from: last.slug, to: slug, startsAt: startsAt.toISOString(), minutes });
+    opts.log?.info("season rolled over", {
+      from: last.slug,
+      to: slug,
+      startsAt: startsAt.toISOString(),
+      cadence: opts.cadence ?? "interval",
+      minutes,
+    });
   return slug;
 }
 

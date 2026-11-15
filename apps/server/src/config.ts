@@ -36,6 +36,12 @@ const Env = z.object({
   SEASON_ROLLOVER: z.enum(["true", "false"]).default("true"),
   /** Minutes between rounds of rolled-over seasons. 240 = one season per day (6 rounds + a 4-hour break). */
   SEASON_ROUND_MINUTES: z.coerce.number().int().min(5).default(240),
+  /**
+   * Calendar for rolled-over seasons: "interval" (default) spaces rounds SEASON_ROUND_MINUTES apart;
+   * "weekly" (Saturdays 15:00 UTC) or "twice-weekly" (Wednesdays and Saturdays 19:00 UTC) put them
+   * on a public calendar. Only affects seasons created after the change (docs/research/season-cadence.md).
+   */
+  SEASON_CADENCE: z.enum(["interval", "weekly", "twice-weekly"]).default("interval"),
   OPS_TOKEN: z.string().optional(),
   /** A running job not finished within this lease is reclaimed by another worker (crash recovery). */
   WORKER_LEASE_MS: z.coerce.number().int().positive().default(300_000),
