@@ -68,15 +68,20 @@ const WEIGHTS: Record<Position, Partial<Record<AttributeName, number>>> = {
 };
 
 /**
- * Hash salt. Chosen (by searching salts) so the four founding clubs come out evenly matched: their
- * first elevens average 65.5–65.9 overall and their squads 66.1–66.6. Changing it re-rates everyone.
+ * Hash salt. Chosen (by searching salts) so the four founding clubs come out evenly matched at
+ * every squad depth: their first sevens average 64.7–65.0 overall, first tens 65.2–66.1, first
+ * elevens 65.1–66.0 and full squads 65.4–66.2. Changing it re-rates everyone. (It changed once,
+ * from "autosoccer-player-1186", when the league returned to 7-a-side before any rated match.)
  */
-const SALT = "autosoccer-player-1186";
+const SALT = "autosoccer-player-1392";
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 
-export function playerAttributes(p: { name: string; shirtNumber: number; position: Position }): PlayerAttributes {
-  const h = createHash("sha256").update(`${SALT}:${p.name}#${p.shirtNumber}`).digest();
+export function playerAttributes(
+  p: { name: string; shirtNumber: number; position: Position },
+  salt = SALT,
+): PlayerAttributes {
+  const h = createHash("sha256").update(`${salt}:${p.name}#${p.shirtNumber}`).digest();
   const quality = (h[0]! / 255 - 0.5) * 14;
   const base = PROFILES[p.position];
   return Object.fromEntries(

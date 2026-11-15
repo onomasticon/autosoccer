@@ -31,9 +31,9 @@ describe("player ratings", () => {
     expect(avg("MF", "passing")).toBeGreaterThan(avg("FW", "passing") + 5);
   });
 
-  it("leave the four founding clubs evenly matched", () => {
+  it.each([7, 10, 11, 16])("leave the four founding clubs evenly matched (first %i)", (n) => {
     const xi = SEED_TEAMS.map((t) => {
-      const o = t.players.slice(0, 11).map((p) => overallRating(rate(p), p.position));
+      const o = t.players.slice(0, n).map((p) => overallRating(rate(p), p.position));
       return o.reduce((s, x) => s + x, 0) / o.length;
     });
     expect(Math.max(...xi) - Math.min(...xi)).toBeLessThan(1);
