@@ -52,7 +52,14 @@ export default function Fixtures({ loaderData }: Route.ComponentProps) {
               <div key={f.id} className="grid gap-2">
                 <FixtureCard fixture={f} />
                 {r.round === nextRound && stories[f.id] && (
-                  <StoryCard story={stories[f.id]!} mode="before" max={3} headingId={`story-${f.id}`} as="h3" />
+                  <StoryCard
+                    story={stories[f.id]!}
+                    mode="before"
+                    max={3}
+                    headingId={`story-${f.id}`}
+                    as="h3"
+                    linkMatchday
+                  />
                 )}
               </div>
             ))}

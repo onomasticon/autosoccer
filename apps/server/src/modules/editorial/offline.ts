@@ -113,7 +113,7 @@ function preview(c: EditorialContext): ArticleDraft {
   const fixture = facts.find((f) => f.kind === "fixture")!;
   const v = fixture.value as { homeTeam: { name: string }; awayTeam: { name: string } };
   const [home, away] = [v.homeTeam.name, v.awayTeam.name];
-  const about = (f: Fact) => [home, away].some((n) => f.statement.startsWith(n) || f.statement.includes(`${n}'s`));
+  const about = (f: Fact) => [home, away].some((n) => f.statement.startsWith(n) || f.statement.startsWith(`${n}'`));
   const table = byKind(facts, "standing").filter((f) => f.id.startsWith("standing:") && about(f));
   const race = facts.find((f) => f.id.startsWith("race:"));
   const meetings = byKind(facts, "score");

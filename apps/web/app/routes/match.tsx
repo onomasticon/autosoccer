@@ -238,7 +238,12 @@ export default function MatchCentre({ loaderData }: Route.ComponentProps) {
             </Link>
             {fixture.scheduledAt && ` · ${formatDate(fixture.scheduledAt, { weekday: true })}`}
           </span>
-          <StatusChip status={fixture.status} />
+          <span className="flex items-center gap-3">
+            <Link to={`/matchday/${fixture.id}`} className="underline-offset-4 hover:underline">
+              Matchday view
+            </Link>
+            <StatusChip status={fixture.status} />
+          </span>
         </div>
         <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3 px-4 py-6 sm:gap-8 sm:px-8">
           <Link

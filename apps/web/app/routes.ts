@@ -8,6 +8,7 @@ export default [
   route("teams", "routes/teams.tsx"),
   route("teams/:slug", "routes/team.tsx"),
   route("matches/:id", "routes/match.tsx"),
+  route("matchday/:fixtureId", "routes/matchday.tsx"),
   route("matches/:id/replay.json.gz", "routes/replay.ts"),
   route("news", "routes/news.tsx"),
   route("news/:slug", "routes/article.tsx"),
