@@ -1,9 +1,13 @@
 import { execFileSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { gunzipSync } from "node:zlib";
 import { MatchResult } from "@autosoccer/contracts";
 import { describe, expect, it } from "vitest";
 import {
   BASELINE_PARAMS,
+  COMPATIBLE_SIM_COMMITS,
+  controllerSource,
+  isSupportedSimPin,
   MemoryReplayStore,
   renderTacticalController,
   requestHash,
@@ -12,6 +16,7 @@ import {
   SimVersionMismatchError,
   UnsupportedDeploymentError,
 } from "./index.ts";
+import { resolveTactics } from "./tactics.ts";
 import { sampleRequest } from "./testing.ts";
 
 const SHORT = { halfDurationSec: 30 };
@@ -119,5 +124,58 @@ describe("controller rendering", () => {
     const { config, ...rest } = req;
     const shuffled = JSON.parse(JSON.stringify({ config, ...rest }));
     expect(requestHash(shuffled)).toBe(requestHash(req));
+  });
+});
+
+describe("11-a-side with ball control", () => {
+  it("plays eleven a side on the 74×48 m pitch with ball control and controller 3.0", async () => {
+    const store = new MemoryReplayStore();
+    const req = sampleRequest({ seed: 5, config: { ...SHORT, playersPerTeam: 11, ballControl: true } });
+    const { result } = await runMatch(req, { store });
+    expect(MatchResult.safeParse(result).success).toBe(true);
+    expect(result.replay.verified).toBe(true);
+    expect(result.diagnostics.controllerFailures).toEqual([]);
+    expect(result.diagnostics.invariantViolations).toEqual([]);
+    const replay = JSON.parse(gunzipSync(await store.get(result.replay.uri)).toString());
+    expect(replay.config.playersPerTeam).toBe(11);
+    expect(replay.config.pitch).toMatchObject({ length: 74, width: 48, goalWidth: 6 });
+    expect(replay.config.action.controlChance).toBe(0.85);
+    expect(replay.controllers.blue.version).toBe("3.0.0");
+    expect(replay.controllers.red.version).toBe("3.0.0");
+  });
+});
+
+describe("sim pin compatibility", () => {
+  const d = { kind: "tactical" as const, schemaVersion: "tactics/1", config: {} };
+  const hash = (s: string) => createHash("sha256").update(s).digest("hex");
+
+  it("plays requests pinned to an earlier compatible sim, but only without ball control", () => {
+    const old = COMPATIBLE_SIM_COMMITS[0]!;
+    expect(isSupportedSimPin({ simVersion: old.slice(0, 7), config: {} })).toBe(true);
+    expect(isSupportedSimPin({ simVersion: old, config: { ballControl: false } })).toBe(true);
+    expect(isSupportedSimPin({ simVersion: old.slice(0, 7), config: { ballControl: true } })).toBe(false);
+    expect(isSupportedSimPin({ simVersion: SIM_COMMIT.slice(0, 7), config: { ballControl: true } })).toBe(true);
+    expect(isSupportedSimPin({ simVersion: "deadbee", config: {} })).toBe(false);
+  });
+
+  it("gives requests without ball control the byte-identical controller 2.0 they had on the earlier pin", () => {
+    // Hashes of the rendered default controllers at sim 0bc52c0 (before ball control).
+    expect(hash(controllerSource(d, resolveTactics, 5))).toBe(
+      "d83c6bd7dbbe25131e85ddd4ebe9d9d844bc6c6732b045a56c7139784224b4e0",
+    );
+    expect(hash(controllerSource(d, resolveTactics, 7))).toBe(
+      "cd986f843da06bafd6f8c0a69fc8e3a45a56b5ae0c3cc5a285a8407cfc1bd9fb",
+    );
+    expect(controllerSource(d, resolveTactics, 7, true)).toContain('version: "3.0.0"');
+  });
+
+  it("still plays a 7-a-side request pinned to the earlier sim", async () => {
+    const req = sampleRequest({
+      seed: 4,
+      simVersion: COMPATIBLE_SIM_COMMITS[0]!.slice(0, 7),
+      config: { ...SHORT, playersPerTeam: 7 },
+    });
+    const { result } = await runMatch(req, { store: new MemoryReplayStore() });
+    expect(result.replay.verified).toBe(true);
   });
 });

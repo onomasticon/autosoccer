@@ -9,14 +9,32 @@ export interface SeedTeam {
   colors: { primary: string; secondary: string };
   crest: { shape: "shield" | "circle" | "hexagon" | "diamond"; glyph: string };
   /**
-   * Ten players. 7-a-side starters fill GK, DF, DF, MF, MF, MF, FW; shirts 1–7 were the
-   * original 5-a-side squad (starters GK, DF, DF, MF, FW and two reserves), 8–10 joined for 7-a-side.
+   * Sixteen players: enough for any 11-a-side shape plus five reserves. Shirts 1–7 were the
+   * original 5-a-side squad (starters GK, DF, DF, MF, FW and two reserves), 8–10 joined for
+   * 7-a-side and 11–16 for 11-a-side. Squads only ever grow, by shirt number (see syncSquads).
    */
   players: Array<{ name: string; number: number; position: Position }>;
 }
 
 const squad = (names: string[]): SeedTeam["players"] => {
-  const positions: Position[] = ["GK", "DF", "DF", "MF", "FW", "DF", "FW", "MF", "MF", "FW"];
+  const positions: Position[] = [
+    "GK",
+    "DF",
+    "DF",
+    "MF",
+    "FW",
+    "DF",
+    "FW",
+    "MF",
+    "MF",
+    "FW",
+    "DF",
+    "DF",
+    "MF",
+    "MF",
+    "GK",
+    "FW",
+  ];
   return names.map((name, i) => ({ name, number: i + 1, position: positions[i]! }));
 };
 
@@ -39,6 +57,12 @@ export const SEED_TEAMS: SeedTeam[] = [
       "Hana Ito",
       "Ivo Brandt",
       "Jae Moon",
+      "Kira Holm",
+      "Luca Ferro",
+      "Mina Park",
+      "Nico Alves",
+      "Oskar Berg",
+      "Priya Nair",
     ]),
   },
   {
@@ -59,6 +83,12 @@ export const SEED_TEAMS: SeedTeam[] = [
       "Pablo Reyes",
       "Runa Dahl",
       "Sol Achebe",
+      "Tariq Nasser",
+      "Ulla Varis",
+      "Vera Costa",
+      "Wes Moran",
+      "Xia Lin",
+      "Yann Roux",
     ]),
   },
   {
@@ -79,6 +109,12 @@ export const SEED_TEAMS: SeedTeam[] = [
       "Wanda Kerr",
       "Xan Petit",
       "Yusuf Demir",
+      "Zola Ndlovu",
+      "Arne Vik",
+      "Bianca Rossi",
+      "Caio Lima",
+      "Dagny Aas",
+      "Enzo Marchetti",
     ]),
   },
   {
@@ -99,6 +135,12 @@ export const SEED_TEAMS: SeedTeam[] = [
       "Dina Osei",
       "Emil Strand",
       "Faye Burke",
+      "Greta Voss",
+      "Hugo Lenz",
+      "Ines Duarte",
+      "Jonas Weber",
+      "Keiko Sato",
+      "Leon Mwangi",
     ]),
   },
 ];

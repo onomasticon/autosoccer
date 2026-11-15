@@ -82,15 +82,77 @@ const FORMATIONS: Record<TacticalConfigV1["formation"], Array<{ tier: Tier; late
     { tier: "midfwd", lateral: 1.3 },
     { tier: "fwd", lateral: 0 },
   ],
+  // 11-a-side: ten outfield players.
+  "4-4-2": [
+    { tier: "def", lateral: -1.6 },
+    { tier: "def", lateral: -0.55 },
+    { tier: "def", lateral: 0.55 },
+    { tier: "def", lateral: 1.6 },
+    { tier: "mid", lateral: -1.6 },
+    { tier: "mid", lateral: -0.55 },
+    { tier: "mid", lateral: 0.55 },
+    { tier: "mid", lateral: 1.6 },
+    { tier: "fwd", lateral: -0.6 },
+    { tier: "fwd", lateral: 0.6 },
+  ],
+  "4-3-3": [
+    { tier: "def", lateral: -1.6 },
+    { tier: "def", lateral: -0.55 },
+    { tier: "def", lateral: 0.55 },
+    { tier: "def", lateral: 1.6 },
+    { tier: "mid", lateral: -1 },
+    { tier: "dm", lateral: 0 },
+    { tier: "mid", lateral: 1 },
+    { tier: "fwd", lateral: -1.5 },
+    { tier: "fwd", lateral: 0 },
+    { tier: "fwd", lateral: 1.5 },
+  ],
+  "3-5-2": [
+    { tier: "def", lateral: -1.1 },
+    { tier: "def", lateral: 0 },
+    { tier: "def", lateral: 1.1 },
+    { tier: "mid", lateral: -1.9 },
+    { tier: "mid", lateral: -0.75 },
+    { tier: "dm", lateral: 0 },
+    { tier: "mid", lateral: 0.75 },
+    { tier: "mid", lateral: 1.9 },
+    { tier: "fwd", lateral: -0.6 },
+    { tier: "fwd", lateral: 0.6 },
+  ],
+  "4-2-3-1": [
+    { tier: "def", lateral: -1.6 },
+    { tier: "def", lateral: -0.55 },
+    { tier: "def", lateral: 0.55 },
+    { tier: "def", lateral: 1.6 },
+    { tier: "dm", lateral: -0.6 },
+    { tier: "dm", lateral: 0.6 },
+    { tier: "midfwd", lateral: -1.5 },
+    { tier: "midfwd", lateral: 0 },
+    { tier: "midfwd", lateral: 1.5 },
+    { tier: "fwd", lateral: 0 },
+  ],
+  "5-3-2": [
+    { tier: "def", lateral: -1.9 },
+    { tier: "def", lateral: -0.95 },
+    { tier: "def", lateral: 0 },
+    { tier: "def", lateral: 0.95 },
+    { tier: "def", lateral: 1.9 },
+    { tier: "mid", lateral: -1 },
+    { tier: "mid", lateral: 0 },
+    { tier: "mid", lateral: 1 },
+    { tier: "fwd", lateral: -0.6 },
+    { tier: "fwd", lateral: 0.6 },
+  ],
 };
 
 /** Pitch each team size plays on (must match the simulator's config for that size). */
 const PITCH: Record<TeamSize, { length: number; width: number }> = {
   5: { length: 50, width: 32 },
   7: { length: 60, width: 38 },
+  11: { length: 74, width: 48 },
 };
 
-/** Depth (m from own goal line) of each tier by line height, on the 50 m 5-a-side pitch; scaled for 7-a-side. */
+/** Depth (m from own goal line) of each tier by line height, on the 50 m 5-a-side pitch; scaled for bigger pitches. */
 const DEPTH = {
   deep: { def: 7, mid: 13, fwd: 21 },
   mid: { def: 9, mid: 17, fwd: 27 },

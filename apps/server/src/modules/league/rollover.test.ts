@@ -1,7 +1,9 @@
 import { createTestDatabase, type TestDatabase } from "@autosoccer/db/testing";
+import { SIM_VERSION } from "@autosoccer/sim-adapter";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { buildMatchRequest } from "../matches/service.ts";
 import { schedulerTick } from "../ops/scheduler.ts";
-import { nextSeasonSeed, rolloverSeason, seasonNumber } from "./rollover.ts";
+import { nextSeasonSeed, refreshUpcomingSeason, rolloverSeason, seasonNumber } from "./rollover.ts";
 import { SEED_TEAMS } from "./seed-data.ts";
 import { createSeason, seedTeams } from "./service.ts";
 
@@ -35,7 +37,7 @@ describe("season rollover", () => {
     expect(await rolloverSeason(t.db, MODELS)).toBeNull();
   });
 
-  it("starts the next season after the last one completes: same clubs, budgets and spacing, 7-a-side", async () => {
+  it("starts the next season after the last one completes: same clubs, budgets and spacing, 11-a-side", async () => {
     await t.db`update seasons set status = 'completed', completed_at = now() where id = ${first}`;
     const now = new Date("2026-11-12T09:30:20Z");
     expect(await rolloverSeason(t.db, { ...MODELS, now })).toBe("season-2");
@@ -51,7 +53,7 @@ describe("season rollover", () => {
         starts_at: Date;
       }[]
     >`select * from seasons where slug = 'season-2'`;
-    expect(s).toMatchObject({ name: "Season 2", status: "scheduled", players_per_team: 7 });
+    expect(s).toMatchObject({ name: "Season 2", status: "scheduled", players_per_team: 11 });
     expect(Number(s!.seed)).toBe(nextSeasonSeed(20261109));
     expect(Number(s!.budget_per_team_micro_usd)).toBe(1_000_000);
     expect(Number(s!.editorial_budget_micro_usd)).toBe(2_000_000);
@@ -60,14 +62,16 @@ describe("season rollover", () => {
       select round, scheduled_at from fixtures where season_id = ${s!.id} order by round`;
     expect(fixtures).toHaveLength(12);
     expect(fixtures.at(-1)!.scheduled_at.getTime() - fixtures[0]!.scheduled_at.getTime()).toBe(5 * 3_600_000);
-    // Every manager gets a 7-a-side opening setup with seven starters.
+    // Every manager gets an 11-a-side opening setup with eleven starters, from squads grown to sixteen.
     const revs = await t.db<{ lineup: { starters: string[] }; deployment: { config: { formation: string } } }[]>`
       select lineup, deployment from tactical_revisions where season_id = ${s!.id} and status = 'valid'`;
     expect(revs).toHaveLength(4);
     for (const r of revs) {
-      expect(r.lineup.starters).toHaveLength(7);
-      expect(["2-3-1", "3-2-1", "2-2-2", "3-1-2", "2-1-2-1"]).toContain(r.deployment.config.formation);
+      expect(r.lineup.starters).toHaveLength(11);
+      expect(["4-4-2", "4-3-3", "3-5-2", "4-2-3-1", "5-3-2"]).toContain(r.deployment.config.formation);
     }
+    const squads = await t.db<{ n: number }[]>`select count(*)::int as n from players group by team_id`;
+    expect(squads.map((q) => q.n)).toEqual([16, 16, 16, 16]);
   });
 
   it("is idempotent, and the scheduler only rolls over when asked to", async () => {
@@ -94,6 +98,37 @@ describe("season rollover", () => {
       "2026-11-14T04:00:00.000Z",
       "2026-11-14T08:00:00.000Z",
     ]);
+  });
+
+  it("moves a season that hasn't kicked off to the current format and sim, and leaves a started one alone", async () => {
+    await t.db`update seasons set status = 'completed', completed_at = now()`;
+    const slug = await rolloverSeason(t.db, { ...MODELS, now: new Date("2026-11-14T08:00:00Z") });
+    // As if rollover had run on the previous release: 7-a-side, pinned to the earlier sim.
+    await t.db`update seasons set sim_version = '0bc52c0', players_per_team = 7 where slug = ${slug}`;
+    expect(await refreshUpcomingSeason(t.db, MODELS)).toBe(slug);
+    const [s] = await t.db<{ id: string; sim_version: string; players_per_team: number }[]>`
+      select id, sim_version, players_per_team from seasons where slug = ${slug}`;
+    expect(s).toMatchObject({ sim_version: SIM_VERSION, players_per_team: 11 });
+    const revs = await t.db<{ lineup: { starters: string[] } }[]>`
+      select lineup from tactical_revisions where season_id = ${s!.id} and status = 'valid'`;
+    expect(revs).toHaveLength(4);
+    for (const r of revs) expect(r.lineup.starters).toHaveLength(11);
+    expect(await refreshUpcomingSeason(t.db, MODELS)).toBeNull(); // already current
+
+    // New seasons play with ball control.
+    const [f] = await t.db<
+      { id: string }[]
+    >`select id from fixtures where season_id = ${s!.id} order by round, id limit 1`;
+    const req = await buildMatchRequest({ db: t.db } as never, f!.id);
+    expect(req.config).toMatchObject({ playersPerTeam: 11, ballControl: true });
+    expect(req.home.starters).toHaveLength(11);
+
+    // Once anything has happened in the season, it keeps the format it started with.
+    await t.db`update seasons set sim_version = '0bc52c0', players_per_team = 7 where id = ${s!.id}`;
+    await t.db`update fixtures set status = 'ready' where id = ${f!.id}`;
+    expect(await refreshUpcomingSeason(t.db, MODELS)).toBeNull();
+    const old = await buildMatchRequest({ db: t.db } as never, f!.id).catch((e: Error) => e.message);
+    expect(typeof old === "string" ? old : old.config.ballControl).not.toBe(true);
   });
 
   it("derives season numbers and seeds deterministically", () => {

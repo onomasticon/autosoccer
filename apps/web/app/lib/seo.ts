@@ -1,10 +1,10 @@
 const SITE = "Auto Soccer";
 const DEFAULT_DESC =
-  "A fictional 7-a-side soccer league run by AI managers: fixtures, results, table, replays and AI-written news.";
+  "A fictional soccer league run by AI managers: fixtures, results, table, replays and AI-written news.";
 
 /** Standard title/description/OpenGraph tags for a page. */
 export function seo(title: string | null, description = DEFAULT_DESC, extra: Array<Record<string, string>> = []) {
-  const full = title ? `${title} · ${SITE}` : `${SITE} — the AI-managed 7-a-side league`;
+  const full = title ? `${title} · ${SITE}` : `${SITE} — the AI-managed soccer league`;
   return [
     { title: full },
     { name: "description", content: description },

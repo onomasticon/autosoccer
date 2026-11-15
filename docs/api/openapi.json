@@ -854,7 +854,7 @@
                       "type": "string"
                     },
                     "playersPerTeam": {
-                      "description": "players per side: 5-a-side or 7-a-side",
+                      "description": "players per side: 5-a-side, 7-a-side or 11-a-side",
                       "anyOf": [
                         {
                           "type": "number",
@@ -863,6 +863,10 @@
                         {
                           "type": "number",
                           "const": 7
+                        },
+                        {
+                          "type": "number",
+                          "const": 11
                         }
                       ]
                     },
@@ -2062,7 +2066,7 @@
                     "type": "string"
                   },
                   "playersPerTeam": {
-                    "description": "players per side: 5-a-side or 7-a-side",
+                    "description": "players per side: 5-a-side, 7-a-side or 11-a-side",
                     "anyOf": [
                       {
                         "type": "number",
@@ -2071,6 +2075,10 @@
                       {
                         "type": "number",
                         "const": 7
+                      },
+                      {
+                        "type": "number",
+                        "const": 11
                       }
                     ]
                   },
@@ -2297,7 +2305,7 @@
                 "type": "string"
               },
               "playersPerTeam": {
-                "description": "players per side: 5-a-side or 7-a-side",
+                "description": "players per side: 5-a-side, 7-a-side or 11-a-side",
                 "anyOf": [
                   {
                     "type": "number",
@@ -2306,6 +2314,10 @@
                   {
                     "type": "number",
                     "const": 7
+                  },
+                  {
+                    "type": "number",
+                    "const": 11
                   }
                 ]
               },
@@ -2495,7 +2507,7 @@
                 "type": "string"
               },
               "playersPerTeam": {
-                "description": "players per side: 5-a-side or 7-a-side",
+                "description": "players per side: 5-a-side, 7-a-side or 11-a-side",
                 "anyOf": [
                   {
                     "type": "number",
@@ -2504,6 +2516,10 @@
                   {
                     "type": "number",
                     "const": 7
+                  },
+                  {
+                    "type": "number",
+                    "const": 11
                   }
                 ]
               },
@@ -2962,7 +2978,7 @@
                 "type": "string"
               },
               "playersPerTeam": {
-                "description": "players per side: 5-a-side or 7-a-side",
+                "description": "players per side: 5-a-side, 7-a-side or 11-a-side",
                 "anyOf": [
                   {
                     "type": "number",
@@ -2971,6 +2987,10 @@
                   {
                     "type": "number",
                     "const": 7
+                  },
+                  {
+                    "type": "number",
+                    "const": 11
                   }
                 ]
               },
@@ -6826,7 +6846,7 @@
                   "properties": {
                     "starters": {
                       "minItems": 5,
-                      "maxItems": 7,
+                      "maxItems": 11,
                       "type": "array",
                       "items": {
                         "description": "UUID primary key",
@@ -6836,7 +6856,7 @@
                       }
                     },
                     "reserves": {
-                      "maxItems": 6,
+                      "maxItems": 15,
                       "type": "array",
                       "items": {
                         "description": "UUID primary key",
@@ -7597,7 +7617,7 @@
                                     "type": "object",
                                     "properties": {
                                       "formation": {
-                                        "description": "outfield shape, back to front (four outfield players in 5-a-side, six in 7-a-side)",
+                                        "description": "outfield shape, back to front (four outfield players in 5-a-side, six in 7-a-side, ten in 11-a-side)",
                                         "type": "string",
                                         "enum": [
                                           "2-1-1",
@@ -7609,7 +7629,12 @@
                                           "3-2-1",
                                           "2-2-2",
                                           "3-1-2",
-                                          "2-1-2-1"
+                                          "2-1-2-1",
+                                          "4-4-2",
+                                          "4-3-3",
+                                          "3-5-2",
+                                          "4-2-3-1",
+                                          "5-3-2"
                                         ]
                                       },
                                       "lineHeight": {
@@ -8157,7 +8182,7 @@
                                     "type": "object",
                                     "properties": {
                                       "formation": {
-                                        "description": "outfield shape, back to front (four outfield players in 5-a-side, six in 7-a-side)",
+                                        "description": "outfield shape, back to front (four outfield players in 5-a-side, six in 7-a-side, ten in 11-a-side)",
                                         "type": "string",
                                         "enum": [
                                           "2-1-1",
@@ -8169,7 +8194,12 @@
                                           "3-2-1",
                                           "2-2-2",
                                           "3-1-2",
-                                          "2-1-2-1"
+                                          "2-1-2-1",
+                                          "4-4-2",
+                                          "4-3-3",
+                                          "3-5-2",
+                                          "4-2-3-1",
+                                          "5-3-2"
                                         ]
                                       },
                                       "lineHeight": {
@@ -8859,7 +8889,7 @@
                                 "type": "object",
                                 "properties": {
                                   "formation": {
-                                    "description": "outfield shape, back to front (four outfield players in 5-a-side, six in 7-a-side)",
+                                    "description": "outfield shape, back to front (four outfield players in 5-a-side, six in 7-a-side, ten in 11-a-side)",
                                     "type": "string",
                                     "enum": [
                                       "2-1-1",
@@ -8871,7 +8901,12 @@
                                       "3-2-1",
                                       "2-2-2",
                                       "3-1-2",
-                                      "2-1-2-1"
+                                      "2-1-2-1",
+                                      "4-4-2",
+                                      "4-3-3",
+                                      "3-5-2",
+                                      "4-2-3-1",
+                                      "5-3-2"
                                     ]
                                   },
                                   "lineHeight": {
@@ -9573,7 +9608,7 @@
                               "type": "object",
                               "properties": {
                                 "formation": {
-                                  "description": "outfield shape, back to front (four outfield players in 5-a-side, six in 7-a-side)",
+                                  "description": "outfield shape, back to front (four outfield players in 5-a-side, six in 7-a-side, ten in 11-a-side)",
                                   "type": "string",
                                   "enum": [
                                     "2-1-1",
@@ -9585,7 +9620,12 @@
                                     "3-2-1",
                                     "2-2-2",
                                     "3-1-2",
-                                    "2-1-2-1"
+                                    "2-1-2-1",
+                                    "4-4-2",
+                                    "4-3-3",
+                                    "3-5-2",
+                                    "4-2-3-1",
+                                    "5-3-2"
                                   ]
                                 },
                                 "lineHeight": {

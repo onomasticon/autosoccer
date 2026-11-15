@@ -4,6 +4,7 @@ import type { ControllerDeployment, Lineup, Position, TeamSize } from "@autosocc
 export const SLOT_POSITIONS: Record<TeamSize, readonly Position[]> = {
   5: ["GK", "DF", "DF", "MF", "FW"],
   7: ["GK", "DF", "DF", "MF", "MF", "MF", "FW"],
+  11: ["GK", "DF", "DF", "DF", "DF", "MF", "MF", "MF", "MF", "FW", "FW"],
 };
 
 /** The fixed Phase-1 deployment: baseline tactics until a manager deploys a revision. */

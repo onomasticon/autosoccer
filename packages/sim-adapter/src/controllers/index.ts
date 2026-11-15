@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import type { ControllerDeployment, TeamSize } from "@autosoccer/contracts";
 
-/** Slot = where one outfield shirt number (2–5, or 2–7 in 7-a-side) stands: metres from own goal line, and lateral offset. */
+/** Slot = where one outfield shirt number (2–5, 2–7 or 2–11 by team size) stands: metres from own goal line, and lateral offset. */
 export interface Slot {
   depth: number;
   lateral: number;
@@ -10,7 +10,7 @@ export interface Slot {
 /** Everything the tactical controller template reads. Plain numbers only, so the source is deterministic. */
 export interface ControllerParams {
   name: string;
-  slots: Partial<Record<2 | 3 | 4 | 5 | 6 | 7, Slot>>;
+  slots: Partial<Record<2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11, Slot>>;
   ballFollow: number;
   ballShift: number;
   attackPush: number;
@@ -57,11 +57,14 @@ export const BASELINE_PARAMS: ControllerParams = {
   keeperRelease: "short",
 };
 
+/** Controller 2.0, for requests without ball control. Frozen: those requests must keep their exact source. */
 const TEMPLATE = readFileSync(new URL("./tactical.js", import.meta.url), "utf8");
+/** Controller 3.0, written for the simulator's ball control (close control, turning, shielding). */
+const TEMPLATE_CONTROL = readFileSync(new URL("./tactical-control.js", import.meta.url), "utf8");
 
 /** Renders the controller source for a param set. Same params ⇒ byte-identical source. */
-export function renderTacticalController(params: ControllerParams): string {
-  return TEMPLATE.replace("__PARAMS__", JSON.stringify(params));
+export function renderTacticalController(params: ControllerParams, ballControl = false): string {
+  return (ballControl ? TEMPLATE_CONTROL : TEMPLATE).replace("__PARAMS__", JSON.stringify(params));
 }
 
 export type ParamsResolver = (
@@ -80,8 +83,9 @@ export function controllerSource(
   deployment: ControllerDeployment,
   resolve: ParamsResolver = () => BASELINE_PARAMS,
   size: TeamSize = 5,
+  ballControl = false,
 ): string {
-  if (deployment.kind === "tactical") return renderTacticalController(resolve(deployment, size));
+  if (deployment.kind === "tactical") return renderTacticalController(resolve(deployment, size), ballControl);
   throw new UnsupportedDeploymentError(
     `scripted deployments (sdk ${deployment.sdkVersion}, artifact ${deployment.artifactId}) are not executable yet`,
   );

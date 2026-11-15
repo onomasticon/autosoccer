@@ -18,4 +18,11 @@ export {
 } from "./replay-store.ts";
 export { type RunMatchOptions, type RunMatchOutput, requestHash, runMatch, SimVersionMismatchError } from "./run.ts";
 export { resolveTactics, tacticalParams } from "./tactics.ts";
-export { ADAPTER_VERSION, SIM_COMMIT, SIM_VERSION, VERSIONS } from "./version.ts";
+export {
+  ADAPTER_VERSION,
+  COMPATIBLE_SIM_COMMITS,
+  isSupportedSimPin,
+  SIM_COMMIT,
+  SIM_VERSION,
+  VERSIONS,
+} from "./version.ts";

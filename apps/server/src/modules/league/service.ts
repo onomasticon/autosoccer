@@ -27,6 +27,24 @@ export async function seedTeams(db: Db, teams: readonly SeedTeam[] = SEED_TEAMS)
   return ids;
 }
 
+/**
+ * Adds any seed-squad players a club doesn't have yet (by shirt number), so squads grow when the
+ * league's format does. Never changes or removes an existing player. Returns how many were added.
+ */
+export async function syncSquads(db: Db, teams: readonly SeedTeam[] = SEED_TEAMS): Promise<number> {
+  let added = 0;
+  for (const t of teams) {
+    const [row] = await db<{ id: string }[]>`select id from teams where slug = ${t.slug}`;
+    if (!row) continue;
+    for (const p of t.players) {
+      const r = await db`insert into players (team_id, name, shirt_number, position)
+        values (${row.id}, ${p.name}, ${p.number}, ${p.position}) on conflict (team_id, shirt_number) do nothing`;
+      added += r.count;
+    }
+  }
+  return added;
+}
+
 /** Default season cap on journalist spend: about 18 articles at ~$0.10 each, plus headroom. */
 export const DEFAULT_EDITORIAL_BUDGET_MICRO_USD = 3_000_000;
 
