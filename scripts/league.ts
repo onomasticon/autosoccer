@@ -18,7 +18,7 @@ import { createLogger } from "../apps/server/src/log.ts";
 import { editorialLlm, managerLlm } from "../apps/server/src/modules/agents/index.ts";
 import { formatUsd } from "../apps/server/src/modules/agents/pricing.ts";
 import { managerRoundHook, seedManagers } from "../apps/server/src/modules/agents/service.ts";
-import { seedJournalists } from "../apps/server/src/modules/editorial/service.ts";
+import { enqueuePreviews, seedJournalists } from "../apps/server/src/modules/editorial/service.ts";
 import { parseCadence } from "../apps/server/src/modules/league/cadence.ts";
 import { fixtureViews, seasonBySlug, standingRows } from "../apps/server/src/modules/league/read.ts";
 import { SEED_TEAMS } from "../apps/server/src/modules/league/seed-data.ts";
@@ -91,6 +91,11 @@ try {
     let rounds = 0;
     const t0 = performance.now();
     for (;;) {
+      // Previews for the next round, as the production scheduler writes them (before kickoff).
+      if (managers) {
+        await enqueuePreviews(db, s.id);
+        await worker.drain();
+      }
       if (limit) rounds = (await roundsDone()) - startDone;
       if (limit && rounds >= limit) break;
       const a = await advanceSeason(db, s.id, { beforeRound: hook });

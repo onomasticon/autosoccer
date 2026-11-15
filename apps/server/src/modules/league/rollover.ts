@@ -127,7 +127,7 @@ export async function refreshUpcomingSeason(
       f.status <> 'scheduled'
       or exists (select 1 from matches m where m.fixture_id = f.id)
       or exists (select 1 from jobs j where j.payload->>'fixtureId' = f.id::text))
-    union all select 1 from agent_runs where season_id = ${s.id}
+    union all select 1 from agent_runs where season_id = ${s.id} and agent_kind = 'manager'
     limit 1`;
   if (started) return null;
   await db.begin(async (tx) => {

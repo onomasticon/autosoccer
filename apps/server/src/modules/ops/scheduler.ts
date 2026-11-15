@@ -10,6 +10,7 @@
 import type { Db } from "@autosoccer/db";
 import type { Logger } from "../../log.ts";
 import { managerRoundHook } from "../agents/service.ts";
+import { enqueuePreviews } from "../editorial/service.ts";
 import { refreshUpcomingSeason, rolloverSeason } from "../league/rollover.ts";
 import { type AdvanceResult, advanceSeason } from "../league/service.ts";
 
@@ -28,6 +29,8 @@ export interface TickOptions {
   now?: Date;
   /** When set, a completed league starts its next season (see league/rollover.ts). */
   rollover?: { managerModel: string; editorialModel: string; roundMinutes?: number };
+  /** Enqueue match previews for each season's next round (needs the editorial job handlers). */
+  previews?: boolean;
 }
 
 export async function schedulerTick(db: Db, opts: TickOptions): Promise<TickResult> {
@@ -48,6 +51,7 @@ export async function schedulerTick(db: Db, opts: TickOptions): Promise<TickResu
           beforeRound: hook,
         });
         out.push({ slug: s.slug, result });
+        if (opts.previews) await enqueuePreviews(db, s.id);
         if (result.state === "blocked") {
           opts.log?.error(
             "season blocked: a match failed permanently — run `bun run ops requeue` after fixing the cause",

@@ -18,6 +18,7 @@ import {
 } from "./domain.ts";
 import { DugoutResponse, TeamDugoutResponse } from "./dugout.ts";
 import { Match, OfficialEvent, TeamMatchStats } from "./match.ts";
+import { FixtureStory } from "./story.ts";
 
 export const FormResult = z.enum(["W", "D", "L"]);
 
@@ -423,3 +424,14 @@ ROUTES.push(
     responseName: "TeamDugoutResponse",
   },
 );
+
+ROUTES.push({
+  method: "get",
+  path: "/fixtures/{id}/story",
+  operationId: "getFixtureStory",
+  summary:
+    "Fixture story (fixture-story/1): why it matters before kickoff (facts known then) and what changed afterwards, with cited fact ids",
+  params: { id: Id },
+  response: FixtureStory,
+  responseName: "FixtureStory",
+});

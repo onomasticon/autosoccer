@@ -60,6 +60,10 @@ export interface Ledger {
   currentRound: number | null;
   /** alias (lower case) → canonical team name, longest aliases first */
   aliases: Array<[string, string]>;
+  /** The unplayed fixture a preview is about (from its fixture fact), if any. */
+  upcoming: { round: number; home: string; away: string } | null;
+  /** League history before this season (from the history facts), if any. */
+  history: { defending: string; streak: number; titles: Record<string, number>; factId: string } | null;
 }
 
 const num = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v);
@@ -135,8 +139,33 @@ export function buildLedger(ef: EditorialFacts): Ledger {
     });
   }
   for (const s of standings) s.teams ||= standings.length;
+  let upcoming: Ledger["upcoming"] = null;
+  for (const f of ef.facts) {
+    if (f.kind !== "fixture" || !/^fixture:[^:]+$/.test(f.id)) continue;
+    const v = obj(f.value);
+    const ht = obj(v?.homeTeam);
+    const at = obj(v?.awayTeam);
+    if (v && num(v.round) && typeof ht?.name === "string" && typeof at?.name === "string")
+      upcoming = { round: v.round, home: ht.name, away: at.name };
+  }
+  let history: Ledger["history"] = null;
+  const defending = ef.facts.find((f) => f.kind === "standing" && /^history:[^:]+:defending$/.test(f.id));
+  const titles = ef.facts.find((f) => f.kind === "standing" && /^history:[^:]+:titles$/.test(f.id));
+  if (defending) {
+    const v = obj(defending.value);
+    const t = obj(obj(titles?.value)?.titles);
+    if (v && typeof v.defending === "string" && num(v.streak))
+      history = {
+        defending: v.defending,
+        streak: v.streak,
+        titles: Object.fromEntries(Object.entries(t ?? {}).filter((e): e is [string, number] => num(e[1]))),
+        factId: defending.id,
+      };
+  }
   const names = new Set([...matches.values()].flatMap((m) => [m.home.name, m.away.name]));
   for (const s of standings) names.add(s.name);
+  if (upcoming) names.add(upcoming.home).add(upcoming.away);
+  if (history) for (const n of [history.defending, ...Object.keys(history.titles)]) names.add(n);
   const count = new Map<string, number>();
   for (const n of names)
     for (const a of aliasesFor(n)) count.set(a.toLowerCase(), (count.get(a.toLowerCase()) ?? 0) + 1);
@@ -150,6 +179,8 @@ export function buildLedger(ef: EditorialFacts): Ledger {
     afterRound: ef.generatedFrom.standingsAfterRound,
     currentRound: ef.match?.round ?? null,
     aliases,
+    upcoming,
+    history,
   };
 }
 
@@ -576,6 +607,23 @@ function checkTable(sentence: string, ms: Mention[], ledger: Ledger, errors: str
         if (!ok) errors.push(`contradiction: "${short(sentence)}" — ${a.team} ${label} (${row.factId})`);
       }
     }
+    // "A have won their last three", "A lost their last two": a run of results.
+    const run =
+      /^[^.;]{0,30}?\b(won|lost|drawn|drew)\s+(?:each of\s+|all of\s+)?(?:their|its|the)\s+(?:last|past|previous)\s+(\d|one|two|three|four|five|six)\b(?!\s+(?:league\s+)?(?:titles?|championships?|seasons?))/i.exec(
+        rest,
+      );
+    if (run && row) {
+      const n = WORDS[run[2]!.toLowerCase()] ?? Number(run[2]);
+      const want = run[1]!.toLowerCase().startsWith("w") ? "W" : run[1]!.toLowerCase().startsWith("l") ? "L" : "D";
+      if (n > row.form.length)
+        errors.push(
+          `cannot verify "${short(sentence)}": form only covers the last ${row.form.length} results (${row.factId})`,
+        );
+      else if (!row.form.slice(-n).every((r) => r === want))
+        errors.push(
+          `contradiction: "${short(sentence)}" — ${a.team}'s last ${n} result${n === 1 ? "" : "s"} after round ${ledger.afterRound ?? "?"}: ${row.form.slice(-n).join("")} (${row.factId})`,
+        );
+    }
   }
 }
 const ordinal = (n: number) => `${n}${n === 1 ? "st" : n === 2 ? "nd" : n === 3 ? "rd" : "th"}`;
@@ -588,9 +636,21 @@ const FUTURE =
 
 function checkChronology(sentence: string, ledger: Ledger, errors: string[]) {
   const now = ledger.afterRound ?? Math.max(0, ...ledger.matches.map((m) => m.round ?? 0));
+  // A preview can't know the table after its own round (or any later one).
+  if (ledger.upcoming)
+    for (const m of sentence.matchAll(
+      /\bafter (?:round (\d{1,2})|(one|two|three|four|five|six|\d{1,2}) rounds?)\b/gi,
+    )) {
+      const n = m[1] ? Number(m[1]) : (WORDS[m[2]!.toLowerCase()] ?? Number(m[2]));
+      if (n >= ledger.upcoming.round)
+        errors.push(
+          `chronology: "${short(sentence)}" describes the table after round ${n}, but this preview is written before round ${ledger.upcoming.round} kicks off`,
+        );
+    }
   if (!now) return;
   for (const m of sentence.matchAll(/\bround (\d{1,2})\b/gi)) {
     const n = Number(m[1]);
+    if (n === ledger.upcoming?.round) continue; // the fixture a preview is about
     if (n > now && !FUTURE.test(sentence))
       errors.push(`chronology: "${short(sentence)}" describes round ${n}, but the record only runs to round ${now}`);
   }
@@ -598,6 +658,55 @@ function checkChronology(sentence: string, ledger: Ledger, errors: string[]) {
   if (after) {
     const n = WORDS[after[1]!.toLowerCase()] ?? Number(after[1]);
     if (n !== now) errors.push(`chronology: "${short(sentence)}" — the table snapshot is after round ${now}, not ${n}`);
+  }
+}
+
+// ——— league history ——————————————————————————————————————————————————————————
+
+const NUMBERS: Record<string, number> = { ...WORDS, seven: 7, eight: 8, nine: 9, ten: 10 };
+const ORDINALS: Record<string, number> = { second: 2, third: 3, fourth: 4, fifth: 5, sixth: 6, seventh: 7 };
+
+/**
+ * Claims about earlier seasons must match the history facts: who the defending champions are,
+ * title streaks ("a third straight title", "the last two titles") and title counts.
+ */
+function checkHistory(sentence: string, ms: Mention[], ledger: Ledger, errors: string[]) {
+  const champ = /\bdefending (?:league )?champions?\b|\breigning champions?\b|\btitle holders\b/i.exec(sentence);
+  if (champ) {
+    if (!ledger.history) {
+      errors.push(`cannot verify "${short(sentence)}": no earlier season is on record, so nobody is defending a title`);
+    } else {
+      // The club named closest to the phrase is the one being called champions.
+      const near = [...ms].sort((a, b) => Math.abs(a.start - champ.index) - Math.abs(b.start - champ.index))[0];
+      if (
+        near &&
+        near.team !== ledger.history.defending &&
+        !/\bnot\b|\bno longer\b|\bbeat\b|\bface|\bhost|\bvisit/i.test(sentence)
+      )
+        errors.push(
+          `contradiction: "${short(sentence)}" calls ${near.team} the defending champions, but they are ${ledger.history.defending} (${ledger.history.factId})`,
+        );
+    }
+  }
+  const streak =
+    /\b(?:the last|last) (\w+) titles\b|\b(\w+) (?:straight|consecutive|successive) titles\b|\b(\w+) titles in a row\b/i.exec(
+      sentence,
+    );
+  const nth =
+    /\b(second|third|fourth|fifth|sixth|seventh) (?:straight|consecutive|successive) (?:title|championship)\b/i.exec(
+      sentence,
+    );
+  if ((streak || nth) && ledger.history) {
+    const word = (streak?.[1] ?? streak?.[2] ?? streak?.[3] ?? "").toLowerCase();
+    const n = streak ? (NUMBERS[word] ?? Number(word)) : ORDINALS[nth![1]!.toLowerCase()]! - 1; // "a third straight" = two so far
+    const who = ms.find((m) => m.team === ledger.history!.defending) ?? ms[0];
+    if (Number.isFinite(n) && n > 0) {
+      const has = who?.team === ledger.history.defending ? ledger.history.streak : 0;
+      if (n > has)
+        errors.push(
+          `contradiction: "${short(sentence)}" claims a run of ${n} title${n === 1 ? "" : "s"}, but the record shows ${who?.team ?? "no club"} with ${has} in a row (${ledger.history.factId})`,
+        );
+    }
   }
 }
 
@@ -614,6 +723,7 @@ export function checkClaims(text: string, facts: EditorialFacts, ledger = buildL
     checkWinnerComparisons(s, ledger, errors);
     checkTable(s, ms, ledger, errors);
     checkChronology(s, ledger, errors);
+    checkHistory(s, ms, ledger, errors);
   }
   return [...new Set(errors)];
 }

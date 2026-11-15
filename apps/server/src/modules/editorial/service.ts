@@ -6,13 +6,14 @@ import type { Logger } from "../../log.ts";
 import type { LlmClient } from "../agents/llm.ts";
 import { costMicroUsd } from "../agents/pricing.ts";
 import type { EditorialGate } from "../ledger/service.ts";
-import { matchFacts, roundFacts } from "./facts.ts";
+import { matchFacts, prematchFacts, roundFacts } from "./facts.ts";
 import { ArticleDraft, checkGrounding } from "./grounding.ts";
 import { SEED_JOURNALISTS } from "./journalists.ts";
 import { type ArticleKind, type EditorialContext, editorialPrompt, editorialSystem } from "./prompts.ts";
 
 export const REPORT_JOB = "article.match_report";
 export const ROUND_JOB = "article.round";
+export const PREVIEW_JOB = "article.preview";
 
 export interface EditorialDeps {
   db: Db;
@@ -44,6 +45,7 @@ export async function seedJournalists(db: Db, model: string) {
 /** Which journalist writes which kind of piece: reporter → reports; odd rounds analysis, even rounds a column. */
 const ROLE_FOR: Record<ArticleKind, "reporter" | "analyst" | "pundit"> = {
   match_report: "reporter",
+  preview: "reporter",
   analysis: "analyst",
   column: "pundit",
 };
@@ -64,6 +66,8 @@ export const slugify = (s: string) =>
 export type ArticleOutcome =
   | { status: "already-done" }
   | { status: "skipped-budget" }
+  /** A preview whose fixture had already kicked off: previews are only ever written beforehand. */
+  | { status: "skipped-kicked-off" }
   | { status: "published"; articleId: string; slug: string }
   | { status: "rejected"; errors: string[] };
 
@@ -77,6 +81,7 @@ interface WriteTarget {
   fixtureId: string | null;
   teamIds: string[];
   requireScoreFact?: string;
+  preview?: { fixtureFact: string };
 }
 
 /**
@@ -144,11 +149,11 @@ async function writeArticle(deps: EditorialDeps, t: WriteTarget): Promise<Articl
   };
   try {
     let draft = await call(prompt);
-    let errors = checkGrounding(draft, t.facts, { requireScoreFact: t.requireScoreFact });
+    let errors = checkGrounding(draft, t.facts, { requireScoreFact: t.requireScoreFact, preview: t.preview });
     if (errors.length) {
       audit.repair = `${prompt}\n\nYour draft was rejected by the fact checker:\n${errors.map((e) => `- ${e}`).join("\n")}\nFix every problem and answer again.`;
       draft = await call(audit.repair);
-      errors = checkGrounding(draft, t.facts, { requireScoreFact: t.requireScoreFact });
+      errors = checkGrounding(draft, t.facts, { requireScoreFact: t.requireScoreFact, preview: t.preview });
     }
     // Still failing after the repair: the template writer (same facts, no model, no cost, never
     // metered) writes the piece instead. It's checked like any draft; if it fails too, nothing is
@@ -156,7 +161,7 @@ async function writeArticle(deps: EditorialDeps, t: WriteTarget): Promise<Articl
     if (errors.length && deps.fallback && !fellBack) {
       const r = await deps.fallback.complete({ system, prompt, schema: ArticleDraft, task, context: ctx, maxTokens });
       const alt = r.output;
-      const altErrors = checkGrounding(alt, t.facts, { requireScoreFact: t.requireScoreFact });
+      const altErrors = checkGrounding(alt, t.facts, { requireScoreFact: t.requireScoreFact, preview: t.preview });
       if (!altErrors.length) {
         audit.rejected = { draft, errors };
         deps.log?.warn("draft failed the fact check after repair; template writer used", { kind: t.kind, errors });
@@ -251,6 +256,50 @@ export async function writeRoundPiece(deps: EditorialDeps, seasonId: string, rou
   });
 }
 
+/**
+ * A preview of an unplayed fixture, written only from the facts known before kickoff
+ * (prematchFacts). One per fixture (idempotency key); skipped once the fixture has kicked off, so
+ * a preview can never be written with hindsight, and never blocks kickoff (the round doesn't wait
+ * for it). Metered like any article; the template writer stands in when the budget can't cover it.
+ */
+export async function writePreview(deps: EditorialDeps, fixtureId: string): Promise<ArticleOutcome> {
+  const [f] = await deps.db<
+    { season_id: string; round: number; status: string; home_team_id: string; away_team_id: string; played: boolean }[]
+  >`
+    select f.season_id, f.round, f.status, f.home_team_id, f.away_team_id,
+      exists (select 1 from matches m where m.fixture_id = f.id) as played
+    from fixtures f where f.id = ${fixtureId}`;
+  if (!f) throw new PermanentJobError(`fixture ${fixtureId} not found`);
+  if (f.played || (f.status !== "scheduled" && f.status !== "ready")) return { status: "skipped-kicked-off" };
+  const { asOfRound: _asOf, ...facts } = await prematchFacts(deps.db, fixtureId);
+  return writeArticle(deps, {
+    key: `${PREVIEW_JOB}:${fixtureId}`,
+    kind: "preview",
+    seasonId: f.season_id,
+    round: f.round,
+    facts,
+    matchId: null,
+    fixtureId,
+    teamIds: [f.home_team_id, f.away_team_id],
+    preview: { fixtureFact: `fixture:${fixtureId}` },
+  });
+}
+
+/**
+ * Enqueues previews for a season's next round once every earlier round is complete (round 1:
+ * as soon as the season exists), while its fixtures are still unreleased. Idempotent per fixture.
+ */
+export async function enqueuePreviews(db: Db, seasonId: string): Promise<void> {
+  const fixtures = await db<{ id: string }[]>`
+    select f.id from fixtures f
+    where f.season_id = ${seasonId} and f.status = 'scheduled'
+      and f.round = (select min(round) from fixtures where season_id = ${seasonId} and status <> 'completed')
+    order by f.id`;
+  for (const f of fixtures) {
+    await enqueue(db, { kind: PREVIEW_JOB, key: `${PREVIEW_JOB}:${f.id}`, payload: { previewOf: f.id } });
+  }
+}
+
 /** After a result: a match report, and a round piece once the whole round is complete. */
 export async function enqueueEditorial(db: Db, fixtureId: string) {
   const [f] = await db<{ match_id: string; season_id: string; round: number; open: number }[]>`
@@ -272,6 +321,10 @@ export function editorialJobHandlers(deps: EditorialDeps) {
   return {
     [REPORT_JOB]: async (job: { payload: Record<string, unknown> }) => {
       const out = await writeMatchReport(deps, String(job.payload.matchId));
+      return { result: out, artifacts: out.status === "published" ? [{ kind: "article", id: out.articleId }] : [] };
+    },
+    [PREVIEW_JOB]: async (job: { payload: Record<string, unknown> }) => {
+      const out = await writePreview(deps, String(job.payload.previewOf));
       return { result: out, artifacts: out.status === "published" ? [{ kind: "article", id: out.articleId }] : [] };
     },
     [ROUND_JOB]: async (job: { payload: Record<string, unknown> }) => {

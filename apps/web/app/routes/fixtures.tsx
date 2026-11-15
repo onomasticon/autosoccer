@@ -1,15 +1,24 @@
-import type { FixturesResponse } from "@autosoccer/contracts";
+import type { FixtureStory, FixturesResponse } from "@autosoccer/contracts";
+import { StoryCard } from "../components/FixtureStory";
 import { FixtureCard } from "../components/MatchScoreCard";
 import { RouteError } from "../components/RouteError";
 import { SectionHeader } from "../components/SectionHeader";
 import { EmptyState } from "../components/States";
-import { apiOr404, seasonSlugFrom } from "../lib/api.server";
+import { apiMaybe, apiOr404, seasonSlugFrom } from "../lib/api.server";
 import { formatDate } from "../lib/format";
 import { seo } from "../lib/seo";
 import type { Route } from "./+types/fixtures";
 
 export async function loader({ request }: Route.LoaderArgs) {
-  return apiOr404<FixturesResponse>(`/api/v1/seasons/${await seasonSlugFrom(request)}/fixtures`);
+  const data = await apiOr404<FixturesResponse>(`/api/v1/seasons/${await seasonSlugFrom(request)}/fixtures`);
+  // Why the next round matters: the story of each of its fixtures (facts known before kickoff).
+  const next = data.rounds.find((r) => r.fixtures.some((f) => f.status !== "completed"));
+  const stories: Record<string, FixtureStory> = {};
+  for (const f of next?.fixtures ?? []) {
+    const s = await apiMaybe<FixtureStory>(`/api/v1/fixtures/${encodeURIComponent(f.id)}/story`);
+    if (s) stories[f.id] = s;
+  }
+  return { ...data, nextRound: next?.round ?? null, stories };
 }
 
 export const meta: Route.MetaFunction = ({ data }) =>
@@ -19,7 +28,7 @@ export const meta: Route.MetaFunction = ({ data }) =>
   );
 
 export default function Fixtures({ loaderData }: Route.ComponentProps) {
-  const { season, rounds } = loaderData;
+  const { season, rounds, nextRound, stories } = loaderData;
   const played = rounds.flatMap((r) => r.fixtures).filter((f) => f.status === "completed").length;
   const total = rounds.flatMap((r) => r.fixtures).length;
   return (
@@ -40,7 +49,12 @@ export default function Fixtures({ loaderData }: Route.ComponentProps) {
           </div>
           <div className="grid gap-2">
             {r.fixtures.map((f) => (
-              <FixtureCard key={f.id} fixture={f} />
+              <div key={f.id} className="grid gap-2">
+                <FixtureCard fixture={f} />
+                {r.round === nextRound && stories[f.id] && (
+                  <StoryCard story={stories[f.id]!} mode="before" max={3} headingId={`story-${f.id}`} as="h3" />
+                )}
+              </div>
             ))}
           </div>
         </section>

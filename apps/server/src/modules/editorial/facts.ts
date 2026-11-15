@@ -267,41 +267,56 @@ async function continuityFacts(db: Db, m: MatchRow): Promise<Fact[]> {
     [m.home_team_id, m.home_name],
     [m.away_team_id, m.away_name],
   ] as const) {
-    const results = await db<{ gf: number; ga: number }[]>`
-      select case when f.home_team_id = ${teamId} then m.home_score else m.away_score end as gf,
-             case when f.home_team_id = ${teamId} then m.away_score else m.home_score end as ga
-      from matches m join fixtures f on f.id = m.fixture_id
-      where f.season_id = ${m.season_id} and m.status = 'completed' and f.round <= ${m.round}
-        and ${teamId}::uuid in (f.home_team_id, f.away_team_id)
-      order by f.round desc`;
-    if (results.length < 2) continue;
-    const res = results.map((r) => (r.gf > r.ga ? "W" : r.gf === r.ga ? "D" : "L"));
-    const run = (pred: (x: string) => boolean) => {
-      let n = 0;
-      while (n < res.length && pred(res[n]!)) n++;
-      return n;
-    };
-    const wins = run((x) => x === "W");
-    const unbeaten = run((x) => x !== "L");
-    const winless = run((x) => x !== "W");
-    const statement =
-      wins >= 2
-        ? `${name} have won their last ${wins} league matches`
-        : unbeaten >= 2
-          ? `${name} are unbeaten in their last ${unbeaten} league matches`
-          : winless >= 2
-            ? `${name} are without a win in their last ${winless} league matches`
-            : null;
-    if (statement)
-      facts.push({
-        id: `form:${m.season_id}:r${m.round}:${teamId}`,
-        kind: "form",
-        statement,
-        value: { team: { id: teamId, name }, throughRound: m.round, recentFirst: res },
-        source: { table: "matches", id: `season:${m.season_id}` },
-      });
+    const f = await formFact(db, m.season_id, teamId, name, m.round);
+    if (f) facts.push(f);
   }
   return facts;
+}
+
+/**
+ * A club's current run (2+ wins, unbeaten or winless matches) through a round, from official
+ * results only. Null when there's no run to speak of.
+ */
+async function formFact(
+  db: Db,
+  seasonId: string,
+  teamId: string,
+  name: string,
+  throughRound: number,
+): Promise<Fact | null> {
+  const results = await db<{ gf: number; ga: number }[]>`
+    select case when f.home_team_id = ${teamId} then m.home_score else m.away_score end as gf,
+           case when f.home_team_id = ${teamId} then m.away_score else m.home_score end as ga
+    from matches m join fixtures f on f.id = m.fixture_id
+    where f.season_id = ${seasonId} and m.status = 'completed' and f.round <= ${throughRound}
+      and ${teamId}::uuid in (f.home_team_id, f.away_team_id)
+    order by f.round desc`;
+  if (results.length < 2) return null;
+  const res = results.map((r) => (r.gf > r.ga ? "W" : r.gf === r.ga ? "D" : "L"));
+  const run = (pred: (x: string) => boolean) => {
+    let n = 0;
+    while (n < res.length && pred(res[n]!)) n++;
+    return n;
+  };
+  const wins = run((x) => x === "W");
+  const unbeaten = run((x) => x !== "L");
+  const winless = run((x) => x !== "W");
+  const statement =
+    wins >= 2
+      ? `${name} have won their last ${wins} league matches`
+      : unbeaten >= 2
+        ? `${name} are unbeaten in their last ${unbeaten} league matches`
+        : winless >= 2
+          ? `${name} are without a win in their last ${winless} league matches`
+          : null;
+  if (!statement) return null;
+  return {
+    id: `form:${seasonId}:r${throughRound}:${teamId}`,
+    kind: "form",
+    statement,
+    value: { team: { id: teamId, name }, throughRound, recentFirst: res },
+    source: { table: "matches", id: `season:${seasonId}` },
+  };
 }
 
 /** Facts for a whole round: each match's score and key stats, plus the table afterwards. */
@@ -381,5 +396,144 @@ export async function roundFacts(
     match: null,
     facts,
     matchIds: ids.map((r) => r.id),
+  };
+}
+
+interface FixtureRow {
+  id: string;
+  season_id: string;
+  round: number;
+  scheduled_at: Date | null;
+  home_team_id: string;
+  away_team_id: string;
+  home_name: string;
+  away_name: string;
+}
+
+const kickoffText = (d: Date | null) =>
+  d ? `${d.toISOString().slice(0, 10)} at ${d.toISOString().slice(11, 16)} UTC` : "a time still to be confirmed";
+
+/**
+ * Facts known before a fixture kicks off: what it is and when, the table and title race after the
+ * previous round, earlier meetings this season, each club's last result, run of form and leading
+ * scorer through the previous round, league history, and any tactics a manager has already
+ * committed for this fixture. Built only from rounds before the fixture's own, so it's the same
+ * whenever it's read: no result of this fixture or any later round can appear in it.
+ */
+export async function prematchFacts(db: Db, fixtureId: string): Promise<EditorialFacts & { asOfRound: number }> {
+  const [f] = await db<FixtureRow[]>`
+    select f.id, f.season_id, f.round, f.scheduled_at, f.home_team_id, f.away_team_id, h.name as home_name, a.name as away_name
+    from fixtures f join teams h on h.id = f.home_team_id join teams a on a.id = f.away_team_id
+    where f.id = ${fixtureId}`;
+  if (!f) throw new Error(`fixture ${fixtureId} not found`);
+  const asOf = f.round - 1;
+  const facts: Fact[] = [
+    {
+      id: `fixture:${f.id}`,
+      kind: "fixture",
+      statement: `Round ${f.round}: ${f.home_name} host ${f.away_name}, kick-off scheduled for ${kickoffText(f.scheduled_at)}`,
+      value: {
+        round: f.round,
+        scheduledAt: f.scheduled_at?.toISOString() ?? null,
+        homeTeam: { id: f.home_team_id, name: f.home_name },
+        awayTeam: { id: f.away_team_id, name: f.away_name },
+      },
+      source: { table: "fixtures", id: f.id },
+    },
+  ];
+  if (asOf > 0) {
+    facts.push(...(await standingFacts(db, f.season_id, asOf)), ...(await raceFact(db, f.season_id, asOf)));
+  }
+  type Played = Pick<
+    MatchRow,
+    "id" | "round" | "home_name" | "away_name" | "home_score" | "away_score" | "events" | "request"
+  > & {
+    home_id: string;
+    away_id: string;
+  };
+  const played = await db<Played[]>`
+    select m.id, f.round, f.home_team_id as home_id, f.away_team_id as away_id, h.name as home_name, a.name as away_name,
+      m.home_score, m.away_score, m.events, m.request
+    from matches m join fixtures f on f.id = m.fixture_id
+    join teams h on h.id = f.home_team_id join teams a on a.id = f.away_team_id
+    where f.season_id = ${f.season_id} and m.status = 'completed' and f.round < ${f.round}
+    order by f.round`;
+  const scoreFact = (p: Played, statement: string): Fact => ({
+    id: `match:${p.id}:score`,
+    kind: "score",
+    statement,
+    value: {
+      home: p.home_score,
+      away: p.away_score,
+      round: p.round,
+      homeTeam: { id: p.home_id, name: p.home_name },
+      awayTeam: { id: p.away_id, name: p.away_name },
+    },
+    source: { table: "matches", id: p.id },
+  });
+  const line = (p: Played) => `${p.home_name} ${p.home_score}–${p.away_score} ${p.away_name}`;
+  const pair = new Set([f.home_team_id, f.away_team_id]);
+  const seen = new Set<string>();
+  for (const p of played.filter((x) => pair.has(x.home_id) && pair.has(x.away_id))) {
+    facts.push(scoreFact(p, `Earlier meeting this season (round ${p.round}): ${line(p)}`));
+    seen.add(p.id);
+  }
+  for (const [teamId, name] of [
+    [f.home_team_id, f.home_name],
+    [f.away_team_id, f.away_name],
+  ] as const) {
+    const last = played.filter((x) => x.home_id === teamId || x.away_id === teamId).at(-1);
+    if (last && !seen.has(last.id)) {
+      facts.push(scoreFact(last, `${name}'s last match (round ${last.round}): ${line(last)}`));
+      seen.add(last.id);
+    }
+    const form = asOf > 0 ? await formFact(db, f.season_id, teamId, name, asOf) : null;
+    if (form) facts.push(form);
+    // Leading scorer through the previous round (own goals don't count for the scorer).
+    const goals = new Map<string, number>();
+    const names = new Map<string, string>();
+    for (const p of played) {
+      const side = p.home_id === teamId ? "home" : p.away_id === teamId ? "away" : null;
+      if (!side) continue;
+      for (const s of p.request[side].starters) names.set(s.playerId, s.name);
+      for (const e of p.events)
+        if (e.type === "goal" && e.side === side && !e.ownGoal && e.scorerId && names.has(e.scorerId))
+          goals.set(e.scorerId, (goals.get(e.scorerId) ?? 0) + 1);
+    }
+    const top = [...goals.entries()].sort((a, b) => b[1] - a[1] || names.get(a[0])!.localeCompare(names.get(b[0])!));
+    if (top.length) {
+      const best = top[0]![1];
+      const leaders = top.filter(([, n]) => n === best).map(([id]) => names.get(id)!);
+      facts.push({
+        id: `scorers:${f.season_id}:r${asOf}:${teamId}`,
+        kind: "stat",
+        statement: `${name}'s leading league scorer${leaders.length > 1 ? "s" : ""} before round ${f.round}: ${leaders.join(" and ")} (${best} goal${best === 1 ? "" : "s"}${leaders.length > 1 ? " each" : ""})`,
+        value: { team: { id: teamId, name }, throughRound: asOf, players: leaders, goals: best },
+        source: { table: "matches", id: `season:${f.season_id}` },
+      });
+    }
+    // Tactics a manager has committed for this fixture (official once deployed as a revision).
+    const [rev] = await db<{ id: string; version: number; deployment: MatchRow["request"]["home"]["deployment"] }[]>`
+      select id, version, deployment from tactical_revisions
+      where fixture_id = ${f.id} and team_id = ${teamId} and status = 'valid' and source = 'manager'
+      order by version desc limit 1`;
+    if (rev)
+      facts.push({
+        id: `fixture:${f.id}:tactics:${teamId}`,
+        kind: "tactics",
+        statement: `${name}'s AI manager has committed to ${tacticsText(rev.deployment)} for this match (tactical revision v${rev.version})`,
+        value: { revisionVersion: rev.version },
+        source: { table: "tactical_revisions", id: rev.id },
+      });
+  }
+  facts.push(...(await historyFacts(db, f.season_id)));
+  return {
+    contract: "editorial-facts/1",
+    seasonId: f.season_id,
+    matchId: null,
+    generatedFrom: { resultFinalHash: null, standingsAfterRound: asOf },
+    match: null,
+    facts,
+    asOfRound: asOf,
   };
 }
