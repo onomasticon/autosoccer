@@ -13,6 +13,7 @@
  * Seasons without a finance_rule (from before club finances) are never settled.
  */
 import type { Db } from "@autosoccer/db";
+import { withdrawals } from "../insolvency/check.ts";
 import { ratedPlayer, seasonRatings } from "../league/careers.ts";
 import { standingRows } from "../league/read.ts";
 import type { PlayerRow } from "../mappers.ts";
@@ -22,7 +23,7 @@ interface Entry {
   teamId: string;
   seasonId: string | null;
   round: number | null;
-  kind: "opening" | "distribution" | "result" | "prize" | "payroll" | "transfer";
+  kind: "opening" | "distribution" | "result" | "prize" | "payroll" | "transfer" | "takeover";
   amount: number;
   key: string;
   memo: string;
@@ -68,6 +69,9 @@ export async function settleFinances(db: Db, seasonId: string): Promise<number> 
   const released = await db<{ round: number }[]>`
     select distinct round from fixtures where season_id = ${seasonId} and status <> 'scheduled' order by round`;
   if (!released.length && season.status !== "completed") return 0; // nothing has kicked off yet
+  // A club withdrawn (bankrupt, insolvency/1) stops paying wages from the round it withdrew, earns
+  // nothing more that season, and gets no finishing prize. Withdrawn before round 1: no distribution.
+  const gone = await withdrawals(db, seasonId);
   const entries: Entry[] = [];
   for (const t of teams) {
     entries.push({
@@ -80,6 +84,7 @@ export async function settleFinances(db: Db, seasonId: string): Promise<number> 
       memo: "Opening balance",
       basis: { firstSeason: season.slug },
     });
+    if (gone.get(t.id) === 1) continue;
     entries.push({
       teamId: t.id,
       seasonId,
@@ -94,7 +99,8 @@ export async function settleFinances(db: Db, seasonId: string): Promise<number> 
   if (released.length) {
     for (const t of teams) {
       const pay = await payrollFor(db, seasonId, t.id);
-      for (const { round } of released)
+      for (const { round } of released) {
+        if (round >= (gone.get(t.id) ?? Number.POSITIVE_INFINITY)) continue;
         entries.push({
           teamId: t.id,
           seasonId,
@@ -105,6 +111,7 @@ export async function settleFinances(db: Db, seasonId: string): Promise<number> 
           memo: `Wages, round ${round} (${pay.players.length} players)`,
           basis: { players: pay.players },
         });
+      }
     }
   }
   // Income from each official result.
@@ -143,7 +150,7 @@ export async function settleFinances(db: Db, seasonId: string): Promise<number> 
   // Finishing-position prize once the season is complete.
   if (season.status === "completed") {
     const { rows } = await standingRows(db, seasonId);
-    for (const row of rows)
+    for (const row of rows.filter((r) => !gone.has(r.team.id)))
       entries.push({
         teamId: row.team.id,
         seasonId,
@@ -176,9 +183,13 @@ export async function clubPosition(db: Db, seasonId: string, teamId: string) {
   const [bal] = await db<
     { b: string | null }[]
   >`select sum(amount)::text as b from club_ledger where team_id = ${teamId}`;
+  // A withdrawn club (insolvency/1) has no wages left to pay this season.
   const [left] = await db<{ n: number }[]>`
-    select count(distinct round)::int as n from fixtures where season_id = ${seasonId} and status = 'scheduled'`;
-  const [started] = await db`select 1 from club_ledger where season_id = ${seasonId} and team_id = ${teamId} limit 1`;
+    select count(distinct round)::int as n from fixtures f where f.season_id = ${seasonId} and f.status = 'scheduled'
+      and not exists (select 1 from club_withdrawals w where w.season_id = f.season_id and w.team_id = ${teamId}
+        and w.effective_round <= f.round)`;
+  const [started] = await db`
+    select 1 from club_ledger where season_id = ${seasonId} and team_id = ${teamId} and kind = 'distribution' limit 1`;
   const pay = await payrollFor(db, seasonId, teamId);
   // Before kick-off the opening balance and distribution haven't landed yet: include them as due.
   const [opened] = await db`select 1 from club_ledger where team_id = ${teamId} and kind = 'opening'`;

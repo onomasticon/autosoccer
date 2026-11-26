@@ -4,6 +4,11 @@ export interface Result {
   away: string;
   homeGoals: number;
   awayGoals: number;
+  /**
+   * A fixture that wasn't played (insolvency/1): "home"/"away" is the side awarded a walkover (3
+   * points, no goals); "void" (both clubs withdrawn) counts for nobody.
+   */
+  walkover?: "home" | "away" | "void";
 }
 
 export interface Standing {
@@ -18,6 +23,11 @@ export interface Standing {
   goalDifference: number;
   points: number;
   form: Array<"W" | "D" | "L">;
+  /** Wins awarded by walkover, and fixtures forfeited (included in won / lost and played). */
+  walkovers: number;
+  forfeits: number;
+  /** Set when the club withdrew (bankrupt): the first round it didn't play. */
+  withdrawnFrom: number | null;
 }
 
 export const POINTS = { win: 3, draw: 1, loss: 0 } as const;
@@ -37,6 +47,9 @@ function tally(teams: readonly string[], results: readonly Result[]) {
         goalDifference: 0,
         points: 0,
         form: [],
+        walkovers: 0,
+        forfeits: 0,
+        withdrawnFrom: null,
       },
     ]),
   );
@@ -44,6 +57,20 @@ function tally(teams: readonly string[], results: readonly Result[]) {
     const h = rows.get(r.home);
     const a = rows.get(r.away);
     if (!h || !a) continue;
+    if (r.walkover) {
+      if (r.walkover === "void") continue;
+      const [w, l] = r.walkover === "home" ? [h, a] : [a, h];
+      w.played++;
+      w.won++;
+      w.walkovers++;
+      w.points += POINTS.win;
+      w.form = [...w.form, "W" as const].slice(-5);
+      l.played++;
+      l.lost++;
+      l.forfeits++;
+      l.form = [...l.form, "L" as const].slice(-5);
+      continue;
+    }
     for (const [row, gf, ga] of [
       [h, r.homeGoals, r.awayGoals],
       [a, r.awayGoals, r.homeGoals],
@@ -66,14 +93,20 @@ function tally(teams: readonly string[], results: readonly Result[]) {
 /**
  * League table. Order: points → goal difference → goals for → head-to-head points →
  * head-to-head goal difference → head-to-head goals for (among the tied teams only) →
- * name (a stable, documented last resort).
+ * name (a stable, documented last resort). Withdrawn clubs (insolvency/1) are placed below every club
+ * still in the season, in the same order among themselves: they can't win the title or a finishing prize.
  */
 export function computeStandings(
   teams: readonly string[],
   results: readonly Result[],
   nameOf: (t: string) => string = (t) => t,
+  withdrawn: ReadonlyMap<string, number> = new Map(),
 ): Standing[] {
   const rows = tally(teams, results);
+  for (const [t, round] of withdrawn) {
+    const row = rows.get(t);
+    if (row) row.withdrawnFrom = round;
+  }
   const key = (r: Omit<Standing, "position">) => [r.points, r.goalDifference, r.goalsFor];
   const cmp = (x: number[], y: number[]) => {
     for (let i = 0; i < x.length; i++) if (x[i] !== y[i]) return y[i]! - x[i]!;
@@ -99,5 +132,6 @@ export function computeStandings(
     out.push(...group);
     i = j;
   }
-  return out.map((r, i) => ({ ...r, position: i + 1 }));
+  const ordered = [...out.filter((r) => r.withdrawnFrom === null), ...out.filter((r) => r.withdrawnFrom !== null)];
+  return ordered.map((r, i) => ({ ...r, position: i + 1 }));
 }

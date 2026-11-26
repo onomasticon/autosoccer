@@ -91,7 +91,7 @@ async function completedMatches(
   limit = 3,
 ): Promise<MatchJoin[]> {
   return db<MatchJoin[]>`
-    select f.round, f.home_team_id, f.away_team_id, h.name as home_name, a.name as away_name,
+    select f.round, f.home_team_id, f.away_team_id, team_name_as_of(h.id, f.season_id) as home_name, team_name_as_of(a.id, f.season_id) as away_name,
       m.home_score, m.away_score, m.stats, m.request, m.events
     from fixtures f join matches m on m.fixture_id = f.id
     join teams h on h.id = f.home_team_id join teams a on a.id = f.away_team_id
@@ -189,7 +189,7 @@ export async function postMatchFacts(
 ): Promise<PostMatchFacts> {
   const base = await managerFacts(db, fixture, teamId, manager, { includeRound: true });
   const [m] = await db<MatchJoin[]>`
-    select f.round, f.home_team_id, f.away_team_id, h.name as home_name, a.name as away_name,
+    select f.round, f.home_team_id, f.away_team_id, team_name_as_of(h.id, f.season_id) as home_name, team_name_as_of(a.id, f.season_id) as away_name,
       m.home_score, m.away_score, m.stats, m.request, m.events
     from fixtures f join matches m on m.fixture_id = f.id
     join teams h on h.id = f.home_team_id join teams a on a.id = f.away_team_id

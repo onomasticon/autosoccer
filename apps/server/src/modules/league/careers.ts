@@ -198,7 +198,8 @@ export async function teamCareers(db: Db, team: Team): Promise<PlayerCareersResp
     order by coalesce(s.starts_at, s.created_at), s.created_at`;
   // Each player's seasons: wherever they were registered; without registrations, the club's seasons.
   const regs = await db<{ player_id: string; season_id: string; slug: string; name: string; team: TeamRow }[]>`
-    select r.player_id, s.id as season_id, s.slug, s.name, to_jsonb(t.*) as team
+    select r.player_id, s.id as season_id, s.slug, s.name,
+      to_jsonb(t.*) || jsonb_build_object('name', team_name_as_of(t.id, s.id)) as team
     from player_registrations r join seasons s on s.id = r.season_id join teams t on t.id = r.team_id
     where r.player_id = any(${players.map((p) => p.id)}) and s.status <> 'draft'
     order by coalesce(s.starts_at, s.created_at), s.created_at`;

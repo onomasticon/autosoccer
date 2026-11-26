@@ -77,6 +77,7 @@ export default function Team({ loaderData }: Route.ComponentProps) {
     hasSeason,
     teams,
     history,
+    identities,
     goals,
     memoryWrittenAfter,
     profile,
@@ -94,9 +95,17 @@ export default function Team({ loaderData }: Route.ComponentProps) {
           <div className="min-w-0 flex-1">
             <p className="text-xs font-bold uppercase tracking-[0.14em] text-violet">{team.city}</p>
             <h1 className="font-display text-5xl font-extrabold uppercase italic leading-none">{team.name}</h1>
+            <FormerNames identities={identities ?? []} />
             <div className="mt-3">
               <FollowButton team={team} teams={teams.length ? teams : [team]} />
             </div>
+            {standing?.withdrawn && (
+              <p className="mt-3 rounded-lg border-l-4 border-coral bg-coral/15 px-3 py-2 text-sm" role="note">
+                <span className="font-semibold">Withdrawn: bankrupt.</span> {team.name} couldn't pay the wages before
+                round {standing.withdrawn.round} and left the season. Their remaining fixtures are walkovers to their
+                opponents, and they can't win the title or a prize. Results already played stand.
+              </p>
+            )}
             {standing ? (
               <dl className="mt-4 flex flex-wrap gap-x-6 gap-y-2 text-sm">
                 {[
@@ -310,6 +319,22 @@ export default function Team({ loaderData }: Route.ComponentProps) {
 
 const ordinal = (n: number) => `${n}${n === 1 ? "st" : n === 2 ? "nd" : n === 3 ? "rd" : "th"}`;
 
+/** "Formerly Saltmarsh Athletic (to Season 2)", and why: the takeover that renamed the club. */
+export function FormerNames({ identities }: { identities: NonNullable<TeamDetailResponse["identities"]> }) {
+  if (identities.length < 2) return null;
+  const now = identities.at(-1)!;
+  const before = identities.slice(0, -1);
+  return (
+    <div className="mt-2 space-y-1 text-sm" data-testid="former-names">
+      <p className="text-muted-text">
+        Formerly {before.map((i) => i.name).join(", then ")}
+        {now.fromSeason ? ` (renamed from ${now.fromSeason.name})` : ""}.
+      </p>
+      {now.reason === "takeover" && now.memo && <p className="text-xs text-muted-text">{now.memo}</p>}
+    </div>
+  );
+}
+
 /** "3 titles (Seasons 1, 6 and 7)" plus each completed season's finish. */
 export function Honours({ history }: { history: TeamDetailResponse["history"] }) {
   if (!history.length) return null;
@@ -325,7 +350,14 @@ export function Honours({ history }: { history: TeamDetailResponse["history"] })
       </p>
       <p className="text-muted-text">
         <span className="font-semibold text-ink">Finishes: </span>
-        {list([...history].reverse().map((h) => `${h.season.name.replace(/^Season /, "S")} ${ordinal(h.position)}`))}
+        {list(
+          [...history]
+            .reverse()
+            .map(
+              (h) =>
+                `${h.season.name.replace(/^Season /, "S")} ${h.withdrawn ? `withdrawn (bankrupt, round ${h.withdrawn.round})` : ordinal(h.position)}${h.name ? ` as ${h.name}` : ""}`,
+            ),
+        )}
       </p>
     </div>
   );

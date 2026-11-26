@@ -24,7 +24,8 @@ export const STORY_CONTRACT = "fixture-story/1";
  * Where the fixture is, from official fixture, job and decision state (never a guess):
  * scheduled → awaiting_decisions (managers deciding) → prepared (both lineups committed or the
  * round released) → playing → completed. `delayed`: kickoff time has passed and the match hasn't
- * started; `failed`: the match failed and is waiting for an operator.
+ * started; `failed`: the match failed and is waiting for an operator; `forfeited`: a club withdrew
+ * (bankrupt), so the fixture is a walkover or void and is never played.
  */
 export const StoryStage = z.enum([
   "scheduled",
@@ -34,6 +35,7 @@ export const StoryStage = z.enum([
   "completed",
   "delayed",
   "failed",
+  "forfeited",
 ]);
 export type StoryStage = z.infer<typeof StoryStage>;
 
@@ -116,5 +118,14 @@ export const FixtureStory = z.object({
     .object({ afterRound: z.number().int().positive(), lines: z.array(StoryLine), facts: z.array(Fact) })
     .nullable(),
   articles: z.object({ preview: StoryArticle.nullable(), report: StoryArticle.nullable() }),
+  /** Set when the fixture is forfeited: who withdrew, why, and who is awarded the walkover. */
+  forfeit: z
+    .object({
+      kind: z.enum(["walkover", "void"]),
+      awardedTo: Team.nullable(),
+      withdrawn: z.array(z.object({ team: Team, round: z.number().int().positive(), reason: z.string() })).min(1),
+    })
+    .nullable()
+    .optional(),
 });
 export type FixtureStory = z.infer<typeof FixtureStory>;

@@ -14,6 +14,7 @@ import { SIM_COMMIT, SIM_VERSION } from "@autosoccer/sim-adapter";
 import type { Logger } from "../../log.ts";
 import { seedManagers } from "../agents/service.ts";
 import { seedJournalists } from "../editorial/service.ts";
+import { rescueClubs } from "../insolvency/takeover.ts";
 import { openWindow } from "../transfers/window.ts";
 import { CADENCES, type Cadence, kickoffs } from "./cadence.ts";
 import { developSeason } from "./careers.ts";
@@ -111,6 +112,10 @@ export async function rolloverSeason(db: Db, opts: RolloverOptions): Promise<str
   // Player careers: this season's ratings, developed from last season's record (idempotent).
   const developed = await developSeason(db, seasonId, last.id);
   if (developed) opts.log?.info("player ratings developed", { season: slug, players: developed });
+  // A club that went bankrupt last season returns under new owners and a new name, recapitalised
+  // (insolvency/1), before its manager's opening setup and the transfer window see its cash.
+  for (const t of await rescueClubs(db, last.id, seasonId))
+    opts.log?.info("club taken over", { from: t.from, to: t.to, capital: t.capital, season: slug });
   await seedManagers(db, seasonId, opts.managerModel);
   await seedJournalists(db, opts.editorialModel);
   // The transfer window before the new season (when it has a transfer rule; see transfers/window.ts).

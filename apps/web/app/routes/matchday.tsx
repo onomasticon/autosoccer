@@ -9,14 +9,22 @@ import { SectionHeader } from "../components/SectionHeader";
 import { EmptyState } from "../components/States";
 import { TeamBadge } from "../components/TeamBadge";
 import { apiMaybe, apiOr404 } from "../lib/api.server";
-import { type Act, kickoffUtc, managerContrast, matchdayHref, STAGE_INFO, watchNote } from "../lib/matchday";
+import {
+  type Act,
+  forfeitHeadline,
+  kickoffUtc,
+  managerContrast,
+  matchdayHref,
+  STAGE_INFO,
+  watchNote,
+} from "../lib/matchday";
 import { seo } from "../lib/seo";
 import type { Route } from "./+types/matchday";
 
 export async function loader({ params }: Route.LoaderArgs) {
   const id = encodeURIComponent(params.fixtureId);
   const story = await apiOr404<FixtureStory>(`/api/v1/fixtures/${id}/story`);
-  const done = story.stage === "completed";
+  const done = story.stage === "completed" || story.stage === "forfeited";
   // Manager patterns are "to date": shown only before the match, so a finished matchday never
   // describes a manager with decisions made after it.
   const profile = (s: StorySide) =>
@@ -33,9 +41,12 @@ export const meta: Route.MetaFunction = ({ data }) => {
   if (!data) return seo("Matchday not found");
   const { story: s } = data;
   const score = s.match?.score;
+  const ff = forfeitHeadline(s);
   const title = score
     ? `Matchday: ${s.home.team.name} ${score.home}–${score.away} ${s.away.team.name}`
-    : `Matchday: ${s.home.team.name} v ${s.away.team.name}`;
+    : ff
+      ? `Matchday: ${s.home.team.name} v ${s.away.team.name} (${ff})`
+      : `Matchday: ${s.home.team.name} v ${s.away.team.name}`;
   return seo(title, `${s.season.name}, round ${s.round}: build-up, the recorded replay and the reaction.`);
 };
 
@@ -100,6 +111,8 @@ export default function Matchday({ loaderData }: Route.ComponentProps) {
   const info = STAGE_INFO[story.stage];
   const done = story.stage === "completed";
   const score = story.match?.score ?? null;
+  const forfeit = story.forfeit ?? null;
+  const headline = forfeitHeadline(story);
   const replay = detail?.replay ?? null;
   const note = watchNote(story, !!replay);
   const contrast = managerContrast(profiles.home, profiles.away);
@@ -135,12 +148,13 @@ export default function Matchday({ loaderData }: Route.ComponentProps) {
           <h1 className="text-center">
             <span className="sr-only">
               {home.team.name} {score ? `${score.home}–${score.away}` : "versus"} {away.team.name}
+              {headline ? `: ${headline}` : ""}
             </span>
             <span
               aria-hidden
-              className="tabular rounded-xl bg-ink px-4 py-2 font-display text-4xl font-extrabold text-white sm:text-6xl"
+              className={`tabular rounded-xl px-4 py-2 font-display text-4xl font-extrabold sm:text-6xl ${forfeit ? "bg-coral text-ink" : "bg-ink text-white"}`}
             >
-              {score ? `${score.home}–${score.away}` : "v"}
+              {score ? `${score.home}–${score.away}` : forfeit ? (forfeit.kind === "void" ? "Void" : "W/O") : "v"}
             </span>
           </h1>
           <Link
@@ -173,14 +187,44 @@ export default function Matchday({ loaderData }: Route.ComponentProps) {
         </div>
       </header>
 
+      {forfeit && (
+        <section aria-labelledby="forfeit" className="card-surface space-y-2 border-l-4 border-coral p-4">
+          <h2 id="forfeit" className="font-display text-xl font-extrabold uppercase italic">
+            {headline}
+          </h2>
+          {forfeit.withdrawn.map((w) => (
+            <p key={w.team.id} className="text-sm">
+              <span className="font-semibold">{w.team.name}</span> withdrew from {story.season.name} before round{" "}
+              {w.round}: bankrupt. {w.reason}
+            </p>
+          ))}
+          <p className="text-sm">
+            {forfeit.kind === "void"
+              ? "Neither club gets points. The fixture isn't simulated."
+              : `${forfeit.awardedTo?.name ?? "The opponent"} get 3 points by walkover, with no goals for either side. The fixture isn't simulated: there is no replay, lineup or goals, and nobody's record changes.`}
+          </p>
+          <p className="text-sm">
+            <Link to="/table" className="font-semibold text-violet-deep underline-offset-4 hover:underline">
+              The table <span aria-hidden>→</span>
+            </Link>
+          </p>
+        </section>
+      )}
+
       <section aria-labelledby="build-up" className="scroll-mt-24 space-y-4">
         <SectionHeader id="build-up" title="Build-up" meta={done ? "As it stood before kick-off" : undefined} />
         <div className="grid gap-4 lg:grid-cols-2">
           <StoryCard story={story} mode="before" headingId="why-it-matters" as="h3" />
           <div className="card-surface space-y-4 p-4">
             <h3 className="font-display text-lg font-extrabold uppercase italic">The dugouts</h3>
-            <Decision side={home} />
-            <Decision side={away} />
+            {forfeit ? (
+              <p className="text-sm">No decisions: neither manager picks a side for a fixture that won't be played.</p>
+            ) : (
+              <>
+                <Decision side={home} />
+                <Decision side={away} />
+              </>
+            )}
             {contrast.length > 0 && (
               <div className="border-t border-line pt-3 text-sm">
                 <p className="text-[11px] font-bold uppercase tracking-wider text-muted-text">
@@ -260,6 +304,10 @@ export default function Matchday({ loaderData }: Route.ComponentProps) {
               )}
             </div>
           </div>
+        ) : forfeit ? (
+          <EmptyState title="No match, no reaction">
+            A forfeited fixture has no result to react to: no reflections, no match report.
+          </EmptyState>
         ) : (
           <EmptyState title="After full time">
             The result, the table movement, both managers' reflections and the match report appear here once the

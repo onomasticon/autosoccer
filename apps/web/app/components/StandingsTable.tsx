@@ -27,6 +27,25 @@ export function FormGuide({ form }: { form: StandingRow["form"] }) {
   );
 }
 
+/**
+ * Plain-words notes under a table with forfeits: who withdrew (bankrupt) and from which round, and
+ * which clubs' points include walkovers. Empty when nothing was forfeited.
+ */
+export function forfeitNotes(rows: readonly StandingRow[]): string[] {
+  const notes = rows
+    .filter((r) => r.withdrawn)
+    .map(
+      (r) =>
+        `${r.team.name} withdrew before round ${r.withdrawn!.round} (bankrupt): placed last, no prize, remaining fixtures awarded to their opponents.`,
+    );
+  const wo = rows.filter((r) => (r.walkovers ?? 0) > 0);
+  if (wo.length)
+    notes.push(
+      `Includes walkovers (3 points each, no goals): ${wo.map((r) => `${r.team.name} ${r.walkovers}`).join(", ")}.`,
+    );
+  return notes;
+}
+
 export interface StandingsTableProps {
   rows: StandingRow[] | null;
   caption: string;
@@ -62,6 +81,7 @@ export function StandingsTable({
   if (!rows?.length) return <EmptyState title="No table yet">Standings appear after the first results.</EmptyState>;
   const num = `tabular px-2 py-2.5 text-right ${compact ? "font-semi text-[1.05rem] font-semibold" : ""}`;
   const wdl = "hidden sm:table-cell";
+  const notes = forfeitNotes(rows);
   return (
     <div className={`${bare ? "" : "card-surface"} relative overflow-x-auto`} data-testid="standings-table">
       <table
@@ -115,8 +135,9 @@ export function StandingsTable({
         </thead>
         <tbody>
           {rows.map((r) => {
-            const leader = r.position === 1 && r.played > 0;
+            const leader = r.position === 1 && r.played > 0 && !r.withdrawn;
             const mine = r.team.id === highlightTeamId;
+            const out = r.withdrawn ?? null;
             return (
               <tr
                 key={r.team.id}
@@ -124,7 +145,7 @@ export function StandingsTable({
                   compact
                     ? `[&>*]:border-line [&:not(:last-child)>*]:border-b ${leader ? "[&>*:first-child]:rounded-l-lg [&>*:last-child]:rounded-r-lg [&>*]:border-transparent [&>*]:bg-yellow/55" : ""}`
                     : `border-b border-line last:border-0 ${leader ? "bg-yellow/45" : ""}`
-                } ${mine ? "outline-2 -outline-offset-2 outline-violet" : ""}`}
+                } ${mine ? "outline-2 -outline-offset-2 outline-violet" : ""} ${out ? "text-muted-text" : ""}`}
                 aria-current={mine ? "true" : undefined}
               >
                 <td className={`tabular px-3 py-2.5 text-right font-bold ${compact ? "font-semi text-lg" : ""}`}>
@@ -138,6 +159,14 @@ export function StandingsTable({
                     {leader && !compact && (
                       <span aria-hidden className="rounded bg-yellow px-1 text-[10px] font-bold uppercase text-ink">
                         Top
+                      </span>
+                    )}
+                    {out && (
+                      <span
+                        className="shrink-0 rounded bg-coral px-1 text-[10px] font-bold uppercase text-ink"
+                        title={`Withdrew before round ${out.round}: bankrupt`}
+                      >
+                        Withdrawn<span className="sr-only"> before round {out.round}, bankrupt</span>
                       </span>
                     )}
                     {holdersTeamId === r.team.id && (
@@ -176,6 +205,13 @@ export function StandingsTable({
           })}
         </tbody>
       </table>
+      {notes.length > 0 && (
+        <ul className="space-y-1 border-t border-line px-3 py-2 text-xs text-muted-text" data-testid="forfeit-notes">
+          {notes.map((n) => (
+            <li key={n}>{n}</li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }

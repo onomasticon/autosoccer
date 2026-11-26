@@ -54,7 +54,7 @@ const tacticsText = (d: { kind: string; config: Record<string, unknown> }) => {
 
 async function loadMatch(db: Db, matchId: string): Promise<MatchRow> {
   const [m] = await db<MatchRow[]>`
-    select m.id, f.season_id, f.round, f.id as fixture_id, f.home_team_id, f.away_team_id, h.name as home_name, a.name as away_name,
+    select m.id, f.season_id, f.round, f.id as fixture_id, f.home_team_id, f.away_team_id, team_name_as_of(h.id, f.season_id) as home_name, team_name_as_of(a.id, f.season_id) as away_name,
       m.home_score, m.away_score, m.final_hash, m.events, m.stats, m.request, m.home_revision_id, m.away_revision_id
     from matches m join fixtures f on f.id = m.fixture_id
     join teams h on h.id = f.home_team_id join teams a on a.id = f.away_team_id
@@ -241,7 +241,7 @@ async function continuityFacts(db: Db, m: MatchRow): Promise<Fact[]> {
       away_score: number;
     }[]
   >`
-    select m.id, f.round, f.home_team_id as home_id, f.away_team_id as away_id, h.name as home_name, a.name as away_name,
+    select m.id, f.round, f.home_team_id as home_id, f.away_team_id as away_id, team_name_as_of(h.id, f.season_id) as home_name, team_name_as_of(a.id, f.season_id) as away_name,
       m.home_score, m.away_score
     from matches m join fixtures f on f.id = m.fixture_id
     join teams h on h.id = f.home_team_id join teams a on a.id = f.away_team_id
@@ -425,7 +425,7 @@ const kickoffText = (d: Date | null) =>
  */
 export async function prematchFacts(db: Db, fixtureId: string): Promise<EditorialFacts & { asOfRound: number }> {
   const [f] = await db<FixtureRow[]>`
-    select f.id, f.season_id, f.round, f.scheduled_at, f.home_team_id, f.away_team_id, h.name as home_name, a.name as away_name
+    select f.id, f.season_id, f.round, f.scheduled_at, f.home_team_id, f.away_team_id, team_name_as_of(h.id, f.season_id) as home_name, team_name_as_of(a.id, f.season_id) as away_name
     from fixtures f join teams h on h.id = f.home_team_id join teams a on a.id = f.away_team_id
     where f.id = ${fixtureId}`;
   if (!f) throw new Error(`fixture ${fixtureId} not found`);
@@ -455,7 +455,7 @@ export async function prematchFacts(db: Db, fixtureId: string): Promise<Editoria
     away_id: string;
   };
   const played = await db<Played[]>`
-    select m.id, f.round, f.home_team_id as home_id, f.away_team_id as away_id, h.name as home_name, a.name as away_name,
+    select m.id, f.round, f.home_team_id as home_id, f.away_team_id as away_id, team_name_as_of(h.id, f.season_id) as home_name, team_name_as_of(a.id, f.season_id) as away_name,
       m.home_score, m.away_score, m.events, m.request
     from matches m join fixtures f on f.id = m.fixture_id
     join teams h on h.id = f.home_team_id join teams a on a.id = f.away_team_id

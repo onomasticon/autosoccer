@@ -159,7 +159,8 @@ function financeFacts(f: ManagerFacts): string {
 ## Club finances (fictional credits)
 Cash: ${cr(m.balance)}
 Wages: ${cr(m.payrollPerRound)} a round; ${m.roundsToPay} round${m.roundsToPay === 1 ? "" : "s"} still to pay this season (${cr(m.remainingPayroll)})
-Headroom after those wages: ${cr(m.headroom)} (before any prize money or result income, which depend on results)`;
+Headroom after those wages: ${cr(m.headroom)} (before any prize money or result income, which depend on results)
+A club that can't pay a round's wages before it kicks off is bankrupt: withdrawn for the rest of the season, its fixtures awarded to its opponents.`;
 }
 
 export function preMatchPrompt(f: ManagerFacts): string {

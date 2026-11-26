@@ -8,6 +8,7 @@ import type { Db } from "@autosoccer/db";
 import type { ReplayStore } from "@autosoccer/sim-adapter";
 import { Hono } from "hono";
 import { contractJson, isUuid, notFound } from "../http.ts";
+import { teamsAsOf } from "../insolvency/takeover.ts";
 import { ratedPlayer, seasonRatings } from "../league/careers.ts";
 import {
   type FixtureRow,
@@ -32,12 +33,8 @@ export function matchRoutes({ db, store }: { db: Db; store: ReplayStore }) {
     if (!m) return notFound(c, "Match");
     const [f] = await db<FixtureRow[]>`select *, ${m.id}::uuid as match_id, ${m.home_score}::int as home_score,
       ${m.away_score}::int as away_score from fixtures where id = ${m.fixture_id}`;
-    const teams = new Map(
-      (await db<TeamRow[]>`select * from teams where id in (${f!.home_team_id}, ${f!.away_team_id})`).map((t) => [
-        t.id,
-        toTeam(t),
-      ]),
-    );
+    // The clubs as they were known that season (before any later takeover and rename).
+    const teams = await teamsAsOf(db, f!.season_id);
     const request = m.request as {
       home: { starters: { playerId: string; attributes?: PlayerAttributes }[] };
       away: { starters: { playerId: string; attributes?: PlayerAttributes }[] };
