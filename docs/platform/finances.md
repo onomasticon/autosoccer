@@ -1,4 +1,4 @@
-# Club finances (`finance/1`)
+# Club finances (`finance/2`)
 
 Every club has a bank balance in **credits (cr)**, the league's fictional money. Winning earns money, paying players costs money, and the balance carries from one season to the next. Between seasons clubs buy and sell players in a transfer window ([transfers.md](transfers.md)). A club that can't pay a round's wages is declared bankrupt and forfeits the rest of its season, then returns under new owners ([bankruptcy.md](bankruptcy.md)).
 
@@ -6,28 +6,33 @@ This is separate from the AI managers' compute budget (#24). That budget measure
 
 ## How the money works
 
-| What | When | Amount |
+The league has ten clubs and an 18-round season ([league.md](league.md)). Wages and result income are **season amounts paid in equal shares every round**, so a longer season costs and earns a club about the same as the old six-round one. The table shows the numbers for a six-round season; an 18-round season pays a third of each wage and result amount a round.
+
+| What | When | Amount (per six rounds) |
 | --- | --- | ---: |
 | Opening balance | Once, the first time a club plays a season with club finances | 12m cr |
 | League distribution | Every club, when the season's first round kicks off | 6m cr |
 | A win | After the official result | 600k cr |
 | A draw | After the official result | 250k cr |
 | A defeat | | nothing |
-| Finishing prize | When the season ends: 1st / 2nd / 3rd / 4th | 4m / 2.5m / 1.5m / 800k cr |
+| Finishing prize | When the season ends: 1st / 2nd / 3rd / 4th / 5th / 6th / 7th / 8th / 9th / 10th | 4m / 2.5m / 1.5m / 800k / 700k / 600k / 500k / 400k / 300k / 200k cr |
 | Wages | Every round, when the round kicks off, for every player registered with the club that season | 30k cr + 3k cr per rating point above 45, at least 20k cr per player |
 | Transfer fees | When a deal settles at the end of the transfer window | paid by the buying club, received by the selling club |
 | Takeover capital | After a bankruptcy, when the next season is created | whatever brings the club's cash back to 12m cr |
 
-Wages follow each player's overall rating for the season, so a stronger squad costs more to keep. The seed squads cost about 1.45–1.5m cr a round each, roughly 8.8–9m cr over a six-round season.
+Wages follow each player's overall rating for the season, so a stronger squad costs more to keep. A seed squad costs about 8.7–9m cr a season: about 1.45m cr a round over six rounds, or 485k cr a round over 18.
 
-What a six-season run with transfer windows shows ([finance-balance.md](finance-balance.md)):
+What a six-season run shows ([finance-balance.md](finance-balance.md)). The league expands to ten clubs after Season 1:
 
-- **Performance earns money.** Red Rock won three titles and earned the most from results and prizes (29.9m cr). Northgate, without a title, earned 19m cr.
-- **Spending decides what's kept.** Red Rock also spent the most: 5.9m cr net on transfers, and the biggest wage bill (18 players). They finished with the least cash, 14.3m cr. A solvent club can make a costly choice, and here it bought titles.
-- **A struggling club can recover.** Saltmarsh finished Season 1 last, on 10.6m cr. They sold a bench player for 2.9m cr, won Season 2, and ended with the most cash, 21.1m cr, and two titles.
-- **Prudent clubs don't go broke.** The offline managers keep 3m cr of headroom, so in this run nobody comes near bankruptcy. A reckless club does: one that spends almost all its cash on a signing runs out a few rounds into the season ([bankruptcy.md](bankruptcy.md)).
+- **The new clubs compete at once.** Titles went to five different clubs. Eastmoor Wanderers won two; Port Alder, Larkfield Rangers, Harbour City and Red Rock Rovers won one each.
+- **Performance earns money.** Eastmoor earned 25.7m cr from results and prizes and finished with the most cash, 20.9m cr, after buying a player for 2.5m cr.
+- **Struggling clubs bleed slowly.** Westvale Albion and Coldwater Town, without a title, fell from about 11m cr after their first season to 7.4–7.5m cr after Season 6. That's about 1m cr a season, pressure that builds over several seasons rather than a sudden collapse.
+- **Prudent clubs don't go broke.** The offline managers keep 3m cr of headroom, so nobody went bankrupt in this run. A reckless club does: one that spends almost all its cash on a signing runs out a few rounds into the season ([bankruptcy.md](bankruptcy.md)).
 
-The numbers live in one versioned table (`apps/server/src/modules/finance/rules.ts`). Changing them means changing the version, and every ledger entry records the version that produced it.
+The numbers live in versioned tables (`apps/server/src/modules/finance/rules.ts`). Changing them means adding a version, and every ledger entry records the version that produced it. Each season keeps the version it was created with:
+
+- **`finance/1`** was the four-club, six-round league. Seasons created under it are still settled by it.
+- **`finance/2`** came in with the expansion. It works for any league size: wages and result income scale to the season's length, and the prize table runs to 10th place. A six-round season under `finance/2` pays exactly what `finance/1` did.
 
 ## What the managers see
 

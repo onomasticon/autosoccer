@@ -302,7 +302,7 @@ describe("the transfer window through the season lifecycle", () => {
     await play(s1);
     const top = (await scorers(t.db, s1, 50)).find((x) => x.team.name === names.seller)!;
     star = top.name;
-    const slug = (await rolloverSeason(t.db, { managerModel: MODEL, editorialModel: MODEL }))!;
+    const slug = (await rolloverSeason(t.db, { managerModel: MODEL, editorialModel: MODEL, clubs: 4 }))!;
     s2 = (await t.db<{ id: string }[]>`select id from seasons where slug = ${slug}`)[0]!.id;
     windowId = (await t.db<{ id: string }[]>`select id from transfer_windows where season_id = ${s2}`)[0]!.id;
     // The scheduler: repeated ticks (as with several workers or retries) and the worker, until the

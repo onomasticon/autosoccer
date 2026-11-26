@@ -5,7 +5,8 @@
  */
 import type { Position, TeamSize } from "@autosoccer/contracts";
 import type { Db } from "@autosoccer/db";
-import { RULES as FINANCE, wageFor } from "../finance/rules.ts";
+import { wageFor } from "../finance/rules.ts";
+import { seasonRules } from "../finance/settle.ts";
 import { ratedPlayer, type SeasonRecord, seasonRatings, seasonRecords } from "../league/careers.ts";
 import { standingRows } from "../league/read.ts";
 import type { PlayerRow } from "../mappers.ts";
@@ -91,6 +92,8 @@ export async function loadMarket(db: Db, window: WindowRow): Promise<Market> {
     select t.id, t.slug, t.name, t.short_name from season_teams st join teams t on t.id = st.team_id
     where st.season_id = ${window.season_id} order by t.slug`;
   const short = new Map(teams.map((t) => [t.id, t.short_name]));
+  // The new season's wages (its finance rule, scaled to its length).
+  const FINANCE = await seasonRules(db, window.season_id);
   const rows = await db<PlayerRow[]>`
     select p.* from players p join season_teams st on st.team_id = p.team_id
     where st.season_id = ${window.season_id} order by p.team_id, p.shirt_number`;
@@ -106,7 +109,7 @@ export async function loadMarket(db: Db, window: WindowRow): Promise<Market> {
       shirt: p.shirtNumber,
       position: p.position,
       overall: p.overall,
-      wage: wageFor(p.overall),
+      wage: wageFor(p.overall, FINANCE),
       guide: guideFee(p.overall, rec?.goals ?? 0),
       lastSeason: rec,
     });

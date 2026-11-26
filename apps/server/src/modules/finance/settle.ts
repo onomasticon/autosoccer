@@ -17,7 +17,7 @@ import { withdrawals } from "../insolvency/check.ts";
 import { ratedPlayer, seasonRatings } from "../league/careers.ts";
 import { standingRows } from "../league/read.ts";
 import type { PlayerRow } from "../mappers.ts";
-import { prizeFor, RULES, resultIncome, wageFor } from "./rules.ts";
+import { type FinanceRules, prizeFor, resultIncome, rulesFor, wageFor } from "./rules.ts";
 
 interface Entry {
   teamId: string;
@@ -43,6 +43,14 @@ async function write(db: Db, rule: string, entries: Entry[]): Promise<number> {
   return n;
 }
 
+/** The finance numbers a season is settled by (its rule version, scaled to its length). */
+export async function seasonRules(db: Db, seasonId: string): Promise<FinanceRules> {
+  const [s] = await db<{ finance_rule: string | null; rounds: number }[]>`
+    select s.finance_rule, (select count(distinct round)::int from fixtures f where f.season_id = s.id) as rounds
+    from seasons s where s.id = ${seasonId}`;
+  return rulesFor(s?.finance_rule, s?.rounds ?? 6);
+}
+
 /**
  * A club's wage bill per round in a season: every player registered with it for that season (as
  * the transfer window left it), at that season's ratings.
@@ -54,7 +62,8 @@ export async function payrollFor(db: Db, seasonId: string, teamId: string) {
       select p.* from players p join player_registrations r on r.player_id = p.id
       where r.season_id = ${seasonId} and r.team_id = ${teamId} order by p.shirt_number`
   ).map((p) => ratedPlayer(p, snapshot));
-  const wages = players.map((p) => ({ playerId: p.id, overall: p.overall, wage: wageFor(p.overall) }));
+  const rules = await seasonRules(db, seasonId);
+  const wages = players.map((p) => ({ playerId: p.id, overall: p.overall, wage: wageFor(p.overall, rules) }));
   return { perRound: wages.reduce((s, w) => s + w.wage, 0), players: wages };
 }
 
@@ -64,6 +73,7 @@ export async function settleFinances(db: Db, seasonId: string): Promise<number> 
     select id, slug, status, finance_rule from seasons where id = ${seasonId}`;
   if (!season?.finance_rule) return 0;
   const rule = season.finance_rule;
+  const R = await seasonRules(db, seasonId);
   const teams = await db<{ id: string; name: string }[]>`
     select t.id, t.name from season_teams st join teams t on t.id = st.team_id where st.season_id = ${seasonId}`;
   const released = await db<{ round: number }[]>`
@@ -79,7 +89,7 @@ export async function settleFinances(db: Db, seasonId: string): Promise<number> 
       seasonId: null,
       round: null,
       kind: "opening",
-      amount: RULES.opening,
+      amount: R.opening,
       key: `opening:${t.id}`,
       memo: "Opening balance",
       basis: { firstSeason: season.slug },
@@ -90,7 +100,7 @@ export async function settleFinances(db: Db, seasonId: string): Promise<number> 
       seasonId,
       round: null,
       kind: "distribution",
-      amount: RULES.distribution,
+      amount: R.distribution,
       key: `distribution:${seasonId}:${t.id}`,
       memo: "League distribution",
     });
@@ -134,7 +144,7 @@ export async function settleFinances(db: Db, seasonId: string): Promise<number> 
       [r.home_team_id, r.home_score, r.away_score, r.away_team_id],
       [r.away_team_id, r.away_score, r.home_score, r.home_team_id],
     ] as const) {
-      const amount = resultIncome(gf, ga);
+      const amount = resultIncome(gf, ga, R);
       if (!amount) continue;
       entries.push({
         teamId: team,
@@ -156,7 +166,7 @@ export async function settleFinances(db: Db, seasonId: string): Promise<number> 
         seasonId,
         round: null,
         kind: "prize",
-        amount: prizeFor(row.position),
+        amount: prizeFor(row.position, R),
         key: `prize:${seasonId}:${row.team.id}`,
         memo: `Finishing ${row.position}${["th", "st", "nd", "rd"][row.position] ?? "th"} in ${season.slug.replace("season-", "Season ")}`,
         basis: { position: row.position, points: row.points },
@@ -193,7 +203,8 @@ export async function clubPosition(db: Db, seasonId: string, teamId: string) {
   const pay = await payrollFor(db, seasonId, teamId);
   // Before kick-off the opening balance and distribution haven't landed yet: include them as due.
   const [opened] = await db`select 1 from club_ledger where team_id = ${teamId} and kind = 'opening'`;
-  const due = started ? 0 : RULES.distribution + (opened ? 0 : RULES.opening);
+  const R = await seasonRules(db, seasonId);
+  const due = started ? 0 : R.distribution + (opened ? 0 : R.opening);
   const balance = Number(bal?.b ?? 0) + due;
   const remaining = pay.perRound * (left?.n ?? 0);
   return {

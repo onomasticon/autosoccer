@@ -10,7 +10,7 @@ import { TRANSFER_RULE } from "../transfers/rules.ts";
 import { closeWindowForKickoff } from "../transfers/window.ts";
 import { type Cadence, kickoffs } from "./cadence.ts";
 import { doubleRoundRobin, fixtureSeed, seededOrder } from "./schedule.ts";
-import { SEED_TEAMS, type SeedTeam } from "./seed-data.ts";
+import { ALL_TEAMS, SEED_TEAMS, type SeedTeam } from "./seed-data.ts";
 import { computeStandings, type Result, type Standing } from "./standings.ts";
 
 /** Upserts the founding clubs and their squads (new shirt numbers are added to existing clubs). Safe to run repeatedly. */
@@ -42,7 +42,7 @@ export async function seedTeams(db: Db, teams: readonly SeedTeam[] = SEED_TEAMS)
  * Adds any seed-squad players a club doesn't have yet (by shirt number), so squads grow when the
  * league's format does. Never changes or removes an existing player. Returns how many were added.
  */
-export async function syncSquads(db: Db, teams: readonly SeedTeam[] = SEED_TEAMS): Promise<number> {
+export async function syncSquads(db: Db, teams: readonly SeedTeam[] = ALL_TEAMS): Promise<number> {
   let added = 0;
   for (const t of teams) {
     const [row] = await db<{ id: string }[]>`select id from teams where slug = ${t.slug}`;

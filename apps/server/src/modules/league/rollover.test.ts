@@ -8,7 +8,7 @@ import { nextSeasonSeed, refreshUpcomingSeason, rolloverSeason, seasonNumber } f
 import { SEED_TEAMS } from "./seed-data.ts";
 import { createSeason, seedTeams } from "./service.ts";
 
-const MODELS = { managerModel: "claude-opus-5-5", editorialModel: "claude-opus-5-5" };
+const MODELS = { clubs: 4, managerModel: "claude-opus-5-5", editorialModel: "claude-opus-5-5" };
 
 describe("season rollover", () => {
   let t: TestDatabase;
