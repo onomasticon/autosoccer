@@ -148,8 +148,50 @@ function preview(c: EditorialContext): ArticleDraft {
   };
 }
 
+/** League news from the desk's facts: the news first, then the detail, citing every line. */
+function news(c: EditorialContext): ArticleDraft {
+  const facts = c.facts.facts;
+  const lead = facts[0]!; // the desk always puts the news itself first
+  const desk = facts.filter((f) => f.kind === "news" && f !== lead);
+  const table = byKind(facts, "standing").filter((f) => f.id.startsWith("standing:"));
+  const v = (lead.value ?? {}) as Record<string, unknown>;
+  const headline: Record<string, string> = {
+    champions: `${(v.team as { name?: string } | undefined)?.name ?? "The champions"} are champions`,
+    league: lead.statement,
+    takeover: `New owners, new name: ${String(v.to ?? "")}`,
+    withdrawal: `${String(v.team ?? "A club")} declared bankrupt`,
+    transfers: Number(v.deals ?? 0) ? "Transfer window closes: the deals done" : "A quiet transfer window",
+    finances: "The money every club takes into the season",
+  };
+  const standfirst: Record<string, string> = {
+    champions: "The title is decided: how the season finished, from the official table.",
+    league: "What changes for clubs and supporters this season.",
+    takeover: "A club that went bankrupt returns under new owners.",
+    withdrawal: "What happens to the club, its fixtures and the table.",
+    transfers: "Every completed deal of the window, with its fee.",
+    finances: "Cash and wage bills, club by club, before the first match.",
+  };
+  const topic = c.topic ?? "league";
+  const paras = [`${lead.statement}.`];
+  for (let i = 0; i < desk.length; i += 3)
+    paras.push(
+      desk
+        .slice(i, i + 3)
+        .map((f) => `${f.statement}.`)
+        .join(" "),
+    );
+  if (table.length) paras.push(table.map((f) => `${f.statement}.`).join(" "));
+  return {
+    headline: (headline[topic] ?? lead.statement).slice(0, 120),
+    standfirst: standfirst[topic] ?? "League news from the official record.",
+    body: paras.join("\n\n"),
+    citations: [lead, ...desk, ...table].map((f) => cite(f)),
+  };
+}
+
 export function offlineEditorialLlm(pricedAs: string) {
   return new OfflineLlm(pricedAs, {
+    "editorial.news": (ctx) => news(ctx as EditorialContext),
     "editorial.match_report": (ctx) => matchReport(ctx as EditorialContext),
     "editorial.preview": (ctx) => preview(ctx as EditorialContext),
     "editorial.analysis": (ctx) => analysis(ctx as EditorialContext),

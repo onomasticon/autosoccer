@@ -25,9 +25,9 @@ export async function loader() {
   try {
     const { season } = await apiGet<SeasonResponse>("/api/v1/seasons/current");
     const { rounds } = await apiGet<FixturesResponse>(`/api/v1/seasons/${season.slug}/fixtures`);
-    return { ticker: tickerFixtures(rounds) };
+    return { ticker: { ...tickerFixtures(rounds), season: season.name } };
   } catch {
-    return { ticker: { matchweek: null, fixtures: [], next: null } };
+    return { ticker: { matchweek: null, fixtures: [], next: null, season: null } };
   }
 }
 

@@ -34,7 +34,9 @@ interface ArticleRow {
   id: string;
   season_id: string;
   slug: string;
-  kind: "match_report" | "preview" | "analysis" | "column";
+  kind: "match_report" | "preview" | "analysis" | "column" | "news";
+  topic: "champions" | "transfers" | "finances" | "withdrawal" | "takeover" | "league" | null;
+  priority: number;
   status: "draft" | "published" | "rejected";
   editorial_agent_id: string;
   headline: string;
@@ -62,16 +64,28 @@ const card = (r: ArticleRow) => ({
   matchId: r.match_id,
   teamIds: r.team_ids,
   aiGenerated: true as const,
+  topic: r.topic,
+  priority: r.priority,
   publishedAt: r.published_at?.toISOString() ?? null,
   author: { slug: r.a_slug, name: r.a_name, role: r.a_role, avatar: r.a_avatar },
 });
 
-/** Only published articles are ever served; rejected drafts stay internal for audit. */
+/**
+ * How the homepage ranks stories: by size (priority), losing 8 points an hour, so a champion leads
+ * for most of a day but a fresh report soon outranks yesterday's preview.
+ */
+const RANK = "a.priority - extract(epoch from (now() - a.published_at)) / 3600 * 8";
+
+/**
+ * Only published articles are ever served, and only once their place in the news cycle has come
+ * (published_at <= now); rejected drafts stay internal for audit.
+ */
 export function editorialRoutes({ db }: { db: Db }) {
   const r = new Hono();
   const base = (db: Db) => db`
     select a.*, e.slug as a_slug, e.name as a_name, e.role as a_role, e.avatar as a_avatar
-    from articles a join editorial_agents e on e.id = a.editorial_agent_id where a.status = 'published'`;
+    from articles a join editorial_agents e on e.id = a.editorial_agent_id
+    where a.status = 'published' and a.published_at <= now()`;
 
   r.get("/articles", async (c) => {
     const limit = Math.min(50, Math.max(1, Number(c.req.query("limit") ?? 20) || 20));
@@ -84,7 +98,12 @@ export function editorialRoutes({ db }: { db: Db }) {
       ${base(db)}
       and (${teamRow?.id ?? null}::uuid is null or ${teamRow?.id ?? null}::uuid = any(a.team_ids))
       and (${match}::uuid is null or a.match_id = ${match}::uuid)`;
-    const rows = await db<ArticleRow[]>`${where} order by a.published_at desc, a.created_at desc limit ${limit}`;
+    // Newest first; pieces placed at the same moment, biggest story first.
+    const order =
+      c.req.query("sort") === "priority"
+        ? db.unsafe(`order by ${RANK} desc, a.published_at desc, a.created_at desc`)
+        : db.unsafe("order by a.published_at desc, a.priority desc, a.created_at desc");
+    const rows = await db<ArticleRow[]>`${where} ${order} limit ${limit}`;
     const [count] = await db<{ n: number }[]>`select count(*)::int as n from (${where}) x`;
     return contractJson(c, ArticleListResponse, { items: rows.map(card), total: count!.n });
   });
@@ -114,6 +133,8 @@ export function editorialRoutes({ db }: { db: Db }) {
         teamIds: a.team_ids,
         agentRunId: a.agent_run_id,
         aiGenerated: true,
+        topic: a.topic,
+        priority: a.priority,
         publishedAt: a.published_at?.toISOString() ?? null,
         createdAt: a.created_at.toISOString(),
       },

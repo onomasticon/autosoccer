@@ -24,7 +24,12 @@ export function AiBadge() {
   );
 }
 
-const ROLE = { reporter: "Match reporter", analyst: "Tactics analyst", pundit: "Pundit" } as const;
+const ROLE = {
+  reporter: "Match reporter",
+  analyst: "Tactics analyst",
+  pundit: "Pundit",
+  correspondent: "League correspondent",
+} as const;
 
 export function AuthorByline({
   author,

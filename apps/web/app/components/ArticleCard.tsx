@@ -12,6 +12,7 @@ export const KIND = {
   preview: "Preview",
   analysis: "Tactical analysis",
   column: "Opinion",
+  news: "League news",
 } as const;
 
 const TAG_TONE: Record<ArticleCardView["kind"], string> = {
@@ -19,6 +20,7 @@ const TAG_TONE: Record<ArticleCardView["kind"], string> = {
   preview: "bg-lavender text-violet-deep",
   analysis: "bg-yellow text-ink",
   column: "bg-coral/25 text-ink",
+  news: "bg-ink text-white",
 };
 
 /** Small highlighted category label (mockup "TACTICAL ANALYSIS"). Text, so never colour-only. */

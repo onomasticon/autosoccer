@@ -113,6 +113,8 @@ describe("AI newsroom over a season", () => {
       seed: 99,
       budgetPerTeamMicroUsd: 1_000_000,
       teamSlugs: SEED_TEAMS.map((x) => x.slug),
+      // Kicked off yesterday: every article's place in the news cycle has come (see timing.ts).
+      startsAt: new Date(Date.now() - 86_400_000),
     }));
     await seedManagers(t.db, seasonId, MODEL);
     await seedJournalists(t.db, MODEL);
@@ -304,7 +306,7 @@ describe("AI newsroom over a season", () => {
     expect(detail.article.citations.length).toBeGreaterThan(0);
     expect(detail.related.length).toBeGreaterThan(0);
     const js = JournalistListResponse.parse(await (await app.request("/api/v1/journalists")).json());
-    expect(js.items.map((j) => j.role).sort()).toEqual(["analyst", "pundit", "reporter"]);
+    expect(js.items.map((j) => j.role).sort()).toEqual(["analyst", "correspondent", "pundit", "reporter"]);
     const nia = JournalistDetailResponse.parse(await (await app.request("/api/v1/journalists/nia-park")).json());
     expect(nia.articles).toHaveLength(12);
     expect((await app.request("/api/v1/articles/nope")).status).toBe(404);

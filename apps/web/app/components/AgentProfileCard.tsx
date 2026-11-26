@@ -4,7 +4,13 @@ import { AgentAvatar, AiBadge } from "./AuthorByline";
 import { Portrait } from "./Portrait";
 import { Slashes } from "./SectionHeader";
 
-const ROLE = { reporter: "Match reporter", analyst: "Tactics analyst", pundit: "Pundit", manager: "Manager" } as const;
+const ROLE = {
+  reporter: "Match reporter",
+  analyst: "Tactics analyst",
+  pundit: "Pundit",
+  correspondent: "League correspondent",
+  manager: "Manager",
+} as const;
 
 export interface AgentProfile {
   slug: string;
@@ -60,11 +66,11 @@ export function VoicesStrip({ agents }: { agents: AgentProfile[] }) {
         </h2>
       </div>
       {agents.length ? (
-        <ul className="grid divide-y divide-line sm:grid-cols-3 sm:divide-y-0">
+        <ul className="grid divide-y divide-line sm:grid-cols-2 sm:divide-y-0">
           {agents.map((a, i) => (
             <li
               key={a.slug}
-              className={`relative flex gap-4 px-5 py-5 ${i ? "sm:before:absolute sm:before:inset-y-6 sm:before:left-0 sm:before:w-px sm:before:bg-ink/15" : ""}`}
+              className={`relative flex gap-4 px-5 py-5 ${i % 2 ? "sm:before:absolute sm:before:inset-y-6 sm:before:left-0 sm:before:w-px sm:before:bg-ink/15" : ""} ${i >= 2 ? "sm:border-t sm:border-line" : ""}`}
             >
               <Portrait avatar={a.avatar} size={96} rounded="rounded-xl" />
               <div className="min-w-0">

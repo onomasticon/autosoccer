@@ -67,7 +67,7 @@ async function loadMatch(db: Db, matchId: string): Promise<MatchRow> {
  * Standings facts after a round: a snapshot computed only from official results up to and
  * including that round, so an article about round N never cites a later table.
  */
-async function standingFacts(db: Db, seasonId: string, round: number): Promise<Fact[]> {
+export async function standingFacts(db: Db, seasonId: string, round: number): Promise<Fact[]> {
   const { rows } = await standingRows(db, seasonId, { throughRound: round });
   return rows.map((r) => ({
     id: `standing:${seasonId}:r${round}:${r.team.slug}`,
@@ -91,7 +91,7 @@ async function standingFacts(db: Db, seasonId: string, round: number): Promise<F
 }
 
 /** The title race after a round: who can still win it, or who already has (from the table and fixtures left). */
-async function raceFact(db: Db, seasonId: string, round: number): Promise<Fact[]> {
+export async function raceFact(db: Db, seasonId: string, round: number): Promise<Fact[]> {
   const { rows } = await standingRows(db, seasonId, { throughRound: round });
   if (!rows.length || rows.every((r) => r.played === 0)) return [];
   const race = await seasonRace(db, seasonId, rows, round);

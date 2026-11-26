@@ -72,6 +72,8 @@ export function checkGrounding(
     requireScoreFact?: string;
     /** A preview of an unplayed fixture: must cite the fixture, and may only predict, never report, its result. */
     preview?: { fixtureFact: string };
+    /** A news story must cite the news itself. */
+    requireFact?: string;
   } = {},
 ): string[] {
   const errors: string[] = [];
@@ -80,6 +82,9 @@ export function checkGrounding(
   for (const c of draft.citations) if (!ids.has(c.factId)) errors.push(`unknown fact id "${c.factId}"`);
   if (opts.requireScoreFact && !draft.citations.some((c) => c.factId === opts.requireScoreFact)) {
     errors.push(`a match report must cite the official score (${opts.requireScoreFact})`);
+  }
+  if (opts.requireFact && !draft.citations.some((c) => c.factId === opts.requireFact)) {
+    errors.push(`cite the news this story reports (${opts.requireFact})`);
   }
   if (opts.preview && !draft.citations.some((c) => c.factId === opts.preview!.fixtureFact)) {
     errors.push(`a preview must cite the fixture it previews (${opts.preview.fixtureFact})`);

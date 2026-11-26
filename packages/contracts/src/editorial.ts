@@ -5,7 +5,7 @@ import { OfficialEvent, TeamMatchStats } from "./match.ts";
 /** A fact has a stable id so articles can cite it, and a source pointing to the official record. */
 export const Fact = z.object({
   id: z.string(),
-  kind: z.enum(["score", "goal", "stat", "standing", "lineup", "tactics", "form", "fixture"]),
+  kind: z.enum(["score", "goal", "stat", "standing", "lineup", "tactics", "form", "fixture", "news"]),
   statement: z.string().describe("canonical plain-language statement of the fact"),
   value: z.unknown(),
   source: z.object({ table: z.string(), id: z.string() }),
