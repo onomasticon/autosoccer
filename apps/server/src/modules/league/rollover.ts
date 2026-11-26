@@ -14,9 +14,10 @@ import { SIM_COMMIT, SIM_VERSION } from "@autosoccer/sim-adapter";
 import type { Logger } from "../../log.ts";
 import { seedManagers } from "../agents/service.ts";
 import { seedJournalists } from "../editorial/service.ts";
+import { openWindow } from "../transfers/window.ts";
 import { CADENCES, type Cadence, kickoffs } from "./cadence.ts";
 import { developSeason } from "./careers.ts";
-import { createSeason, syncSquads } from "./service.ts";
+import { createSeason, registerSquads, syncSquads } from "./service.ts";
 
 /**
  * The league's format for new seasons. Season 5 was due to be the first 11-a-side season; the
@@ -112,6 +113,8 @@ export async function rolloverSeason(db: Db, opts: RolloverOptions): Promise<str
   if (developed) opts.log?.info("player ratings developed", { season: slug, players: developed });
   await seedManagers(db, seasonId, opts.managerModel);
   await seedJournalists(db, opts.editorialModel);
+  // The transfer window before the new season (when it has a transfer rule; see transfers/window.ts).
+  await openWindow(db, seasonId, now);
   if (created)
     opts.log?.info("season rolled over", {
       from: last.slug,
@@ -147,7 +150,7 @@ export async function refreshUpcomingSeason(
       f.status <> 'scheduled'
       or exists (select 1 from matches m where m.fixture_id = f.id)
       or exists (select 1 from jobs j where j.payload->>'fixtureId' = f.id::text))
-    union all select 1 from agent_runs where season_id = ${s.id} and agent_kind = 'manager'
+    union all select 1 from agent_runs where season_id = ${s.id} and agent_kind = 'manager' and purpose <> 'transfer'
     limit 1`;
   if (started) return null;
   await db.begin(async (tx) => {
@@ -155,6 +158,7 @@ export async function refreshUpcomingSeason(
     await tx`delete from tactical_revisions where season_id = ${s.id}`;
   });
   const added = await syncSquads(db);
+  await registerSquads(db, s.id);
   // Snapshots for any players the format change added (existing snapshots are kept).
   const [prev] = await db<{ id: string }[]>`
     select id from seasons where id <> ${s.id} and status = 'completed' order by created_at desc limit 1`;

@@ -9,7 +9,7 @@ import { Team } from "./domain.ts";
 
 export const FINANCES_CONTRACT = "club-finances/1";
 
-export const LedgerKind = z.enum(["opening", "distribution", "result", "prize", "payroll"]);
+export const LedgerKind = z.enum(["opening", "distribution", "result", "prize", "payroll", "transfer"]);
 export type LedgerKind = z.infer<typeof LedgerKind>;
 
 export const FinanceSeason = z.object({
@@ -20,6 +20,8 @@ export const FinanceSeason = z.object({
     results: z.number().int(),
     prize: z.number().int(),
     payroll: z.number().int(),
+    /** Transfer fees received minus fees paid (transfer/1); 0 in seasons without a window. */
+    transfers: z.number().int().default(0),
   }),
   net: z.number().int(),
 });

@@ -81,7 +81,7 @@ export async function seedManagers(db: Db, seasonId: string, model: string) {
   }
 }
 
-interface RunRow {
+export interface RunRow {
   id: string;
   status: string;
   attempt: number;
@@ -90,9 +90,15 @@ interface RunRow {
 type RunStart = { run: RunRow; done: false } | { run: RunRow; done: true };
 
 /** Idempotent agent-run bookkeeping: one row per idempotency key, attempts counted. */
-async function startRun(
+export async function startRun(
   db: Db,
-  a: { key: string; agentId: string; purpose: "pre_match" | "post_match"; seasonId: string; fixtureId: string },
+  a: {
+    key: string;
+    agentId: string;
+    purpose: "pre_match" | "post_match" | "transfer";
+    seasonId: string;
+    fixtureId: string | null;
+  },
 ): Promise<RunStart> {
   await db`
     insert into agent_runs (agent_kind, agent_id, purpose, season_id, fixture_id, idempotency_key)
@@ -106,7 +112,7 @@ async function startRun(
   return { run: started!, done: false };
 }
 
-async function finishRun(
+export async function finishRun(
   db: Db,
   runId: string,
   f: {
@@ -127,14 +133,14 @@ async function finishRun(
     where id = ${runId}`;
 }
 
-interface Usage {
+export interface Usage {
   provider: string;
   model: string;
   inputTokens: number;
   outputTokens: number;
   costMicroUsd: number;
 }
-const addUsage = (u: Usage | null, r: LlmResponse<unknown>): Usage => {
+export const addUsage = (u: Usage | null, r: LlmResponse<unknown>): Usage => {
   const inputTokens = (u?.inputTokens ?? 0) + r.inputTokens;
   const outputTokens = (u?.outputTokens ?? 0) + r.outputTokens;
   return {
@@ -159,7 +165,7 @@ async function loadContext(db: Db, fixtureId: string, teamId: string) {
 }
 
 /** Reserve the worst-case cost of a call before making it; false ⇒ skip (budget exhausted). */
-async function reserveFor(
+export async function reserveFor(
   deps: ManagerDeps,
   ids: { seasonId: string; teamId: string; runId: string },
   system: string,

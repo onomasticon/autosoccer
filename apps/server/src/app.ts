@@ -14,6 +14,7 @@ import { opsRoutes } from "./modules/ops/routes.ts";
 import { spotlightRoutes } from "./modules/spotlight/routes.ts";
 import { storyRoutes } from "./modules/story/routes.ts";
 import { tacticsRoutes } from "./modules/tactics/routes.ts";
+import { transferRoutes } from "./modules/transfers/routes.ts";
 
 export const API_VERSION = "v1";
 
@@ -67,6 +68,7 @@ export function createApp({ db, store, log = silentLogger, opsToken }: AppDeps) 
   api.route("/", storyRoutes({ db }));
   api.route("/", spotlightRoutes({ db }));
   api.route("/", financeRoutes({ db }));
+  api.route("/", transferRoutes({ db }));
   api.route("/", opsRoutes({ db, token: opsToken }));
   app.route(`/api/${API_VERSION}`, api);
 

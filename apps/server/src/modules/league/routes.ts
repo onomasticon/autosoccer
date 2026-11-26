@@ -122,12 +122,13 @@ export function leagueRoutes({ db }: { db: Db }) {
           champion: row.position === 1,
         });
     }
-    // Goals per player (own goals excluded): this season and all time.
+    // Goals per player for this club (own goals excluded): this season and all time. Goals a player
+    // scored for another club before a transfer stay with that club.
     const goalRows = await db<{ player_id: string; season_id: string; n: number }[]>`
       select (g->>'scorerId')::uuid as player_id, f.season_id, count(*)::int as n
       from matches m join fixtures f on f.id = m.fixture_id cross join lateral jsonb_array_elements(m.events) g
-      join players p on p.id = (g->>'scorerId')::uuid
-      where m.status = 'completed' and p.team_id = ${t.id} and g->>'type' = 'goal'
+      where m.status = 'completed' and g->>'type' = 'goal' and g->>'scorerId' is not null
+        and (case when g->>'side' = 'away' then f.away_team_id else f.home_team_id end) = ${t.id}
         and coalesce((g->>'ownGoal')::boolean, false) = false
       group by 1, 2`;
     const goals = players.map((p) => ({

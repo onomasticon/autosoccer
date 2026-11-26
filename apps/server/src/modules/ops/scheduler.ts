@@ -13,6 +13,7 @@ import { managerRoundHook } from "../agents/service.ts";
 import { enqueuePreviews } from "../editorial/service.ts";
 import { refreshUpcomingSeason, rolloverSeason } from "../league/rollover.ts";
 import { type AdvanceResult, advanceSeason } from "../league/service.ts";
+import { tickTransfers } from "../transfers/window.ts";
 
 const LEADER_LOCK = 727275;
 
@@ -45,6 +46,11 @@ export async function schedulerTick(db: Db, opts: TickOptions): Promise<TickResu
     if (!lock!.ok) return { leader: false, seasons: [] };
     try {
       if (opts.rollover) await refreshUpcomingSeason(db, { managerModel: opts.rollover.managerModel, log: opts.log });
+      // Transfer windows between seasons: open, move phases along, settle at the deadline. A failed
+      // settlement is retried next tick; round 1 of that season waits for it (advanceSeason).
+      await tickTransfers(db, { now: opts.now }).catch((e: Error) =>
+        opts.log?.error("transfer window tick failed; retrying next tick", { error: e.message }),
+      );
       const seasons = await db<{ id: string; slug: string }[]>`
         select id, slug from seasons where status in ('scheduled', 'active') order by starts_at nulls last, created_at`;
       const hook = managerRoundHook(db);

@@ -47,14 +47,20 @@ export async function seasonTeamSize(db: Db, seasonId: string): Promise<TeamSize
   return toTeamSize(s?.players_per_team);
 }
 
-/** Top scorers for a season, or across all seasons (seasonId null). Own goals don't count. */
+/**
+ * Top scorers for a season, or across all seasons (seasonId null). Own goals don't count. The club
+ * shown is the one the goals were scored for (the side in the match): across all seasons, the club
+ * of the player's latest goal, so a transfer never moves past goals to the new club.
+ */
 export async function scorers(db: Db, seasonId: string | null, limit = 10): Promise<ScorerRow[]> {
   const rows = await db<{ player_id: string; name: string; team_id: string; goals: number; matches: number }[]>`
     with done as (
-      select m.* from matches m join fixtures f on f.id = m.fixture_id
+      select m.*, f.home_team_id, f.away_team_id, f.round from matches m join fixtures f on f.id = m.fixture_id
       where m.status = 'completed' and (${seasonId}::uuid is null or f.season_id = ${seasonId}::uuid)
     ), goals as (
-      select (g->>'scorerId')::uuid as player_id, count(*)::int as goals
+      select (g->>'scorerId')::uuid as player_id, count(*)::int as goals,
+        (array_agg(case when g->>'side' = 'away' then done.away_team_id else done.home_team_id end
+          order by done.completed_at desc))[1] as team_id
       from done cross join lateral jsonb_array_elements(done.events) g
       where g->>'type' = 'goal' and coalesce((g->>'ownGoal')::boolean, false) = false and g->>'scorerId' is not null
       group by 1
@@ -63,7 +69,7 @@ export async function scorers(db: Db, seasonId: string | null, limit = 10): Prom
       from done cross join lateral jsonb_array_elements((done.request->'home'->'starters') || (done.request->'away'->'starters')) s
       group by 1
     )
-    select g.player_id, p.name, p.team_id, g.goals, coalesce(a.matches, 0)::int as matches
+    select g.player_id, p.name, g.team_id, g.goals, coalesce(a.matches, 0)::int as matches
     from goals g join players p on p.id = g.player_id left join apps a on a.player_id = g.player_id
     order by g.goals desc, a.matches asc nulls last, p.name limit ${limit}`;
   const teams = new Map((await db<TeamRow[]>`select * from teams`).map((t) => [t.id, toTeam(t)]));
@@ -146,7 +152,8 @@ export async function seasonSummaries(db: Db): Promise<SeasonSummary[]> {
       { n: number }[]
     >`select coalesce(max(round), 0)::int as n from fixtures where season_id = ${s.id}`;
     const goals = await db<{ scorer_id: string; team_id: string; name: string; goals: number }[]>`
-      select g->>'scorerId' as scorer_id, p.team_id, p.name, count(*)::int as goals
+      select g->>'scorerId' as scorer_id,
+        case when g->>'side' = 'away' then f.away_team_id else f.home_team_id end as team_id, p.name, count(*)::int as goals
       from matches m join fixtures f on f.id = m.fixture_id
         cross join lateral jsonb_array_elements(m.events) g
         join players p on p.id = (g->>'scorerId')::uuid

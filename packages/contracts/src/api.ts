@@ -22,6 +22,7 @@ import { ClubFinancesResponse } from "./finance.ts";
 import { Match, OfficialEvent, TeamMatchStats } from "./match.ts";
 import { PlayerListResponse, PlayerProfileResponse, SpotlightResponse } from "./spotlight.ts";
 import { FixtureStory } from "./story.ts";
+import { TransferWindowResponse } from "./transfers.ts";
 
 export const FormResult = z.enum(["W", "D", "L"]);
 
@@ -496,4 +497,15 @@ ROUTES.push({
   params: { team: Slug },
   response: ClubFinancesResponse,
   responseName: "ClubFinancesResponse",
+});
+
+ROUTES.push({
+  method: "get",
+  path: "/transfers",
+  operationId: "getTransferWindow",
+  summary:
+    "Transfer window (transfer-window/1): the latest window between seasons (or the one before ?season=): phase and deadline, listings, every bid with fee, wage, status and both managers' reasons, and the rules",
+  query: { season: Slug.optional() },
+  response: TransferWindowResponse,
+  responseName: "TransferWindowResponse",
 });

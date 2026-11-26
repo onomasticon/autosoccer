@@ -1051,6 +1051,47 @@
           }
         }
       }
+    },
+    "/transfers": {
+      "get": {
+        "operationId": "getTransferWindow",
+        "summary": "Transfer window (transfer-window/1): the latest window between seasons (or the one before ?season=): phase and deadline, listings, every bid with fee, wage, status and both managers' reasons, and the rules",
+        "parameters": [
+          {
+            "name": "season",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "type": "string",
+              "maxLength": 80,
+              "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransferWindowResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -7605,6 +7646,89 @@
                       "required": [
                         "slug",
                         "name"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "team": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "description": "UUID primary key",
+                          "type": "string",
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                        },
+                        "slug": {
+                          "type": "string",
+                          "maxLength": 80,
+                          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+                        },
+                        "name": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 60
+                        },
+                        "shortName": {
+                          "type": "string",
+                          "minLength": 2,
+                          "maxLength": 4
+                        },
+                        "city": {
+                          "type": "string",
+                          "maxLength": 60
+                        },
+                        "colors": {
+                          "type": "object",
+                          "properties": {
+                            "primary": {
+                              "type": "string",
+                              "pattern": "^#[0-9A-Fa-f]{6}$"
+                            },
+                            "secondary": {
+                              "type": "string",
+                              "pattern": "^#[0-9A-Fa-f]{6}$"
+                            }
+                          },
+                          "required": [
+                            "primary",
+                            "secondary"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "crest": {
+                          "type": "object",
+                          "properties": {
+                            "shape": {
+                              "type": "string",
+                              "enum": [
+                                "shield",
+                                "circle",
+                                "hexagon",
+                                "diamond"
+                              ]
+                            },
+                            "glyph": {
+                              "description": "short monogram rendered on the badge",
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 3
+                            }
+                          },
+                          "required": [
+                            "shape",
+                            "glyph"
+                          ],
+                          "additionalProperties": false
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "slug",
+                        "name",
+                        "shortName",
+                        "city",
+                        "colors",
+                        "crest"
                       ],
                       "additionalProperties": false
                     },
@@ -16141,6 +16265,89 @@
                         ],
                         "additionalProperties": false
                       },
+                      "team": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "description": "UUID primary key",
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                          },
+                          "slug": {
+                            "type": "string",
+                            "maxLength": 80,
+                            "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+                          },
+                          "name": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 60
+                          },
+                          "shortName": {
+                            "type": "string",
+                            "minLength": 2,
+                            "maxLength": 4
+                          },
+                          "city": {
+                            "type": "string",
+                            "maxLength": 60
+                          },
+                          "colors": {
+                            "type": "object",
+                            "properties": {
+                              "primary": {
+                                "type": "string",
+                                "pattern": "^#[0-9A-Fa-f]{6}$"
+                              },
+                              "secondary": {
+                                "type": "string",
+                                "pattern": "^#[0-9A-Fa-f]{6}$"
+                              }
+                            },
+                            "required": [
+                              "primary",
+                              "secondary"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "crest": {
+                            "type": "object",
+                            "properties": {
+                              "shape": {
+                                "type": "string",
+                                "enum": [
+                                  "shield",
+                                  "circle",
+                                  "hexagon",
+                                  "diamond"
+                                ]
+                              },
+                              "glyph": {
+                                "description": "short monogram rendered on the badge",
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 3
+                              }
+                            },
+                            "required": [
+                              "shape",
+                              "glyph"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "slug",
+                          "name",
+                          "shortName",
+                          "city",
+                          "colors",
+                          "crest"
+                        ],
+                        "additionalProperties": false
+                      },
                       "source": {
                         "type": "string",
                         "enum": [
@@ -16556,13 +16763,20 @@
                       "type": "integer",
                       "minimum": -9007199254740991,
                       "maximum": 9007199254740991
+                    },
+                    "transfers": {
+                      "default": 0,
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
                     }
                   },
                   "required": [
                     "distribution",
                     "results",
                     "prize",
-                    "payroll"
+                    "payroll",
+                    "transfers"
                   ],
                   "additionalProperties": false
                 },
@@ -16592,7 +16806,8 @@
                     "distribution",
                     "result",
                     "prize",
-                    "payroll"
+                    "payroll",
+                    "transfer"
                   ]
                 },
                 "season": {
@@ -16758,6 +16973,599 @@
           "headroom",
           "seasons",
           "entries",
+          "rules"
+        ],
+        "additionalProperties": false
+      },
+      "TransferWindowResponse": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "contract": {
+            "type": "string",
+            "const": "transfer-window/1"
+          },
+          "window": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "season": {
+                    "type": "object",
+                    "properties": {
+                      "slug": {
+                        "type": "string",
+                        "maxLength": 80,
+                        "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+                      },
+                      "name": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "slug",
+                      "name"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "rule": {
+                    "type": "string"
+                  },
+                  "phase": {
+                    "type": "string",
+                    "enum": [
+                      "listing",
+                      "bidding",
+                      "replying",
+                      "closed"
+                    ]
+                  },
+                  "opensAt": {
+                    "description": "ISO-8601 timestamp",
+                    "type": "string",
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                  },
+                  "deadline": {
+                    "description": "ISO-8601 timestamp",
+                    "type": "string",
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                  },
+                  "phaseEndsAt": {
+                    "description": "ISO-8601 timestamp",
+                    "type": "string",
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                  },
+                  "closedAt": {
+                    "anyOf": [
+                      {
+                        "description": "ISO-8601 timestamp",
+                        "type": "string",
+                        "format": "date-time",
+                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "season",
+                  "rule",
+                  "phase",
+                  "opensAt",
+                  "deadline",
+                  "phaseEndsAt",
+                  "closedAt"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "listings": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "player": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "description": "UUID primary key",
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "position": {
+                      "type": "string",
+                      "enum": [
+                        "GK",
+                        "DF",
+                        "MF",
+                        "FW"
+                      ]
+                    },
+                    "overall": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name",
+                    "position",
+                    "overall"
+                  ],
+                  "additionalProperties": false
+                },
+                "team": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "description": "UUID primary key",
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    },
+                    "slug": {
+                      "type": "string",
+                      "maxLength": 80,
+                      "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+                    },
+                    "name": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 60
+                    },
+                    "shortName": {
+                      "type": "string",
+                      "minLength": 2,
+                      "maxLength": 4
+                    },
+                    "city": {
+                      "type": "string",
+                      "maxLength": 60
+                    },
+                    "colors": {
+                      "type": "object",
+                      "properties": {
+                        "primary": {
+                          "type": "string",
+                          "pattern": "^#[0-9A-Fa-f]{6}$"
+                        },
+                        "secondary": {
+                          "type": "string",
+                          "pattern": "^#[0-9A-Fa-f]{6}$"
+                        }
+                      },
+                      "required": [
+                        "primary",
+                        "secondary"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "crest": {
+                      "type": "object",
+                      "properties": {
+                        "shape": {
+                          "type": "string",
+                          "enum": [
+                            "shield",
+                            "circle",
+                            "hexagon",
+                            "diamond"
+                          ]
+                        },
+                        "glyph": {
+                          "description": "short monogram rendered on the badge",
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 3
+                        }
+                      },
+                      "required": [
+                        "shape",
+                        "glyph"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "slug",
+                    "name",
+                    "shortName",
+                    "city",
+                    "colors",
+                    "crest"
+                  ],
+                  "additionalProperties": false
+                },
+                "askingFee": {
+                  "anyOf": [
+                    {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "reason": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "player",
+                "team",
+                "askingFee",
+                "reason"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "bids": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "description": "UUID primary key",
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                },
+                "player": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "description": "UUID primary key",
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "position": {
+                      "type": "string",
+                      "enum": [
+                        "GK",
+                        "DF",
+                        "MF",
+                        "FW"
+                      ]
+                    },
+                    "overall": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name",
+                    "position",
+                    "overall"
+                  ],
+                  "additionalProperties": false
+                },
+                "seller": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "description": "UUID primary key",
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    },
+                    "slug": {
+                      "type": "string",
+                      "maxLength": 80,
+                      "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+                    },
+                    "name": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 60
+                    },
+                    "shortName": {
+                      "type": "string",
+                      "minLength": 2,
+                      "maxLength": 4
+                    },
+                    "city": {
+                      "type": "string",
+                      "maxLength": 60
+                    },
+                    "colors": {
+                      "type": "object",
+                      "properties": {
+                        "primary": {
+                          "type": "string",
+                          "pattern": "^#[0-9A-Fa-f]{6}$"
+                        },
+                        "secondary": {
+                          "type": "string",
+                          "pattern": "^#[0-9A-Fa-f]{6}$"
+                        }
+                      },
+                      "required": [
+                        "primary",
+                        "secondary"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "crest": {
+                      "type": "object",
+                      "properties": {
+                        "shape": {
+                          "type": "string",
+                          "enum": [
+                            "shield",
+                            "circle",
+                            "hexagon",
+                            "diamond"
+                          ]
+                        },
+                        "glyph": {
+                          "description": "short monogram rendered on the badge",
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 3
+                        }
+                      },
+                      "required": [
+                        "shape",
+                        "glyph"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "slug",
+                    "name",
+                    "shortName",
+                    "city",
+                    "colors",
+                    "crest"
+                  ],
+                  "additionalProperties": false
+                },
+                "buyer": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "description": "UUID primary key",
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    },
+                    "slug": {
+                      "type": "string",
+                      "maxLength": 80,
+                      "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+                    },
+                    "name": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 60
+                    },
+                    "shortName": {
+                      "type": "string",
+                      "minLength": 2,
+                      "maxLength": 4
+                    },
+                    "city": {
+                      "type": "string",
+                      "maxLength": 60
+                    },
+                    "colors": {
+                      "type": "object",
+                      "properties": {
+                        "primary": {
+                          "type": "string",
+                          "pattern": "^#[0-9A-Fa-f]{6}$"
+                        },
+                        "secondary": {
+                          "type": "string",
+                          "pattern": "^#[0-9A-Fa-f]{6}$"
+                        }
+                      },
+                      "required": [
+                        "primary",
+                        "secondary"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "crest": {
+                      "type": "object",
+                      "properties": {
+                        "shape": {
+                          "type": "string",
+                          "enum": [
+                            "shield",
+                            "circle",
+                            "hexagon",
+                            "diamond"
+                          ]
+                        },
+                        "glyph": {
+                          "description": "short monogram rendered on the badge",
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 3
+                        }
+                      },
+                      "required": [
+                        "shape",
+                        "glyph"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "slug",
+                    "name",
+                    "shortName",
+                    "city",
+                    "colors",
+                    "crest"
+                  ],
+                  "additionalProperties": false
+                },
+                "fee": {
+                  "type": "integer",
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "wage": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "pending",
+                    "accepted",
+                    "rejected",
+                    "lapsed",
+                    "outbid",
+                    "completed",
+                    "failed"
+                  ]
+                },
+                "buyerReason": {
+                  "type": "string"
+                },
+                "sellerReason": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "outcome": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "createdAt": {
+                  "description": "ISO-8601 timestamp",
+                  "type": "string",
+                  "format": "date-time",
+                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                },
+                "settledAt": {
+                  "anyOf": [
+                    {
+                      "description": "ISO-8601 timestamp",
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "id",
+                "player",
+                "seller",
+                "buyer",
+                "fee",
+                "wage",
+                "status",
+                "buyerReason",
+                "sellerReason",
+                "outcome",
+                "createdAt",
+                "settledAt"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "rules": {
+            "type": "object",
+            "properties": {
+              "maxListings": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "maxBids": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "minFee": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "minSquad": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "maxSquad": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "goalkeepers": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "closeBeforeKickoffMin": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              }
+            },
+            "required": [
+              "maxListings",
+              "maxBids",
+              "minFee",
+              "minSquad",
+              "maxSquad",
+              "goalkeepers",
+              "closeBeforeKickoffMin"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "contract",
+          "window",
+          "listings",
+          "bids",
           "rules"
         ],
         "additionalProperties": false

@@ -1,0 +1,74 @@
+[
+  {
+    "page": "/transfers",
+    "viewport": "desktop",
+    "status": 200,
+    "axeViolations": [],
+    "firstTab": "Skip to content",
+    "mobileMenu": "n/a",
+    "consoleErrors": []
+  },
+  {
+    "page": "/transfers",
+    "viewport": "mobile",
+    "status": 200,
+    "axeViolations": [],
+    "firstTab": "Skip to content",
+    "mobileMenu": "ok",
+    "consoleErrors": []
+  },
+  {
+    "page": "/players/acf89fae-78d0-40f2-84c8-392be6c8ca9a",
+    "viewport": "desktop",
+    "status": 200,
+    "axeViolations": [],
+    "firstTab": "Skip to content",
+    "mobileMenu": "n/a",
+    "consoleErrors": []
+  },
+  {
+    "page": "/players/acf89fae-78d0-40f2-84c8-392be6c8ca9a",
+    "viewport": "mobile",
+    "status": 200,
+    "axeViolations": [],
+    "firstTab": "Skip to content",
+    "mobileMenu": "ok",
+    "consoleErrors": []
+  },
+  {
+    "page": "/teams/red-rock-rovers",
+    "viewport": "desktop",
+    "status": 200,
+    "axeViolations": [],
+    "firstTab": "Skip to content",
+    "mobileMenu": "n/a",
+    "consoleErrors": []
+  },
+  {
+    "page": "/teams/red-rock-rovers",
+    "viewport": "mobile",
+    "status": 200,
+    "axeViolations": [],
+    "firstTab": "Skip to content",
+    "mobileMenu": "ok",
+    "consoleErrors": []
+  },
+  {
+    "page": "/teams/saltmarsh-athletic",
+    "viewport": "desktop",
+    "status": 200,
+    "axeViolations": [],
+    "firstTab": "Skip to content",
+    "mobileMenu": "n/a",
+    "consoleErrors": []
+  },
+  {
+    "page": "/teams/saltmarsh-athletic",
+    "viewport": "mobile",
+    "status": 200,
+    "axeViolations": [],
+    "firstTab": "Skip to content",
+    "mobileMenu": "ok",
+    "consoleErrors": []
+  }
+]

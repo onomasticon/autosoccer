@@ -13,6 +13,8 @@ export const CAREERS_CONTRACT = "player-careers/1";
 
 export const CareerSeason = z.object({
   season: z.object({ slug: Slug, name: z.string() }),
+  /** The club the player was registered with that season (players move only between seasons). */
+  team: Team.optional(),
   /** snapshot: written for this season (develop/1 or baseline); baseline: from before snapshots. */
   source: z.enum(["snapshot", "baseline"]),
   rule: z.string().nullable(),
