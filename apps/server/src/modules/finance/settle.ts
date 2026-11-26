@@ -22,7 +22,7 @@ interface Entry {
   teamId: string;
   seasonId: string | null;
   round: number | null;
-  kind: "opening" | "distribution" | "result" | "prize" | "payroll";
+  kind: "opening" | "distribution" | "result" | "prize" | "payroll" | "transfer";
   amount: number;
   key: string;
   memo: string;
@@ -42,12 +42,17 @@ async function write(db: Db, rule: string, entries: Entry[]): Promise<number> {
   return n;
 }
 
-/** A club's wage bill per round in a season: every registered player, at that season's ratings. */
+/**
+ * A club's wage bill per round in a season: every player registered with it for that season (as
+ * the transfer window left it), at that season's ratings.
+ */
 export async function payrollFor(db: Db, seasonId: string, teamId: string) {
   const snapshot = await seasonRatings(db, seasonId);
-  const players = (await db<PlayerRow[]>`select * from players where team_id = ${teamId} order by shirt_number`).map(
-    (p) => ratedPlayer(p, snapshot),
-  );
+  const players = (
+    await db<PlayerRow[]>`
+      select p.* from players p join player_registrations r on r.player_id = p.id
+      where r.season_id = ${seasonId} and r.team_id = ${teamId} order by p.shirt_number`
+  ).map((p) => ratedPlayer(p, snapshot));
   const wages = players.map((p) => ({ playerId: p.id, overall: p.overall, wage: wageFor(p.overall) }));
   return { perRound: wages.reduce((s, w) => s + w.wage, 0), players: wages };
 }

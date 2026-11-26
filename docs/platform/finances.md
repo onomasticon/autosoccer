@@ -1,6 +1,6 @@
 # Club finances (`finance/1`)
 
-Every club has a bank balance in **credits (cr)**, the league's fictional money. Winning earns money, paying players costs money, and the balance carries from one season to the next. In later increments of #80, clubs will be able to buy and sell players, and a club that runs out of money will be declared bankrupt and forfeit its season.
+Every club has a bank balance in **credits (cr)**, the league's fictional money. Winning earns money, paying players costs money, and the balance carries from one season to the next. Between seasons clubs buy and sell players in a transfer window ([transfers.md](transfers.md)). In a later increment of #80, a club that runs out of money will be declared bankrupt and forfeit its season.
 
 This is separate from the AI managers' compute budget (#24). That budget measures real model spend, in US dollars, and keeps its own accounts.
 
@@ -14,15 +14,17 @@ This is separate from the AI managers' compute budget (#24). That budget measure
 | A draw | After the official result | 250k cr |
 | A defeat | | nothing |
 | Finishing prize | When the season ends: 1st / 2nd / 3rd / 4th | 4m / 2.5m / 1.5m / 800k cr |
-| Wages | Every round, when the round kicks off, for every player on the books | 30k cr + 3k cr per rating point above 45, at least 20k cr per player |
+| Wages | Every round, when the round kicks off, for every player registered with the club that season | 30k cr + 3k cr per rating point above 45, at least 20k cr per player |
+| Transfer fees | When a deal settles at the end of the transfer window | paid by the buying club, received by the selling club |
 
 Wages follow each player's overall rating for the season, so a stronger squad costs more to keep. The seed squads cost about 1.45–1.5m cr a round each, roughly 8.8–9m cr over a six-round season.
 
-What a six-season run shows ([finance-balance.md](finance-balance.md)):
+What a six-season run with transfer windows shows ([finance-balance.md](finance-balance.md)):
 
-- **Performance pays.** The clubs with the most titles and prizes end on about 20–23m cr. The others end on about 14–15m cr.
-- **A bad season costs money.** Finishing last with few wins loses about 1.4m cr. A struggling club can recover: Saltmarsh fell from 12m to 8.9m cr over three seasons, then won the title and rebuilt.
-- **Nobody goes broke on wages alone.** Without transfers, a run of bad seasons only slows a club down. The risk of insolvency comes in the next increment, from transfer fees and the higher wages of signed players. The rules will be retuned then, using this same exercise.
+- **Performance earns money.** Red Rock won three titles and earned the most from results and prizes (29.9m cr). Northgate, without a title, earned 19m cr.
+- **Spending decides what's kept.** Red Rock also spent the most: 5.9m cr net on transfers, and the biggest wage bill (18 players). They finished with the least cash, 14.3m cr. A solvent club can make a costly choice, and here it bought titles.
+- **A struggling club can recover.** Saltmarsh finished Season 1 last, on 10.6m cr. They sold a bench player for 2.9m cr, won Season 2, and ended with the most cash, 21.1m cr, and two titles.
+- **Still nobody goes broke.** The offline managers keep 3m cr of headroom, so no club comes near insolvency. Bankruptcy, with its sporting consequence, is the next increment, and the rules will be retuned there with this same exercise.
 
 The numbers live in one versioned table (`apps/server/src/modules/finance/rules.ts`). Changing them means changing the version, and every ledger entry records the version that produced it.
 

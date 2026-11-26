@@ -11,6 +11,8 @@ const label = (a: string) => ATTRIBUTE_LABELS.find(([n]) => n === a)?.[1] ?? a;
 export function PlayerCareer({ career }: { career: Career }) {
   const latest = career.seasons.at(-1);
   const changed = latest?.source === "snapshot" ? latest.changes : [];
+  // A player who has moved club: name the club represented in each season.
+  const moved = new Set(career.seasons.map((s) => s.team?.id).filter(Boolean)).size > 1;
   return (
     <div className="mt-3 space-y-3 border-t border-line pt-3 text-sm" data-testid="player-career">
       {career.form.length > 0 && (
@@ -57,6 +59,7 @@ export function PlayerCareer({ career }: { career: Career }) {
               <th scope="row" className="py-1 text-left font-medium">
                 {s.season.name}
                 {s.source === "baseline" && <span className="ml-1 text-muted-text">(baseline)</span>}
+                {moved && s.team && <span className="block font-normal text-muted-text">{s.team.name}</span>}
               </th>
               <td className="py-1 text-right font-semibold">{s.overall}</td>
               <td className="py-1 text-right">

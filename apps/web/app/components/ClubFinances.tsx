@@ -14,6 +14,7 @@ const SOURCES = [
   ["results", "Results"],
   ["prize", "Finishing prize"],
   ["payroll", "Wages"],
+  ["transfers", "Transfer fees"],
 ] as const;
 
 /**
@@ -114,7 +115,8 @@ export function ClubFinances({ finances: f }: { finances: ClubFinancesResponse }
         Fictional credits, settled by the league's rules ({f.rule ?? "finance/1"}): {credits(f.rules.distribution)} to
         every club each season, {credits(f.rules.result.win)} a win, {credits(f.rules.result.draw)} a draw, and{" "}
         {f.rules.prize.map(credits).join(" / ")} for finishing 1st to {f.rules.prize.length}th. Wages rise with each
-        player's rating. Separate from the AI managers' real compute budget.
+        player's rating; a transfer fee is paid in full when the deal settles. Separate from the AI managers' real
+        compute budget.
       </p>
     </div>
   );

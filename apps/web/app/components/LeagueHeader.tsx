@@ -12,7 +12,10 @@ export const NAV = [
 ] as const;
 
 /** Secondary destinations, shown in the menu panel only. */
-const MORE = [{ to: "/search", label: "Search" }] as const;
+const MORE = [
+  { to: "/transfers", label: "Transfers" },
+  { to: "/search", label: "Search" },
+] as const;
 
 /** Twin heavy coral slashes of the logo (gradient, as in the reference). */
 function LogoSlashes({ height }: { height: number }) {

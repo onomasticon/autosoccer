@@ -9,6 +9,7 @@ import { editorialJobHandlers, enqueueEditorial } from "../modules/editorial/ser
 import { settleFinances } from "../modules/finance/settle.ts";
 import { type EditorialGate, editorialGate, ledgerGate } from "../modules/ledger/service.ts";
 import { MATCH_JOB, matchJobHandler } from "../modules/matches/service.ts";
+import { transferJobHandlers } from "../modules/transfers/window.ts";
 import type { JobHandler } from "./worker.ts";
 
 export interface PlatformDeps {
@@ -43,6 +44,8 @@ export function buildHandlers(d: PlatformDeps): Record<string, JobHandler> {
     }),
     // Every manager call is metered against the team's season budget unless a gate is injected.
     ...managerJobHandlers({ db: d.db, llm: d.llm, gate: d.gate ?? ledgerGate(d.db), log: d.log }),
+    // Transfer-window decisions (listing, bidding, replying), metered the same way.
+    ...transferJobHandlers({ db: d.db, llm: d.llm, gate: d.gate ?? ledgerGate(d.db), log: d.log }),
     // Journalist calls are metered against the season's editorial budget; once it can't cover a
     // call, the offline template writer (same facts, no model, no cost) writes the piece instead.
     ...(d.editorialLlm

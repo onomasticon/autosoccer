@@ -4,6 +4,8 @@ import { SIM_VERSION } from "@autosoccer/sim-adapter";
 import { FINANCE_RULE } from "../finance/rules.ts";
 import { settleFinances } from "../finance/settle.ts";
 import { enqueueFixture } from "../matches/service.ts";
+import { TRANSFER_RULE } from "../transfers/rules.ts";
+import { closeWindowForKickoff } from "../transfers/window.ts";
 import { type Cadence, kickoffs } from "./cadence.ts";
 import { doubleRoundRobin, fixtureSeed, seededOrder } from "./schedule.ts";
 import { SEED_TEAMS, type SeedTeam } from "./seed-data.ts";
@@ -39,8 +41,11 @@ export async function syncSquads(db: Db, teams: readonly SeedTeam[] = SEED_TEAMS
     const [row] = await db<{ id: string }[]>`select id from teams where slug = ${t.slug}`;
     if (!row) continue;
     for (const p of t.players) {
+      // A seed player who has since moved club is never re-created (names are unique in the seed).
       const r = await db`insert into players (team_id, name, shirt_number, position)
-        values (${row.id}, ${p.name}, ${p.number}, ${p.position}) on conflict (team_id, shirt_number) do nothing`;
+        select ${row.id}, ${p.name}, ${p.number}, ${p.position}
+        where not exists (select 1 from players where name = ${p.name})
+        on conflict (team_id, shirt_number) do nothing`;
       added += r.count;
     }
   }
@@ -68,6 +73,21 @@ export interface CreateSeasonInput {
   playersPerTeam?: TeamSize;
   /** Club finance rule (finance/1 by default); null creates a season without club finances. */
   financeRule?: string | null;
+  /** Transfer rule (transfer/1 by default when the season has finances); null: no transfer window. */
+  transferRule?: string | null;
+}
+
+/**
+ * Registers each club's current players for a season (one club per player per season). Players
+ * already registered (for example signed in the transfer window) keep their registration.
+ */
+export async function registerSquads(db: Db, seasonId: string): Promise<number> {
+  const r = await db`
+    insert into player_registrations (season_id, player_id, team_id)
+    select st.season_id, p.id, p.team_id from season_teams st join players p on p.team_id = st.team_id
+    where st.season_id = ${seasonId}
+    on conflict (season_id, player_id) do nothing`;
+  return r.count;
 }
 
 /**
@@ -83,12 +103,15 @@ export async function createSeason(db: Db, input: CreateSeasonInput): Promise<{ 
     >`select id, slug from teams where slug = any(${input.teamSlugs})`;
     if (teams.length !== input.teamSlugs.length) throw new Error(`unknown team in ${input.teamSlugs.join(", ")}`);
     const startsAt = input.startsAt ?? new Date();
+    const financeRule = input.financeRule === undefined ? FINANCE_RULE : input.financeRule;
+    const transferRule = financeRule ? (input.transferRule === undefined ? TRANSFER_RULE : input.transferRule) : null;
     const [season] = await tx<{ id: string }[]>`
-      insert into seasons (slug, name, status, seed, sim_version, players_per_team, budget_per_team_micro_usd, editorial_budget_micro_usd, starts_at, finance_rule)
+      insert into seasons (slug, name, status, seed, sim_version, players_per_team, budget_per_team_micro_usd, editorial_budget_micro_usd, starts_at, finance_rule, transfer_rule)
       values (${input.slug}, ${input.name}, 'scheduled', ${input.seed}, ${input.simVersion ?? SIM_VERSION}, ${input.playersPerTeam ?? 7},
         ${input.budgetPerTeamMicroUsd}, ${input.editorialBudgetMicroUsd ?? DEFAULT_EDITORIAL_BUDGET_MICRO_USD}, ${startsAt},
-        ${input.financeRule === undefined ? FINANCE_RULE : input.financeRule}) returning id`;
+        ${financeRule}, ${transferRule}) returning id`;
     for (const t of teams) await tx`insert into season_teams (season_id, team_id) values (${season!.id}, ${t.id})`;
+    await registerSquads(tx as unknown as Db, season!.id);
     const order = seededOrder(teams, input.seed);
     const bySlug = new Map(teams.map((t) => [t.slug, t.id]));
     const calendar = doubleRoundRobin(order.map((t) => t.slug));
@@ -154,6 +177,9 @@ export async function advanceSeason(db: Db, seasonId: string, opts: AdvanceOptio
     if (opts.respectSchedule && next.scheduled_at && next.scheduled_at > now) {
       return { state: "waiting", round, reason: `round ${round} starts at ${next.scheduled_at.toISOString()}` };
     }
+    // The season starts on time: an open transfer window settles and closes before any round is
+    // released (and before the managers pick their round-1 sides from the new squads).
+    await closeWindowForKickoff(db, seasonId);
     if (
       opts.beforeRound &&
       !(await opts.beforeRound(

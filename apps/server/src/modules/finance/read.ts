@@ -27,10 +27,10 @@ export async function clubFinances(db: Db, team: Team): Promise<ClubFinancesResp
     if (!r.slug || !r.name) continue;
     const s = seasons.get(r.slug) ?? {
       season: { slug: r.slug, name: r.name },
-      bySource: { distribution: 0, results: 0, prize: 0, payroll: 0 },
+      bySource: { distribution: 0, results: 0, prize: 0, payroll: 0, transfers: 0 },
       net: 0,
     };
-    const key = r.kind === "result" ? "results" : r.kind;
+    const key = r.kind === "result" ? "results" : r.kind === "transfer" ? "transfers" : r.kind;
     if (key !== "opening") s.bySource[key] += Number(r.amount);
     s.net += Number(r.amount);
     seasons.set(r.slug, s);

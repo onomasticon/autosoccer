@@ -231,26 +231,33 @@ export async function playerProfile(db: Db, playerId: string): Promise<PlayerPro
   for (const s of [...career.seasons].reverse()) {
     const sum = summaries.find((x) => x.season.slug === s.season.slug);
     if (!sum || sum.season.status !== "completed" || s.goals < 3) continue;
+    const then = s.team ?? team; // the club represented that season
     const [club] = await db<{ n: number }[]>`
       select count(*)::int as n from matches m join fixtures f on f.id = m.fixture_id join seasons se on se.id = f.season_id
         cross join lateral jsonb_array_elements(m.events) g
       where se.slug = ${s.season.slug} and m.status = 'completed' and g->>'type' = 'goal'
-        and ((g->>'side' = 'home' and f.home_team_id = ${team.id}) or (g->>'side' = 'away' and f.away_team_id = ${team.id}))`;
+        and ((g->>'side' = 'home' and f.home_team_id = ${then.id}) or (g->>'side' = 'away' and f.away_team_id = ${then.id}))`;
     if (club && club.n > 0 && s.goals / club.n >= 0.4)
       distinctions.push(
-        `Scored ${s.goals} of ${possessiveTeam(team.name)} ${club.n} league goals in ${s.season.name}.`,
+        `Scored ${s.goals} of ${possessiveTeam(then.name)} ${club.n} league goals in ${s.season.name}.`,
       );
     break;
   }
-  const titles = summaries
-    .filter((s) => s.season.status === "completed" && s.leader?.team.id === team.id)
-    .map((s) => s.season.name.replace(/^Season /, ""))
-    .reverse();
-  distinctions.push(
-    titles.length
-      ? `${titles.length} title${titles.length === 1 ? "" : "s"} with ${team.name} (Season${titles.length === 1 ? "" : "s"} ${list(titles)}).`
-      : `${team.name} are still waiting for a first league title.`,
-  );
+  // Titles won with each club the player represented (the club of that season's registration).
+  const clubOf = new Map(career.seasons.map((s) => [s.season.slug, s.team ?? team]));
+  const titlesBy = new Map<string, { name: string; seasons: string[] }>();
+  for (const s of [...summaries].reverse()) {
+    const club = clubOf.get(s.season.slug);
+    if (s.season.status !== "completed" || !club || s.leader?.team.id !== club.id) continue;
+    const t = titlesBy.get(club.id) ?? { name: club.name, seasons: [] };
+    t.seasons.push(s.season.name.replace(/^Season /, ""));
+    titlesBy.set(club.id, t);
+  }
+  for (const t of titlesBy.values())
+    distinctions.push(
+      `${t.seasons.length} title${t.seasons.length === 1 ? "" : "s"} with ${t.name} (Season${t.seasons.length === 1 ? "" : "s"} ${list(t.seasons)}).`,
+    );
+  if (!titlesBy.size) distinctions.push(`${team.name} are still waiting for a first league title.`);
 
   // Recent moment: the player's latest scoring match, across seasons.
   const [m] = await db<MatchRowLite[]>`

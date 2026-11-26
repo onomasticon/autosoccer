@@ -16,4 +16,5 @@ export default [
   route("journalists", "routes/journalists.tsx"),
   route("journalists/:slug", "routes/journalist.tsx"),
   route("search", "routes/search.tsx"),
+  route("transfers", "routes/transfers.tsx"),
 ] satisfies RouteConfig;

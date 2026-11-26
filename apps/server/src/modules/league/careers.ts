@@ -24,7 +24,7 @@ import {
   type Team,
 } from "@autosoccer/contracts";
 import type { Db } from "@autosoccer/db";
-import { type PlayerRow, toPlayer } from "../mappers.ts";
+import { type PlayerRow, type TeamRow, toPlayer, toTeam } from "../mappers.ts";
 import { overallRating, playerAttributes } from "./attributes.ts";
 
 export const DEVELOP_RULE = "develop/1";
@@ -115,8 +115,12 @@ export async function seasonRecords(db: Db, seasonId: string): Promise<Map<strin
   const teamMatches = new Map<string, number>();
   for (const m of matches)
     for (const t of [m.home_team_id, m.away_team_id]) teamMatches.set(t, (teamMatches.get(t) ?? 0) + 1);
+  // The club each player represented that season: their registration (transfers only happen between
+  // seasons), else their current club for seasons without registrations.
   const players = await db<{ id: string; team_id: string }[]>`
-    select p.id, p.team_id from players p join season_teams st on st.team_id = p.team_id where st.season_id = ${seasonId}`;
+    select p.id, coalesce(r.team_id, p.team_id) as team_id from players p
+    left join player_registrations r on r.player_id = p.id and r.season_id = ${seasonId}
+    join season_teams st on st.team_id = coalesce(r.team_id, p.team_id) and st.season_id = ${seasonId}`;
   const out = new Map<string, SeasonRecord>(
     players.map((p) => [p.id, { teamMatches: teamMatches.get(p.team_id) ?? 0, starts: 0, goals: 0 }]),
   );
@@ -181,15 +185,34 @@ export async function developSeason(db: Db, toSeasonId: string, fromSeasonId: st
 }
 
 /**
- * Every player's career for a club (player-careers/1): ratings per season (snapshot, else the
- * baseline), the rule's changes, starts and goals from the record, and recent form this season.
+ * Every player's career for a club's current squad (player-careers/1): ratings per season
+ * (snapshot, else the baseline), the rule's changes, starts and goals from the record, the club
+ * represented each season, and recent form this season. A player who joined from another club keeps
+ * the seasons (and goals) from there, attributed to that club.
  */
 export async function teamCareers(db: Db, team: Team): Promise<PlayerCareersResponse> {
-  const seasons = await db<{ id: string; slug: string; name: string }[]>`
+  const players = await db<PlayerRow[]>`select * from players where team_id = ${team.id} order by shirt_number`;
+  const teamSeasons = await db<{ id: string; slug: string; name: string }[]>`
     select s.id, s.slug, s.name from seasons s join season_teams st on st.season_id = s.id
     where st.team_id = ${team.id} and s.status <> 'draft'
     order by coalesce(s.starts_at, s.created_at), s.created_at`;
-  const players = await db<PlayerRow[]>`select * from players where team_id = ${team.id} order by shirt_number`;
+  // Each player's seasons: wherever they were registered; without registrations, the club's seasons.
+  const regs = await db<{ player_id: string; season_id: string; slug: string; name: string; team: TeamRow }[]>`
+    select r.player_id, s.id as season_id, s.slug, s.name, to_jsonb(t.*) as team
+    from player_registrations r join seasons s on s.id = r.season_id join teams t on t.id = r.team_id
+    where r.player_id = any(${players.map((p) => p.id)}) and s.status <> 'draft'
+    order by coalesce(s.starts_at, s.created_at), s.created_at`;
+  const seasonsOf = new Map<string, Array<{ id: string; slug: string; name: string; team: Team }>>();
+  for (const r of regs)
+    seasonsOf.set(r.player_id, [
+      ...(seasonsOf.get(r.player_id) ?? []),
+      { id: r.season_id, slug: r.slug, name: r.name, team: toTeam(r.team) },
+    ]);
+  const seasons = [
+    ...new Map(
+      [...teamSeasons, ...regs.map((r) => ({ id: r.season_id, slug: r.slug, name: r.name }))].map((s) => [s.id, s]),
+    ).values(),
+  ];
   const snaps = await db<
     {
       player_id: string;
@@ -199,11 +222,11 @@ export async function teamCareers(db: Db, team: Team): Promise<PlayerCareersResp
       rule: string;
       basis: { changes?: CareerSeason["changes"] };
     }[]
-  >`select r.* from player_ratings r join players p on p.id = r.player_id where p.team_id = ${team.id}`;
+  >`select r.* from player_ratings r where r.player_id = any(${players.map((p) => p.id)})`;
   const snap = new Map(snaps.map((s) => [`${s.player_id}:${s.season_id}`, s]));
   const records = new Map<string, Map<string, SeasonRecord>>();
   for (const s of seasons) records.set(s.id, await seasonRecords(db, s.id));
-  const current = seasons.at(-1);
+  const current = teamSeasons.at(-1);
   // Recent form: the club's last five matches in the current season.
   const recent = current
     ? await db<
@@ -230,12 +253,13 @@ export async function teamCareers(db: Db, team: Team): Promise<PlayerCareersResp
         name: p.name,
         shirtNumber: p.shirt_number,
         position: p.position,
-        seasons: seasons.map((s) => {
+        seasons: (seasonsOf.get(p.id) ?? teamSeasons.map((s) => ({ ...s, team }))).map((s) => {
           const r = snap.get(`${p.id}:${s.id}`);
           const rec = records.get(s.id)?.get(p.id) ?? { teamMatches: 0, starts: 0, goals: 0 };
           const attributes = r?.attributes ?? baseline;
           return {
             season: { slug: s.slug, name: s.name },
+            team: s.team,
             source: r ? ("snapshot" as const) : ("baseline" as const),
             rule: r?.rule ?? null,
             overall: r?.overall ?? overallRating(attributes, p.position),
