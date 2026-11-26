@@ -205,6 +205,29 @@ async function league(db: Db, s: SeasonRow): Promise<NewsStory | null> {
         "seasons",
       ),
     );
+  if (s.finance_rule && prev.finance_rule && s.finance_rule !== prev.finance_rule)
+    facts.push(
+      fact(
+        `${lead}:money-rules`,
+        `New money rules from ${s.name}: wages and result income are now season amounts paid in equal shares over all ${plural(r, "round")}, so a longer season costs and earns clubs about the same, and finishing prizes are paid down to 10th place`,
+        { rule: s.finance_rule, previous: prev.finance_rule },
+        "seasons",
+      ),
+    );
+  if (joined.length) {
+    const managers = await db<{ team_id: string; name: string }[]>`
+      select team_id, name from manager_agents where team_id = any(${joined.map((t) => t.id)})`;
+    const by = new Map(managers.map((m) => [m.team_id, m.name]));
+    if (managers.length)
+      facts.push(
+        fact(
+          `${lead}:managers`,
+          `Each new club has its own AI manager: ${list(joined.filter((t) => by.has(t.id)).map((t) => `${by.get(t.id)} at ${t.name}`))}`,
+          { managers: Object.fromEntries(joined.map((t) => [t.name, by.get(t.id) ?? null])) },
+          "manager_agents",
+        ),
+      );
+  }
   if (s.transfer_rule && !prev.transfer_rule)
     facts.push(
       fact(

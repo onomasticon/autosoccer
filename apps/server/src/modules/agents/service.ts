@@ -60,7 +60,10 @@ export interface ManagerDeps {
 /** Creates the four managers and their opening (v1) tactics for a season. Idempotent. */
 export async function seedManagers(db: Db, seasonId: string, model: string) {
   for (const m of SEED_MANAGERS) {
-    const [team] = await db<{ id: string }[]>`select id from teams where slug = ${m.teamSlug}`;
+    // Only the season's clubs (an expansion club has no manager before it joins).
+    const [team] = await db<{ id: string }[]>`
+      select t.id from teams t join season_teams st on st.team_id = t.id
+      where t.slug = ${m.teamSlug} and st.season_id = ${seasonId}`;
     if (!team) continue;
     await db`
       insert into manager_agents (team_id, slug, name, persona, philosophy, model)

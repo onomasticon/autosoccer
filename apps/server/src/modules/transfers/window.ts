@@ -27,7 +27,6 @@ import {
   type Usage,
   unlimitedGate,
 } from "../agents/service.ts";
-import { wageFor } from "../finance/rules.ts";
 import {
   type ClubState,
   loadMarket,
@@ -331,7 +330,7 @@ async function apply(
         else {
           const r = await tx`
             insert into transfer_bids (window_id, player_id, seller_team_id, buyer_team_id, fee, wage, buyer_reason, buyer_run_id)
-            values (${w.id}, ${p.id}, ${p.teamId}, ${teamId}, ${b.fee}, ${wageFor(p.overall)}, ${b.reason}, ${runId})
+            values (${w.id}, ${p.id}, ${p.teamId}, ${teamId}, ${b.fee}, ${p.wage}, ${b.reason}, ${runId})
             on conflict do nothing`;
           stored += r.count;
           room -= r.count;

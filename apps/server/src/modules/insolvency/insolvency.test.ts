@@ -152,7 +152,7 @@ describe("bankruptcy through the season lifecycle", () => {
     await play(s1);
     s2 = (
       await t.db<{ id: string }[]>`
-        select id from seasons where slug = ${(await rolloverSeason(t.db, { managerModel: MODEL, editorialModel: MODEL }))!}`
+        select id from seasons where slug = ${(await rolloverSeason(t.db, { managerModel: MODEL, editorialModel: MODEL, clubs: 4 }))!}`
     )[0]!.id;
   }, 600_000);
   afterAll(async () => {

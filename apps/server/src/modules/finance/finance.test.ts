@@ -93,7 +93,7 @@ describe("club finances through the season lifecycle", () => {
     await play(s1);
     s2 = (
       await t.db<{ id: string }[]>`
-      select id from seasons where slug = ${(await rolloverSeason(t.db, { managerModel: MODEL, editorialModel: MODEL }))!}`
+      select id from seasons where slug = ${(await rolloverSeason(t.db, { managerModel: MODEL, editorialModel: MODEL, clubs: 4 }))!}`
     )[0]!.id;
     await play(s2, 1);
   }, 600_000);
@@ -135,7 +135,7 @@ describe("club finances through the season lifecycle", () => {
 
   it("carries the treasury across rollover: no second opening balance, a new distribution and wages", async () => {
     const { rule } = (await t.db<{ rule: string }[]>`select finance_rule as rule from seasons where id = ${s2}`)[0]!;
-    expect(rule).toBe("finance/1");
+    expect(rule).toBe("finance/2");
     const rows = await ledger(t.db`season_id = ${s2}`);
     expect(rows.filter((r) => r.kind === "distribution")).toHaveLength(SEED_TEAMS.length);
     expect(rows.filter((r) => r.kind === "payroll").every((r) => r.round === 1)).toBe(true);

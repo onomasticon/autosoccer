@@ -29,7 +29,7 @@ export default function Teams({ loaderData }: Route.ComponentProps) {
       {!teams.length ? (
         <EmptyState title="No clubs yet" />
       ) : (
-        <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
           {teams.map((t) => {
             const row = standings.find((r) => r.team.id === t.id);
             return (

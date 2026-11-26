@@ -75,7 +75,11 @@ function ClubPicker({
 }) {
   if (reasons && teams.some((t) => reasons[t.id]))
     return (
-      <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4" aria-label={label} data-testid="club-choices">
+      <ul
+        className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5"
+        aria-label={label}
+        data-testid="club-choices"
+      >
         {teams.map((t) => (
           <li key={t.id}>
             <button

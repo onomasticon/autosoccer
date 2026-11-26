@@ -69,8 +69,10 @@ export async function loader() {
   ]);
   const all: FixtureView[] = fixtures?.rounds.flatMap((r) => r.fixtures) ?? [];
   const completed = all.filter((f) => f.status === "completed" && f.matchId);
-  const results = completed.slice(-4).reverse();
-  const upcoming = all.filter((f) => f.status !== "completed").slice(0, 4);
+  // At least a full round (ten clubs: five fixtures), and never fewer than four.
+  const perPanel = Math.max(4, Math.floor(current.teams.length / 2));
+  const results = completed.slice(-perPanel).reverse();
+  const upcoming = all.filter((f) => f.status !== "completed").slice(0, perPanel);
   // Before the new season's first result, the last completed season is still the story: its champion,
   // its final table and its last replay.
   let previous: SeasonSummary | null = null;

@@ -49,7 +49,7 @@ const play = async (seasonId: string, upTo = 99) => {
   }
 };
 await play(s1);
-const slug = await rolloverSeason(db, { managerModel: MODEL, editorialModel: MODEL, roundMinutes: 60 });
+const slug = await rolloverSeason(db, { managerModel: MODEL, editorialModel: MODEL, roundMinutes: 60, clubs: 4 });
 const [s2] = await db<{ id: string }[]>`select id from seasons where slug = ${slug}`;
 for (let i = 0; i < 20; i++) {
   const [w] = await db<{ phase: string }[]>`select phase from transfer_windows where season_id = ${s2!.id}`;

@@ -3,7 +3,7 @@ import { type ClubFinancesResponse, FINANCES_CONTRACT, type LedgerKind, type Tea
 import type { Db } from "@autosoccer/db";
 import { currentSeason } from "../league/read.ts";
 import { RULES } from "./rules.ts";
-import { clubPosition, payrollFor } from "./settle.ts";
+import { clubPosition, payrollFor, seasonRules } from "./settle.ts";
 
 export async function clubFinances(db: Db, team: Team): Promise<ClubFinancesResponse> {
   const rows = await db<
@@ -39,6 +39,8 @@ export async function clubFinances(db: Db, team: Team): Promise<ClubFinancesResp
   const pos = cur ? await clubPosition(db, cur.id, team.id) : null;
   const pay = cur ? await payrollFor(db, cur.id, team.id) : { perRound: 0, players: [] };
   const remaining = pos?.remainingPayroll ?? 0;
+  // The current season's numbers (its rule, scaled to its length).
+  const R = cur ? await seasonRules(db, cur.id) : RULES;
   return {
     contract: FINANCES_CONTRACT,
     team,
@@ -60,11 +62,16 @@ export async function clubFinances(db: Db, team: Team): Promise<ClubFinancesResp
         at: r.created_at.toISOString(),
       })),
     rules: {
-      opening: RULES.opening,
-      distribution: RULES.distribution,
-      result: RULES.result,
-      prize: RULES.prize,
-      wage: RULES.wage,
+      opening: R.opening,
+      distribution: R.distribution,
+      result: R.result,
+      prize: R.prize,
+      wage: {
+        base: Math.round(R.wage.base),
+        perPoint: Math.round(R.wage.perPoint),
+        floor: R.wage.floor,
+        min: R.wage.min,
+      },
     },
   };
 }

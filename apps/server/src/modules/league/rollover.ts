@@ -18,13 +18,24 @@ import { rescueClubs } from "../insolvency/takeover.ts";
 import { openWindow } from "../transfers/window.ts";
 import { CADENCES, type Cadence, kickoffs } from "./cadence.ts";
 import { developSeason } from "./careers.ts";
-import { createSeason, registerSquads, syncSquads } from "./service.ts";
+import { ALL_TEAMS } from "./seed-data.ts";
+import { createSeason, registerSquads, seedTeams, syncSquads } from "./service.ts";
 
 /**
  * The league's format for new seasons. Season 5 was due to be the first 11-a-side season; the
  * league went back to 7-a-side (with ball control and ratings) before it kicked off.
  */
 export const LEAGUE_TEAM_SIZE: TeamSize = 7;
+
+/**
+ * How many clubs the league has. It was four; when a season rolls over with fewer, the next clubs
+ * from the seed list join (the expansion: six new clubs, each with a squad and an AI manager), and
+ * the season grows to a double round robin of 2 × (clubs − 1) rounds.
+ */
+export const LEAGUE_CLUBS = 10;
+
+/** Rounds in a double round robin of n clubs. */
+export const roundsFor = (clubs: number) => 2 * (clubs - 1);
 
 export interface RolloverOptions {
   managerModel: string;
@@ -40,6 +51,8 @@ export interface RolloverOptions {
    * slot at least `roundMinutes` (or a day) after the last season ends. Default: interval spacing.
    */
   cadence?: "interval" | "weekly" | "twice-weekly";
+  /** Clubs the new season should have (default LEAGUE_CLUBS); new clubs join to make it up. */
+  clubs?: number;
   /** Earliest kick-off for the new season (default: now). */
   now?: Date;
   log?: Logger;
@@ -96,15 +109,27 @@ export async function rolloverSeason(db: Db, opts: RolloverOptions): Promise<str
     ? kickoffs(new Date(now.getTime() + Math.max(minutes, 24 * 60) * 60_000), 1, calendar)[0]!
     : new Date(Math.ceil((now.getTime() + minutes * 60_000) / 60_000) * 60_000);
   const slug = `season-${n + 1}`;
+  // The expansion: new clubs join until the league has LEAGUE_CLUBS (idempotent: seeding is by slug).
+  const joining = ALL_TEAMS.filter((t) => !teams.some((x) => x.slug === t.slug)).slice(
+    0,
+    Math.max(0, (opts.clubs ?? LEAGUE_CLUBS) - teams.length),
+  );
+  if (joining.length) {
+    await seedTeams(db, joining);
+    opts.log?.info("clubs join the league", { season: slug, clubs: joining.map((t) => t.slug) });
+  }
+  // Spend caps follow the season's length (the same budget per round and per match as before).
+  const growth = roundsFor(teams.length + joining.length) / Math.max(1, roundsFor(teams.length));
+  const matchGrowth = (growth * (teams.length + joining.length)) / Math.max(1, teams.length);
   const added = await syncSquads(db);
   if (added) opts.log?.info("squads grew for the new format", { players: added, playersPerTeam: LEAGUE_TEAM_SIZE });
   const { seasonId, created } = await createSeason(db, {
     slug,
     name: `Season ${n + 1}`,
     seed: nextSeasonSeed(Number(last.seed)),
-    budgetPerTeamMicroUsd: Number(last.budget_per_team_micro_usd),
-    editorialBudgetMicroUsd: Number(last.editorial_budget_micro_usd),
-    teamSlugs: teams.map((t) => t.slug),
+    budgetPerTeamMicroUsd: Math.round(Number(last.budget_per_team_micro_usd) * growth),
+    editorialBudgetMicroUsd: Math.round(Number(last.editorial_budget_micro_usd) * matchGrowth),
+    teamSlugs: [...teams.map((t) => t.slug), ...joining.map((t) => t.slug)],
     startsAt,
     cadence: calendar ?? { kind: "interval", minutes },
     playersPerTeam: LEAGUE_TEAM_SIZE,

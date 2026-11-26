@@ -90,7 +90,7 @@ const cash = async () =>
 const statement: Array<[string, string]> = [];
 const note = async (label: string) => statement.push([label, formatCredits(await cash())]);
 const rollover = async () => {
-  const slug = await rolloverSeason(db, { managerModel: MODEL, editorialModel: MODEL, roundMinutes: 60 });
+  const slug = await rolloverSeason(db, { managerModel: MODEL, editorialModel: MODEL, roundMinutes: 60, clubs: 4 });
   return (await db<{ id: string }[]>`select id from seasons where slug = ${slug}`)[0]!.id;
 };
 

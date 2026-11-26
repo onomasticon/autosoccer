@@ -103,6 +103,7 @@ describe("player careers across a rollover", () => {
     const slug = await rolloverSeason(t.db, {
       managerModel: "claude-opus-5-5",
       editorialModel: "claude-opus-5-5",
+      clubs: 4,
       now: new Date("2026-12-01T00:00:00Z"),
     });
     const [row] = await t.db<{ id: string }[]>`select id from seasons where slug = ${slug}`;
@@ -121,7 +122,7 @@ describe("player careers across a rollover", () => {
     expect(rows.filter((r) => r.rule === DEVELOP_RULE).length).toBeGreaterThan(0);
     // Retries and repeated rollovers never develop anyone twice.
     expect(await developSeason(t.db, second, first)).toBe(0);
-    const again = await rolloverSeason(t.db, { managerModel: "m", editorialModel: "m" });
+    const again = await rolloverSeason(t.db, { managerModel: "m", editorialModel: "m", clubs: 4 });
     expect(again).toBeNull();
     const [snaps] = await t.db<{ m: number }[]>`select count(*)::int as m from player_ratings`;
     expect(snaps!.m).toBe(n);

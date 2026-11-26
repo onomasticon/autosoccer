@@ -155,7 +155,12 @@ export function StandingsTable({
                 <th scope="row" className="px-2 py-2 text-left font-semibold">
                   <Link to={`/teams/${r.team.slug}`} className="flex items-center gap-2 hover:underline">
                     <TeamBadge team={r.team} size="sm" decorative />
-                    <span className={`truncate ${compact ? "font-semi text-lg font-bold" : ""}`}>{r.team.name}</span>
+                    <span
+                      className={`truncate ${compact ? "min-w-0 max-w-[9rem] font-semi text-base font-bold xl:max-w-[10.5rem]" : ""}`}
+                      title={compact ? r.team.name : undefined}
+                    >
+                      {r.team.name}
+                    </span>
                     {leader && !compact && (
                       <span aria-hidden className="rounded bg-yellow px-1 text-[10px] font-bold uppercase text-ink">
                         Top
