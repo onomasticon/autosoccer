@@ -10,6 +10,7 @@ import { leagueRoutes } from "./modules/league/routes.ts";
 import { ledgerRoutes } from "./modules/ledger/routes.ts";
 import { matchRoutes } from "./modules/matches/routes.ts";
 import { opsRoutes } from "./modules/ops/routes.ts";
+import { spotlightRoutes } from "./modules/spotlight/routes.ts";
 import { storyRoutes } from "./modules/story/routes.ts";
 import { tacticsRoutes } from "./modules/tactics/routes.ts";
 
@@ -63,6 +64,7 @@ export function createApp({ db, store, log = silentLogger, opsToken }: AppDeps) 
   api.route("/", editorialRoutes({ db }));
   api.route("/", dugoutRoutes({ db }));
   api.route("/", storyRoutes({ db }));
+  api.route("/", spotlightRoutes({ db }));
   api.route("/", opsRoutes({ db, token: opsToken }));
   app.route(`/api/${API_VERSION}`, api);
 

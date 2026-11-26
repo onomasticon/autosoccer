@@ -19,6 +19,7 @@ import {
 } from "./domain.ts";
 import { DugoutResponse, ManagerProfile, TeamDugoutResponse } from "./dugout.ts";
 import { Match, OfficialEvent, TeamMatchStats } from "./match.ts";
+import { PlayerListResponse, PlayerProfileResponse, SpotlightResponse } from "./spotlight.ts";
 import { FixtureStory } from "./story.ts";
 
 export const FormResult = z.enum(["W", "D", "L"]);
@@ -322,6 +323,31 @@ export const ROUTES: RouteDef[] = [
     response: z.unknown(),
     responseName: "ReplayFile",
     contentType: "application/gzip",
+  },
+  {
+    method: "get",
+    path: "/spotlight",
+    operationId: "getSpotlight",
+    summary: "Homepage lead: the latest completed round's standout player (spotlight/1), and each club's latest moment",
+    response: SpotlightResponse,
+    responseName: "SpotlightResponse",
+  },
+  {
+    method: "get",
+    path: "/players",
+    operationId: "listPlayers",
+    summary: "Every player with club, goals and starts (for search)",
+    response: PlayerListResponse,
+    responseName: "PlayerListResponse",
+  },
+  {
+    method: "get",
+    path: "/players/{player}",
+    operationId: "getPlayer",
+    summary: "Player profile: career, distinctions, recent moment, next fixture (player-profile/1)",
+    params: { player: Id },
+    response: PlayerProfileResponse,
+    responseName: "PlayerProfileResponse",
   },
   {
     method: "get",

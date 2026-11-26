@@ -1,10 +1,11 @@
-import type { OfficialEvent, Team } from "@autosoccer/contracts";
+import { type OfficialEvent, playerHref, type Team } from "@autosoccer/contracts";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Link } from "react-router";
 import { formatClock, onColor, readableChip } from "../../lib/format";
 import { ErrorState } from "../States";
 import { celebrationRate, celebrationTicks, type GoalEvent, goalCrossed } from "./celebration";
 import { aspect, drawFrame } from "./draw";
-import { buildHighlights, type HighlightsIndex, type Moment, reelNext } from "./highlights";
+import { buildHighlights, clipReel, type HighlightsIndex, type Moment, reelNext } from "./highlights";
 import { type Frame, loadReplay, type ReplaySource } from "./replay-adapter";
 import { type Camera, easeCamera, FULL_VIEW, followCamera, kitColours, nearestPlayer, slotOf, toPitch } from "./view";
 
@@ -24,9 +25,27 @@ export interface MatchViewerProps {
   playerNames?: ReadonlyMap<string, string>;
   /** Starting lineups in slot order (the simulator's player 1, 2, …), to name a tapped player. */
   lineups?: {
-    home: ReadonlyArray<{ name: string; shirtNumber: number }>;
-    away: ReadonlyArray<{ name: string; shirtNumber: number }>;
+    home: ReadonlyArray<{ id?: string; name: string; shirtNumber: number }>;
+    away: ReadonlyArray<{ id?: string; name: string; shirtNumber: number }>;
   };
+  /**
+   * A featured player's clip (the homepage lead, or ?clip= on the match centre): their goals with
+   * a few seconds of build-up, the player picked out on the pitch, and their career at the end.
+   */
+  focus?: ReplayFocus;
+}
+
+export interface ReplayFocus {
+  /** Simulator id ("blue-3") of the player to pick out, if they started. */
+  simId: string | null;
+  playerId: string;
+  name: string;
+  /** Official goal ticks to play. */
+  ticks: number[];
+  /** Button label, e.g. "Watch Nyberg's three goals". */
+  label: string;
+  /** Start playing as soon as the replay loads (not with reduced motion). */
+  autoplay?: boolean;
 }
 
 /** Zoom used by "Follow the ball". */
@@ -63,6 +82,7 @@ export function MatchViewer({
   compact = false,
   playerNames,
   lineups,
+  focus,
 }: MatchViewerProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -77,7 +97,10 @@ export function MatchViewer({
   const tickRef = useRef(0);
   // Highlights mode plays windows of this same replay around verified moments (highlights.ts).
   const [highlights, setHighlights] = useState<HighlightsIndex | null>(null);
-  const [mode, setMode] = useState<"full" | "highlights">("full");
+  const [mode, setMode] = useState<"full" | "highlights" | "clip">("full");
+  // The featured player's clip: windows around their goals, and an end card once it's played.
+  const [clip, setClip] = useState<HighlightsIndex["reel"] | null>(null);
+  const [clipEnded, setClipEnded] = useState(false);
   const modeRef = useRef(mode);
   modeRef.current = mode;
   // Display aids: follow-the-ball framing and a picked-out player (both off by default).
@@ -179,6 +202,25 @@ export function MatchViewer({
     setHighlights(buildHighlights(events, { finalTick: src.finalTick, tickRate: src.tickRate, events: src.events }));
   }, [status, events]);
 
+  // Cue the featured clip: pick the player out and stand on the first window (playing if asked).
+  const focusKey = focus ? `${focus.playerId}:${focus.ticks.join(",")}` : "";
+  // biome-ignore lint/correctness/useExhaustiveDependencies: re-cue only when the focus itself changes
+  useEffect(() => {
+    const src = srcRef.current;
+    if (status !== "ready" || !src || !focus) return;
+    const reel = clipReel(focus.ticks, { finalTick: src.finalTick, tickRate: src.tickRate });
+    setClip(reel);
+    if (!reel.length) return;
+    setSelected(focus.simId);
+    selectedRef.current = focus.simId;
+    setMode("clip");
+    modeRef.current = "clip";
+    tickRef.current = reel[0]!.start;
+    setTick(reel[0]!.start);
+    render(reel[0]!.start, true);
+    if (focus.autoplay && !window.matchMedia("(prefers-reduced-motion: reduce)").matches) setPlaying(true);
+  }, [status, focusKey]);
+
   // Repaint when a display aid changes while paused.
   // biome-ignore lint/correctness/useExhaustiveDependencies: follow/selected are read through refs in render
   useEffect(() => {
@@ -214,10 +256,12 @@ export function MatchViewer({
         acc -= whole;
         let next = Math.min(src.finalTick, tickRef.current + whole);
         let jumped = false;
-        if (modeRef.current === "highlights" && highlights) {
-          const r = reelNext(highlights.reel, next);
+        const reel = modeRef.current === "highlights" ? highlights?.reel : modeRef.current === "clip" ? clip : null;
+        if (reel) {
+          const r = reelNext(reel, next);
           if (r === null) {
-            // End of the reel: stop at the last moment's window.
+            // End of the reel: stop at the last moment's window (the clip then offers the career).
+            if (modeRef.current === "clip") setClipEnded(true);
             setPlaying(false);
             setMode("full");
             return;
@@ -256,7 +300,7 @@ export function MatchViewer({
     };
     raf = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(raf);
-  }, [playing, speed, status, render, goals, highlights]);
+  }, [playing, speed, status, render, goals, highlights, clip]);
 
   const seek = (t: number) => {
     const src = srcRef.current;
@@ -272,13 +316,30 @@ export function MatchViewer({
   const watchHighlights = () => {
     const first = highlights?.reel[0];
     if (!first) return;
+    setClipEnded(false);
     setMode("highlights");
     seek(first.start);
     setPlaying(true);
   };
+  const watchClip = () => {
+    const first = clip?.[0];
+    if (!first || !focus) return;
+    setClipEnded(false);
+    setSelected(focus.simId);
+    setMode("clip");
+    seek(first.start);
+    setPlaying(true);
+  };
   const watchFull = () => {
+    setClipEnded(false);
     setMode("full");
     setPlaying(false);
+  };
+  const watchWholeMatch = () => {
+    setClipEnded(false);
+    setMode("full");
+    seek(0);
+    setPlaying(true);
   };
 
   // Tap or click a player to see who it is (and tap again, or elsewhere, to clear).
@@ -359,7 +420,7 @@ export function MatchViewer({
           />
           {picked && (
             <div
-              className="absolute right-2 top-2 rounded-lg bg-navy/90 px-2.5 py-1 text-xs font-semibold text-white sm:text-sm"
+              className="absolute right-2 top-10 rounded-lg bg-navy/90 sm:top-2 px-2.5 py-1 text-xs font-semibold text-white sm:text-sm"
               data-testid="picked-player"
             >
               <span className="tabular">#{picked.number}</span> {picked.name ?? "Player"} · {picked.team.shortName}
@@ -374,6 +435,45 @@ export function MatchViewer({
           {mode === "highlights" && (
             <div className="pointer-events-none absolute bottom-2 left-2 rounded-md bg-yellow px-2 py-0.5 font-display text-xs font-extrabold uppercase italic text-navy sm:text-sm">
               Highlights · same replay
+            </div>
+          )}
+          {mode === "clip" && focus && (
+            <div
+              className="pointer-events-none absolute bottom-2 left-2 rounded-md bg-yellow px-2 py-0.5 font-display text-xs font-extrabold uppercase italic text-navy sm:text-sm"
+              data-testid="clip-label"
+            >
+              {focus.name} · {focus.ticks.length} goal{focus.ticks.length === 1 ? "" : "s"}
+            </div>
+          )}
+          {clipEnded && focus && !playing && (
+            <div className="absolute inset-0 flex items-center justify-center bg-navy/75 p-3" data-testid="clip-end">
+              <div className="flex max-w-sm flex-col items-center gap-2 text-center">
+                <p className="font-display text-xl font-extrabold uppercase italic leading-none sm:text-3xl">
+                  {focus.name}
+                </p>
+                <Link
+                  to={playerHref({ id: focus.playerId, name: focus.name })}
+                  className="inline-flex min-h-10 items-center rounded-lg bg-coral px-3 py-1.5 text-sm font-bold text-ink hover:brightness-95"
+                >
+                  See {possessive(surnameOf(focus.name))} career <span aria-hidden>&nbsp;→</span>
+                </Link>
+                <div className="flex flex-wrap justify-center gap-1 text-sm font-semibold">
+                  <button
+                    type="button"
+                    onClick={watchClip}
+                    className="min-h-10 rounded-lg px-2 py-1 underline underline-offset-4 hover:bg-white/10"
+                  >
+                    Replay the clip
+                  </button>
+                  <button
+                    type="button"
+                    onClick={watchWholeMatch}
+                    className="min-h-10 rounded-lg px-2 py-1 underline underline-offset-4 hover:bg-white/10"
+                  >
+                    Watch the full match
+                  </button>
+                </div>
+              </div>
             </div>
           )}
           <div
@@ -535,6 +635,34 @@ export function MatchViewer({
           </button>
         </div>
       </section>
+      {focus && status === "ready" && clip && clip.length > 0 && (
+        <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2" data-testid="clip-controls">
+          {mode === "clip" && playing ? (
+            <button
+              type="button"
+              onClick={watchFull}
+              className="min-h-10 rounded-full bg-ink px-3 py-1 text-sm font-semibold text-white"
+            >
+              Back to the full replay
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={watchClip}
+              className="min-h-10 rounded-full bg-coral px-3 py-1 text-sm font-bold text-ink"
+            >
+              <span aria-hidden>▶ </span>
+              {focus.label}
+            </button>
+          )}
+          <Link
+            to={playerHref({ id: focus.playerId, name: focus.name })}
+            className="text-sm font-semibold text-violet-deep underline-offset-4 hover:underline"
+          >
+            {possessive(focus.name)} career <span aria-hidden>→</span>
+          </Link>
+        </div>
+      )}
       {!compact && status === "ready" && highlights && (
         <KeyMoments
           index={highlights}
@@ -561,6 +689,16 @@ export function MatchViewer({
       </p>
     </div>
   );
+}
+
+const surnameOf = (name: string) => name.trim().split(/\s+/).at(-1) ?? name;
+const possessive = (name: string) => (name.endsWith("s") ? `${name}'` : `${name}'s`);
+
+/** The career page of the player in a simulator slot, when the lineup carries ids. */
+function pickedCareer(lineups: NonNullable<MatchViewerProps["lineups"]>, simId: string): string | null {
+  const slot = slotOf(simId);
+  const p = slot ? lineups[slot.side][slot.index] : undefined;
+  return p?.id ? playerHref({ id: p.id, name: p.name }) : null;
 }
 
 const momentLabel = (
@@ -600,7 +738,7 @@ function KeyMoments({
   home: MatchViewerProps["home"];
   away: MatchViewerProps["away"];
   playerNames?: ReadonlyMap<string, string>;
-  mode: "full" | "highlights";
+  mode: "full" | "highlights" | "clip";
   tick: number;
   tickRate: number;
   lineups?: MatchViewerProps["lineups"];
@@ -687,6 +825,14 @@ function KeyMoments({
               </optgroup>
             ))}
           </select>
+          {selected && pickedCareer(lineups, selected) && (
+            <Link
+              to={pickedCareer(lineups, selected)!}
+              className="font-semibold text-violet-deep underline-offset-4 hover:underline"
+            >
+              Career <span aria-hidden>→</span>
+            </Link>
+          )}
         </label>
       )}
       {index.notes.map((n) => (

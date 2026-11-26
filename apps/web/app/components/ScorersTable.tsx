@@ -1,4 +1,4 @@
-import type { ScorerRow } from "@autosoccer/contracts";
+import { playerHref, type ScorerRow } from "@autosoccer/contracts";
 import { Link } from "react-router";
 import { TeamBadge } from "./TeamBadge";
 
@@ -34,7 +34,12 @@ export function ScorersTable({ rows, caption }: { rows: ScorerRow[]; caption: st
               <td className="px-2 py-2">
                 <span className="flex items-center gap-2">
                   <TeamBadge team={r.team} size="sm" decorative />
-                  <span className="font-semibold">{r.name}</span>
+                  <Link
+                    to={playerHref({ id: r.playerId, name: r.name })}
+                    className="font-semibold underline-offset-4 hover:underline"
+                  >
+                    {r.name}
+                  </Link>
                   <Link to={`/teams/${r.team.slug}`} className="text-muted-text underline-offset-4 hover:underline">
                     {r.team.shortName}
                   </Link>

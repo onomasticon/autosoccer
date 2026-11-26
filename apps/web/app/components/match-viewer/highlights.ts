@@ -118,6 +118,25 @@ export function buildHighlights(events: readonly OfficialEvent[], replay: Replay
   return { moments, chapters, notes, reel };
 }
 
+/**
+ * Play windows for one player's clip: each official goal tick with the goal window's build-up,
+ * merged where they overlap. Ticks outside the match are dropped, never clamped into it.
+ */
+export function clipReel(
+  ticks: readonly number[],
+  replay: Pick<ReplayLog, "finalTick" | "tickRate">,
+): HighlightsIndex["reel"] {
+  const reel: HighlightsIndex["reel"] = [];
+  for (const t of [...ticks].filter((x) => finite(x) && x >= 0 && x <= replay.finalTick).sort((a, b) => a - b)) {
+    const start = Math.max(0, Math.round(t - WINDOW.goal.before * replay.tickRate));
+    const end = Math.min(replay.finalTick, Math.round(t + WINDOW.goal.after * replay.tickRate));
+    const last = reel.at(-1);
+    if (last && start <= last.end) last.end = Math.max(last.end, end);
+    else reel.push({ start, end });
+  }
+  return reel;
+}
+
 /** Where highlights playback goes next from `tick`: stay, jump to the next window, or stop (null). */
 export function reelNext(reel: HighlightsIndex["reel"], tick: number): number | null {
   for (const w of reel) {

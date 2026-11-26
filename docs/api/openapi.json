@@ -440,6 +440,104 @@
         }
       }
     },
+    "/spotlight": {
+      "get": {
+        "operationId": "getSpotlight",
+        "summary": "Homepage lead: the latest completed round's standout player (spotlight/1), and each club's latest moment",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SpotlightResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/players": {
+      "get": {
+        "operationId": "listPlayers",
+        "summary": "Every player with club, goals and starts (for search)",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlayerListResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/players/{player}": {
+      "get": {
+        "operationId": "getPlayer",
+        "summary": "Player profile: career, distinctions, recent moment, next fixture (player-profile/1)",
+        "parameters": [
+          {
+            "name": "player",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "description": "UUID primary key",
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlayerProfileResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/articles": {
       "get": {
         "operationId": "listArticles",
@@ -6155,6 +6253,2211 @@
           "lineups",
           "replay",
           "revisions"
+        ],
+        "additionalProperties": false
+      },
+      "SpotlightResponse": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "contract": {
+            "type": "string",
+            "const": "spotlight/1"
+          },
+          "rule": {
+            "type": "string"
+          },
+          "lead": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "hat_trick",
+                      "brace",
+                      "winner",
+                      "equaliser",
+                      "goal",
+                      "quiet"
+                    ]
+                  },
+                  "player": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "description": "UUID primary key",
+                        "type": "string",
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                      },
+                      "name": {
+                        "type": "string"
+                      },
+                      "shirtNumber": {
+                        "type": "integer",
+                        "minimum": -9007199254740991,
+                        "maximum": 9007199254740991
+                      },
+                      "position": {
+                        "type": "string",
+                        "enum": [
+                          "GK",
+                          "DF",
+                          "MF",
+                          "FW"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "name",
+                      "shirtNumber",
+                      "position"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "team": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "description": "UUID primary key",
+                        "type": "string",
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                      },
+                      "slug": {
+                        "type": "string",
+                        "maxLength": 80,
+                        "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+                      },
+                      "name": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 60
+                      },
+                      "shortName": {
+                        "type": "string",
+                        "minLength": 2,
+                        "maxLength": 4
+                      },
+                      "city": {
+                        "type": "string",
+                        "maxLength": 60
+                      },
+                      "colors": {
+                        "type": "object",
+                        "properties": {
+                          "primary": {
+                            "type": "string",
+                            "pattern": "^#[0-9A-Fa-f]{6}$"
+                          },
+                          "secondary": {
+                            "type": "string",
+                            "pattern": "^#[0-9A-Fa-f]{6}$"
+                          }
+                        },
+                        "required": [
+                          "primary",
+                          "secondary"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "crest": {
+                        "type": "object",
+                        "properties": {
+                          "shape": {
+                            "type": "string",
+                            "enum": [
+                              "shield",
+                              "circle",
+                              "hexagon",
+                              "diamond"
+                            ]
+                          },
+                          "glyph": {
+                            "description": "short monogram rendered on the badge",
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 3
+                          }
+                        },
+                        "required": [
+                          "shape",
+                          "glyph"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "slug",
+                      "name",
+                      "shortName",
+                      "city",
+                      "colors",
+                      "crest"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "opponent": {
+                    "anyOf": [
+                      {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "description": "UUID primary key",
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                          },
+                          "slug": {
+                            "type": "string",
+                            "maxLength": 80,
+                            "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+                          },
+                          "name": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 60
+                          },
+                          "shortName": {
+                            "type": "string",
+                            "minLength": 2,
+                            "maxLength": 4
+                          },
+                          "city": {
+                            "type": "string",
+                            "maxLength": 60
+                          },
+                          "colors": {
+                            "type": "object",
+                            "properties": {
+                              "primary": {
+                                "type": "string",
+                                "pattern": "^#[0-9A-Fa-f]{6}$"
+                              },
+                              "secondary": {
+                                "type": "string",
+                                "pattern": "^#[0-9A-Fa-f]{6}$"
+                              }
+                            },
+                            "required": [
+                              "primary",
+                              "secondary"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "crest": {
+                            "type": "object",
+                            "properties": {
+                              "shape": {
+                                "type": "string",
+                                "enum": [
+                                  "shield",
+                                  "circle",
+                                  "hexagon",
+                                  "diamond"
+                                ]
+                              },
+                              "glyph": {
+                                "description": "short monogram rendered on the badge",
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 3
+                              }
+                            },
+                            "required": [
+                              "shape",
+                              "glyph"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "slug",
+                          "name",
+                          "shortName",
+                          "city",
+                          "colors",
+                          "crest"
+                        ],
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "season": {
+                    "type": "object",
+                    "properties": {
+                      "slug": {
+                        "type": "string",
+                        "maxLength": 80,
+                        "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+                      },
+                      "name": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "slug",
+                      "name"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "round": {
+                    "type": "integer",
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "matchId": {
+                    "anyOf": [
+                      {
+                        "description": "UUID primary key",
+                        "type": "string",
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "fixtureId": {
+                    "anyOf": [
+                      {
+                        "description": "UUID primary key",
+                        "type": "string",
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "headline": {
+                    "type": "string"
+                  },
+                  "detail": {
+                    "type": "string"
+                  },
+                  "goals": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "tick": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        "period": {
+                          "type": "string",
+                          "enum": [
+                            "firstHalf",
+                            "secondHalf"
+                          ]
+                        },
+                        "clockSec": {
+                          "type": "number",
+                          "minimum": 0
+                        },
+                        "score": {
+                          "type": "object",
+                          "properties": {
+                            "home": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            "away": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            }
+                          },
+                          "required": [
+                            "home",
+                            "away"
+                          ],
+                          "additionalProperties": false
+                        }
+                      },
+                      "required": [
+                        "tick",
+                        "period",
+                        "clockSec",
+                        "score"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "replay": {
+                    "type": "boolean"
+                  },
+                  "action": {
+                    "type": "string"
+                  },
+                  "next": {
+                    "anyOf": [
+                      {
+                        "type": "object",
+                        "properties": {
+                          "fixtureId": {
+                            "description": "UUID primary key",
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                          },
+                          "round": {
+                            "type": "integer",
+                            "exclusiveMinimum": 0,
+                            "maximum": 9007199254740991
+                          },
+                          "venue": {
+                            "type": "string",
+                            "enum": [
+                              "home",
+                              "away"
+                            ]
+                          },
+                          "opponent": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "description": "UUID primary key",
+                                "type": "string",
+                                "format": "uuid",
+                                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                              },
+                              "slug": {
+                                "type": "string",
+                                "maxLength": 80,
+                                "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+                              },
+                              "name": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 60
+                              },
+                              "shortName": {
+                                "type": "string",
+                                "minLength": 2,
+                                "maxLength": 4
+                              },
+                              "city": {
+                                "type": "string",
+                                "maxLength": 60
+                              },
+                              "colors": {
+                                "type": "object",
+                                "properties": {
+                                  "primary": {
+                                    "type": "string",
+                                    "pattern": "^#[0-9A-Fa-f]{6}$"
+                                  },
+                                  "secondary": {
+                                    "type": "string",
+                                    "pattern": "^#[0-9A-Fa-f]{6}$"
+                                  }
+                                },
+                                "required": [
+                                  "primary",
+                                  "secondary"
+                                ],
+                                "additionalProperties": false
+                              },
+                              "crest": {
+                                "type": "object",
+                                "properties": {
+                                  "shape": {
+                                    "type": "string",
+                                    "enum": [
+                                      "shield",
+                                      "circle",
+                                      "hexagon",
+                                      "diamond"
+                                    ]
+                                  },
+                                  "glyph": {
+                                    "description": "short monogram rendered on the badge",
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 3
+                                  }
+                                },
+                                "required": [
+                                  "shape",
+                                  "glyph"
+                                ],
+                                "additionalProperties": false
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "slug",
+                              "name",
+                              "shortName",
+                              "city",
+                              "colors",
+                              "crest"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "scheduledAt": {
+                            "anyOf": [
+                              {
+                                "description": "ISO-8601 timestamp",
+                                "type": "string",
+                                "format": "date-time",
+                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          }
+                        },
+                        "required": [
+                          "fixtureId",
+                          "round",
+                          "venue",
+                          "opponent",
+                          "scheduledAt"
+                        ],
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "kind",
+                  "player",
+                  "team",
+                  "opponent",
+                  "season",
+                  "round",
+                  "matchId",
+                  "fixtureId",
+                  "headline",
+                  "detail",
+                  "goals",
+                  "replay",
+                  "action",
+                  "next"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "clubs": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "teamId": {
+                  "description": "UUID primary key",
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                },
+                "moment": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "kind": {
+                          "type": "string",
+                          "enum": [
+                            "hat_trick",
+                            "brace",
+                            "winner",
+                            "equaliser",
+                            "goal",
+                            "quiet"
+                          ]
+                        },
+                        "player": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "description": "UUID primary key",
+                              "type": "string",
+                              "format": "uuid",
+                              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                            },
+                            "name": {
+                              "type": "string"
+                            },
+                            "shirtNumber": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            "position": {
+                              "type": "string",
+                              "enum": [
+                                "GK",
+                                "DF",
+                                "MF",
+                                "FW"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "name",
+                            "shirtNumber",
+                            "position"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "team": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "description": "UUID primary key",
+                              "type": "string",
+                              "format": "uuid",
+                              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                            },
+                            "slug": {
+                              "type": "string",
+                              "maxLength": 80,
+                              "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+                            },
+                            "name": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 60
+                            },
+                            "shortName": {
+                              "type": "string",
+                              "minLength": 2,
+                              "maxLength": 4
+                            },
+                            "city": {
+                              "type": "string",
+                              "maxLength": 60
+                            },
+                            "colors": {
+                              "type": "object",
+                              "properties": {
+                                "primary": {
+                                  "type": "string",
+                                  "pattern": "^#[0-9A-Fa-f]{6}$"
+                                },
+                                "secondary": {
+                                  "type": "string",
+                                  "pattern": "^#[0-9A-Fa-f]{6}$"
+                                }
+                              },
+                              "required": [
+                                "primary",
+                                "secondary"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "crest": {
+                              "type": "object",
+                              "properties": {
+                                "shape": {
+                                  "type": "string",
+                                  "enum": [
+                                    "shield",
+                                    "circle",
+                                    "hexagon",
+                                    "diamond"
+                                  ]
+                                },
+                                "glyph": {
+                                  "description": "short monogram rendered on the badge",
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 3
+                                }
+                              },
+                              "required": [
+                                "shape",
+                                "glyph"
+                              ],
+                              "additionalProperties": false
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "slug",
+                            "name",
+                            "shortName",
+                            "city",
+                            "colors",
+                            "crest"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "opponent": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "id": {
+                                  "description": "UUID primary key",
+                                  "type": "string",
+                                  "format": "uuid",
+                                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                                },
+                                "slug": {
+                                  "type": "string",
+                                  "maxLength": 80,
+                                  "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+                                },
+                                "name": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 60
+                                },
+                                "shortName": {
+                                  "type": "string",
+                                  "minLength": 2,
+                                  "maxLength": 4
+                                },
+                                "city": {
+                                  "type": "string",
+                                  "maxLength": 60
+                                },
+                                "colors": {
+                                  "type": "object",
+                                  "properties": {
+                                    "primary": {
+                                      "type": "string",
+                                      "pattern": "^#[0-9A-Fa-f]{6}$"
+                                    },
+                                    "secondary": {
+                                      "type": "string",
+                                      "pattern": "^#[0-9A-Fa-f]{6}$"
+                                    }
+                                  },
+                                  "required": [
+                                    "primary",
+                                    "secondary"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                "crest": {
+                                  "type": "object",
+                                  "properties": {
+                                    "shape": {
+                                      "type": "string",
+                                      "enum": [
+                                        "shield",
+                                        "circle",
+                                        "hexagon",
+                                        "diamond"
+                                      ]
+                                    },
+                                    "glyph": {
+                                      "description": "short monogram rendered on the badge",
+                                      "type": "string",
+                                      "minLength": 1,
+                                      "maxLength": 3
+                                    }
+                                  },
+                                  "required": [
+                                    "shape",
+                                    "glyph"
+                                  ],
+                                  "additionalProperties": false
+                                }
+                              },
+                              "required": [
+                                "id",
+                                "slug",
+                                "name",
+                                "shortName",
+                                "city",
+                                "colors",
+                                "crest"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "season": {
+                          "type": "object",
+                          "properties": {
+                            "slug": {
+                              "type": "string",
+                              "maxLength": 80,
+                              "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+                            },
+                            "name": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "slug",
+                            "name"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "round": {
+                          "type": "integer",
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        "matchId": {
+                          "anyOf": [
+                            {
+                              "description": "UUID primary key",
+                              "type": "string",
+                              "format": "uuid",
+                              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "fixtureId": {
+                          "anyOf": [
+                            {
+                              "description": "UUID primary key",
+                              "type": "string",
+                              "format": "uuid",
+                              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "headline": {
+                          "type": "string"
+                        },
+                        "detail": {
+                          "type": "string"
+                        },
+                        "goals": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "tick": {
+                                "type": "integer",
+                                "minimum": 0,
+                                "maximum": 9007199254740991
+                              },
+                              "period": {
+                                "type": "string",
+                                "enum": [
+                                  "firstHalf",
+                                  "secondHalf"
+                                ]
+                              },
+                              "clockSec": {
+                                "type": "number",
+                                "minimum": 0
+                              },
+                              "score": {
+                                "type": "object",
+                                "properties": {
+                                  "home": {
+                                    "type": "integer",
+                                    "minimum": -9007199254740991,
+                                    "maximum": 9007199254740991
+                                  },
+                                  "away": {
+                                    "type": "integer",
+                                    "minimum": -9007199254740991,
+                                    "maximum": 9007199254740991
+                                  }
+                                },
+                                "required": [
+                                  "home",
+                                  "away"
+                                ],
+                                "additionalProperties": false
+                              }
+                            },
+                            "required": [
+                              "tick",
+                              "period",
+                              "clockSec",
+                              "score"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "replay": {
+                          "type": "boolean"
+                        },
+                        "action": {
+                          "type": "string"
+                        },
+                        "next": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "fixtureId": {
+                                  "description": "UUID primary key",
+                                  "type": "string",
+                                  "format": "uuid",
+                                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                                },
+                                "round": {
+                                  "type": "integer",
+                                  "exclusiveMinimum": 0,
+                                  "maximum": 9007199254740991
+                                },
+                                "venue": {
+                                  "type": "string",
+                                  "enum": [
+                                    "home",
+                                    "away"
+                                  ]
+                                },
+                                "opponent": {
+                                  "type": "object",
+                                  "properties": {
+                                    "id": {
+                                      "description": "UUID primary key",
+                                      "type": "string",
+                                      "format": "uuid",
+                                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                                    },
+                                    "slug": {
+                                      "type": "string",
+                                      "maxLength": 80,
+                                      "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+                                    },
+                                    "name": {
+                                      "type": "string",
+                                      "minLength": 1,
+                                      "maxLength": 60
+                                    },
+                                    "shortName": {
+                                      "type": "string",
+                                      "minLength": 2,
+                                      "maxLength": 4
+                                    },
+                                    "city": {
+                                      "type": "string",
+                                      "maxLength": 60
+                                    },
+                                    "colors": {
+                                      "type": "object",
+                                      "properties": {
+                                        "primary": {
+                                          "type": "string",
+                                          "pattern": "^#[0-9A-Fa-f]{6}$"
+                                        },
+                                        "secondary": {
+                                          "type": "string",
+                                          "pattern": "^#[0-9A-Fa-f]{6}$"
+                                        }
+                                      },
+                                      "required": [
+                                        "primary",
+                                        "secondary"
+                                      ],
+                                      "additionalProperties": false
+                                    },
+                                    "crest": {
+                                      "type": "object",
+                                      "properties": {
+                                        "shape": {
+                                          "type": "string",
+                                          "enum": [
+                                            "shield",
+                                            "circle",
+                                            "hexagon",
+                                            "diamond"
+                                          ]
+                                        },
+                                        "glyph": {
+                                          "description": "short monogram rendered on the badge",
+                                          "type": "string",
+                                          "minLength": 1,
+                                          "maxLength": 3
+                                        }
+                                      },
+                                      "required": [
+                                        "shape",
+                                        "glyph"
+                                      ],
+                                      "additionalProperties": false
+                                    }
+                                  },
+                                  "required": [
+                                    "id",
+                                    "slug",
+                                    "name",
+                                    "shortName",
+                                    "city",
+                                    "colors",
+                                    "crest"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                "scheduledAt": {
+                                  "anyOf": [
+                                    {
+                                      "description": "ISO-8601 timestamp",
+                                      "type": "string",
+                                      "format": "date-time",
+                                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                                    },
+                                    {
+                                      "type": "null"
+                                    }
+                                  ]
+                                }
+                              },
+                              "required": [
+                                "fixtureId",
+                                "round",
+                                "venue",
+                                "opponent",
+                                "scheduledAt"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "kind",
+                        "player",
+                        "team",
+                        "opponent",
+                        "season",
+                        "round",
+                        "matchId",
+                        "fixtureId",
+                        "headline",
+                        "detail",
+                        "goals",
+                        "replay",
+                        "action",
+                        "next"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "teamId",
+                "moment"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "contract",
+          "rule",
+          "lead",
+          "clubs"
+        ],
+        "additionalProperties": false
+      },
+      "PlayerListResponse": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "description": "UUID primary key",
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "shirtNumber": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "position": {
+                  "type": "string",
+                  "enum": [
+                    "GK",
+                    "DF",
+                    "MF",
+                    "FW"
+                  ]
+                },
+                "team": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "description": "UUID primary key",
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    },
+                    "slug": {
+                      "type": "string",
+                      "maxLength": 80,
+                      "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+                    },
+                    "name": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 60
+                    },
+                    "shortName": {
+                      "type": "string",
+                      "minLength": 2,
+                      "maxLength": 4
+                    },
+                    "city": {
+                      "type": "string",
+                      "maxLength": 60
+                    },
+                    "colors": {
+                      "type": "object",
+                      "properties": {
+                        "primary": {
+                          "type": "string",
+                          "pattern": "^#[0-9A-Fa-f]{6}$"
+                        },
+                        "secondary": {
+                          "type": "string",
+                          "pattern": "^#[0-9A-Fa-f]{6}$"
+                        }
+                      },
+                      "required": [
+                        "primary",
+                        "secondary"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "crest": {
+                      "type": "object",
+                      "properties": {
+                        "shape": {
+                          "type": "string",
+                          "enum": [
+                            "shield",
+                            "circle",
+                            "hexagon",
+                            "diamond"
+                          ]
+                        },
+                        "glyph": {
+                          "description": "short monogram rendered on the badge",
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 3
+                        }
+                      },
+                      "required": [
+                        "shape",
+                        "glyph"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "slug",
+                    "name",
+                    "shortName",
+                    "city",
+                    "colors",
+                    "crest"
+                  ],
+                  "additionalProperties": false
+                },
+                "goals": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "starts": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                }
+              },
+              "required": [
+                "id",
+                "name",
+                "shirtNumber",
+                "position",
+                "team",
+                "goals",
+                "starts"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "additionalProperties": false
+      },
+      "PlayerProfileResponse": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "contract": {
+            "type": "string",
+            "const": "player-profile/1"
+          },
+          "team": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "description": "UUID primary key",
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              "slug": {
+                "type": "string",
+                "maxLength": 80,
+                "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+              },
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 60
+              },
+              "shortName": {
+                "type": "string",
+                "minLength": 2,
+                "maxLength": 4
+              },
+              "city": {
+                "type": "string",
+                "maxLength": 60
+              },
+              "colors": {
+                "type": "object",
+                "properties": {
+                  "primary": {
+                    "type": "string",
+                    "pattern": "^#[0-9A-Fa-f]{6}$"
+                  },
+                  "secondary": {
+                    "type": "string",
+                    "pattern": "^#[0-9A-Fa-f]{6}$"
+                  }
+                },
+                "required": [
+                  "primary",
+                  "secondary"
+                ],
+                "additionalProperties": false
+              },
+              "crest": {
+                "type": "object",
+                "properties": {
+                  "shape": {
+                    "type": "string",
+                    "enum": [
+                      "shield",
+                      "circle",
+                      "hexagon",
+                      "diamond"
+                    ]
+                  },
+                  "glyph": {
+                    "description": "short monogram rendered on the badge",
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 3
+                  }
+                },
+                "required": [
+                  "shape",
+                  "glyph"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "id",
+              "slug",
+              "name",
+              "shortName",
+              "city",
+              "colors",
+              "crest"
+            ],
+            "additionalProperties": false
+          },
+          "career": {
+            "type": "object",
+            "properties": {
+              "playerId": {
+                "description": "UUID primary key",
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              "name": {
+                "type": "string"
+              },
+              "shirtNumber": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "position": {
+                "type": "string",
+                "enum": [
+                  "GK",
+                  "DF",
+                  "MF",
+                  "FW"
+                ]
+              },
+              "seasons": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "season": {
+                      "type": "object",
+                      "properties": {
+                        "slug": {
+                          "type": "string",
+                          "maxLength": 80,
+                          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+                        },
+                        "name": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "slug",
+                        "name"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "source": {
+                      "type": "string",
+                      "enum": [
+                        "snapshot",
+                        "baseline"
+                      ]
+                    },
+                    "rule": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "overall": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "attributes": {
+                      "type": "object",
+                      "properties": {
+                        "pace": {
+                          "description": "top speed",
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 99
+                        },
+                        "acceleration": {
+                          "description": "how quickly they reach top speed and stop",
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 99
+                        },
+                        "agility": {
+                          "description": "how sharply they turn",
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 99
+                        },
+                        "stamina": {
+                          "description": "how slowly they tire when sprinting, and how fast they recover",
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 99
+                        },
+                        "control": {
+                          "description": "first touch, close control and shielding",
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 99
+                        },
+                        "passing": {
+                          "description": "accuracy of passes and throws",
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 99
+                        },
+                        "shooting": {
+                          "description": "accuracy of shots",
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 99
+                        },
+                        "power": {
+                          "description": "how hard they can strike the ball",
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 99
+                        },
+                        "tackling": {
+                          "description": "chance of winning a tackle",
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 99
+                        },
+                        "goalkeeping": {
+                          "description": "reach and handling (goalkeepers)",
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 99
+                        }
+                      },
+                      "required": [
+                        "pace",
+                        "acceleration",
+                        "agility",
+                        "stamina",
+                        "control",
+                        "passing",
+                        "shooting",
+                        "power",
+                        "tackling",
+                        "goalkeeping"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "changes": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "attribute": {
+                            "type": "string",
+                            "enum": [
+                              "pace",
+                              "acceleration",
+                              "agility",
+                              "stamina",
+                              "control",
+                              "passing",
+                              "shooting",
+                              "power",
+                              "tackling",
+                              "goalkeeping"
+                            ]
+                          },
+                          "delta": {
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991
+                          },
+                          "reasons": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          }
+                        },
+                        "required": [
+                          "attribute",
+                          "delta",
+                          "reasons"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "teamMatches": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "starts": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "goals": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "required": [
+                    "season",
+                    "source",
+                    "rule",
+                    "overall",
+                    "attributes",
+                    "changes",
+                    "teamMatches",
+                    "starts",
+                    "goals"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "form": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "matchId": {
+                      "description": "UUID primary key",
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    },
+                    "round": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "started": {
+                      "type": "boolean"
+                    },
+                    "goals": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "required": [
+                    "matchId",
+                    "round",
+                    "started",
+                    "goals"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            },
+            "required": [
+              "playerId",
+              "name",
+              "shirtNumber",
+              "position",
+              "seasons",
+              "form"
+            ],
+            "additionalProperties": false
+          },
+          "allTime": {
+            "type": "object",
+            "properties": {
+              "goals": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "starts": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "rank": {
+                "anyOf": [
+                  {
+                    "type": "integer",
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "goals",
+              "starts",
+              "rank"
+            ],
+            "additionalProperties": false
+          },
+          "distinctions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "recent": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "hat_trick",
+                      "brace",
+                      "winner",
+                      "equaliser",
+                      "goal",
+                      "quiet"
+                    ]
+                  },
+                  "player": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "description": "UUID primary key",
+                        "type": "string",
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                      },
+                      "name": {
+                        "type": "string"
+                      },
+                      "shirtNumber": {
+                        "type": "integer",
+                        "minimum": -9007199254740991,
+                        "maximum": 9007199254740991
+                      },
+                      "position": {
+                        "type": "string",
+                        "enum": [
+                          "GK",
+                          "DF",
+                          "MF",
+                          "FW"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "name",
+                      "shirtNumber",
+                      "position"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "team": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "description": "UUID primary key",
+                        "type": "string",
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                      },
+                      "slug": {
+                        "type": "string",
+                        "maxLength": 80,
+                        "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+                      },
+                      "name": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 60
+                      },
+                      "shortName": {
+                        "type": "string",
+                        "minLength": 2,
+                        "maxLength": 4
+                      },
+                      "city": {
+                        "type": "string",
+                        "maxLength": 60
+                      },
+                      "colors": {
+                        "type": "object",
+                        "properties": {
+                          "primary": {
+                            "type": "string",
+                            "pattern": "^#[0-9A-Fa-f]{6}$"
+                          },
+                          "secondary": {
+                            "type": "string",
+                            "pattern": "^#[0-9A-Fa-f]{6}$"
+                          }
+                        },
+                        "required": [
+                          "primary",
+                          "secondary"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "crest": {
+                        "type": "object",
+                        "properties": {
+                          "shape": {
+                            "type": "string",
+                            "enum": [
+                              "shield",
+                              "circle",
+                              "hexagon",
+                              "diamond"
+                            ]
+                          },
+                          "glyph": {
+                            "description": "short monogram rendered on the badge",
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 3
+                          }
+                        },
+                        "required": [
+                          "shape",
+                          "glyph"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "slug",
+                      "name",
+                      "shortName",
+                      "city",
+                      "colors",
+                      "crest"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "opponent": {
+                    "anyOf": [
+                      {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "description": "UUID primary key",
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                          },
+                          "slug": {
+                            "type": "string",
+                            "maxLength": 80,
+                            "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+                          },
+                          "name": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 60
+                          },
+                          "shortName": {
+                            "type": "string",
+                            "minLength": 2,
+                            "maxLength": 4
+                          },
+                          "city": {
+                            "type": "string",
+                            "maxLength": 60
+                          },
+                          "colors": {
+                            "type": "object",
+                            "properties": {
+                              "primary": {
+                                "type": "string",
+                                "pattern": "^#[0-9A-Fa-f]{6}$"
+                              },
+                              "secondary": {
+                                "type": "string",
+                                "pattern": "^#[0-9A-Fa-f]{6}$"
+                              }
+                            },
+                            "required": [
+                              "primary",
+                              "secondary"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "crest": {
+                            "type": "object",
+                            "properties": {
+                              "shape": {
+                                "type": "string",
+                                "enum": [
+                                  "shield",
+                                  "circle",
+                                  "hexagon",
+                                  "diamond"
+                                ]
+                              },
+                              "glyph": {
+                                "description": "short monogram rendered on the badge",
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 3
+                              }
+                            },
+                            "required": [
+                              "shape",
+                              "glyph"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "slug",
+                          "name",
+                          "shortName",
+                          "city",
+                          "colors",
+                          "crest"
+                        ],
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "season": {
+                    "type": "object",
+                    "properties": {
+                      "slug": {
+                        "type": "string",
+                        "maxLength": 80,
+                        "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+                      },
+                      "name": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "slug",
+                      "name"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "round": {
+                    "type": "integer",
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "matchId": {
+                    "anyOf": [
+                      {
+                        "description": "UUID primary key",
+                        "type": "string",
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "fixtureId": {
+                    "anyOf": [
+                      {
+                        "description": "UUID primary key",
+                        "type": "string",
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "headline": {
+                    "type": "string"
+                  },
+                  "detail": {
+                    "type": "string"
+                  },
+                  "goals": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "tick": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        "period": {
+                          "type": "string",
+                          "enum": [
+                            "firstHalf",
+                            "secondHalf"
+                          ]
+                        },
+                        "clockSec": {
+                          "type": "number",
+                          "minimum": 0
+                        },
+                        "score": {
+                          "type": "object",
+                          "properties": {
+                            "home": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            "away": {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            }
+                          },
+                          "required": [
+                            "home",
+                            "away"
+                          ],
+                          "additionalProperties": false
+                        }
+                      },
+                      "required": [
+                        "tick",
+                        "period",
+                        "clockSec",
+                        "score"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "replay": {
+                    "type": "boolean"
+                  },
+                  "action": {
+                    "type": "string"
+                  },
+                  "next": {
+                    "anyOf": [
+                      {
+                        "type": "object",
+                        "properties": {
+                          "fixtureId": {
+                            "description": "UUID primary key",
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                          },
+                          "round": {
+                            "type": "integer",
+                            "exclusiveMinimum": 0,
+                            "maximum": 9007199254740991
+                          },
+                          "venue": {
+                            "type": "string",
+                            "enum": [
+                              "home",
+                              "away"
+                            ]
+                          },
+                          "opponent": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "description": "UUID primary key",
+                                "type": "string",
+                                "format": "uuid",
+                                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                              },
+                              "slug": {
+                                "type": "string",
+                                "maxLength": 80,
+                                "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+                              },
+                              "name": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 60
+                              },
+                              "shortName": {
+                                "type": "string",
+                                "minLength": 2,
+                                "maxLength": 4
+                              },
+                              "city": {
+                                "type": "string",
+                                "maxLength": 60
+                              },
+                              "colors": {
+                                "type": "object",
+                                "properties": {
+                                  "primary": {
+                                    "type": "string",
+                                    "pattern": "^#[0-9A-Fa-f]{6}$"
+                                  },
+                                  "secondary": {
+                                    "type": "string",
+                                    "pattern": "^#[0-9A-Fa-f]{6}$"
+                                  }
+                                },
+                                "required": [
+                                  "primary",
+                                  "secondary"
+                                ],
+                                "additionalProperties": false
+                              },
+                              "crest": {
+                                "type": "object",
+                                "properties": {
+                                  "shape": {
+                                    "type": "string",
+                                    "enum": [
+                                      "shield",
+                                      "circle",
+                                      "hexagon",
+                                      "diamond"
+                                    ]
+                                  },
+                                  "glyph": {
+                                    "description": "short monogram rendered on the badge",
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 3
+                                  }
+                                },
+                                "required": [
+                                  "shape",
+                                  "glyph"
+                                ],
+                                "additionalProperties": false
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "slug",
+                              "name",
+                              "shortName",
+                              "city",
+                              "colors",
+                              "crest"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "scheduledAt": {
+                            "anyOf": [
+                              {
+                                "description": "ISO-8601 timestamp",
+                                "type": "string",
+                                "format": "date-time",
+                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          }
+                        },
+                        "required": [
+                          "fixtureId",
+                          "round",
+                          "venue",
+                          "opponent",
+                          "scheduledAt"
+                        ],
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "kind",
+                  "player",
+                  "team",
+                  "opponent",
+                  "season",
+                  "round",
+                  "matchId",
+                  "fixtureId",
+                  "headline",
+                  "detail",
+                  "goals",
+                  "replay",
+                  "action",
+                  "next"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "next": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "fixtureId": {
+                    "description": "UUID primary key",
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  "round": {
+                    "type": "integer",
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "venue": {
+                    "type": "string",
+                    "enum": [
+                      "home",
+                      "away"
+                    ]
+                  },
+                  "opponent": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "description": "UUID primary key",
+                        "type": "string",
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                      },
+                      "slug": {
+                        "type": "string",
+                        "maxLength": 80,
+                        "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+                      },
+                      "name": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 60
+                      },
+                      "shortName": {
+                        "type": "string",
+                        "minLength": 2,
+                        "maxLength": 4
+                      },
+                      "city": {
+                        "type": "string",
+                        "maxLength": 60
+                      },
+                      "colors": {
+                        "type": "object",
+                        "properties": {
+                          "primary": {
+                            "type": "string",
+                            "pattern": "^#[0-9A-Fa-f]{6}$"
+                          },
+                          "secondary": {
+                            "type": "string",
+                            "pattern": "^#[0-9A-Fa-f]{6}$"
+                          }
+                        },
+                        "required": [
+                          "primary",
+                          "secondary"
+                        ],
+                        "additionalProperties": false
+                      },
+                      "crest": {
+                        "type": "object",
+                        "properties": {
+                          "shape": {
+                            "type": "string",
+                            "enum": [
+                              "shield",
+                              "circle",
+                              "hexagon",
+                              "diamond"
+                            ]
+                          },
+                          "glyph": {
+                            "description": "short monogram rendered on the badge",
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 3
+                          }
+                        },
+                        "required": [
+                          "shape",
+                          "glyph"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "slug",
+                      "name",
+                      "shortName",
+                      "city",
+                      "colors",
+                      "crest"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "scheduledAt": {
+                    "anyOf": [
+                      {
+                        "description": "ISO-8601 timestamp",
+                        "type": "string",
+                        "format": "date-time",
+                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "fixtureId",
+                  "round",
+                  "venue",
+                  "opponent",
+                  "scheduledAt"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "contract",
+          "team",
+          "career",
+          "allTime",
+          "distinctions",
+          "recent",
+          "next"
         ],
         "additionalProperties": false
       },
