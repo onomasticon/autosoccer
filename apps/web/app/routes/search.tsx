@@ -1,4 +1,10 @@
-import type { ArticleListResponse, JournalistListResponse, SeasonResponse } from "@autosoccer/contracts";
+import {
+  type ArticleListResponse,
+  type JournalistListResponse,
+  type PlayerListResponse,
+  playerHref,
+  type SeasonResponse,
+} from "@autosoccer/contracts";
 import { Form, Link } from "react-router";
 import { AgentProfileCard } from "../components/AgentProfileCard";
 import { ArticleCard } from "../components/ArticleCard";
@@ -15,14 +21,16 @@ import type { Route } from "./+types/search";
 export async function loader({ request }: Route.LoaderArgs) {
   const q = (new URL(request.url).searchParams.get("q") ?? "").trim().slice(0, 100);
   if (!q) return { q, results: null };
-  const [season, articles, journalists] = await Promise.all([
+  const [season, articles, journalists, players] = await Promise.all([
     apiOptional<SeasonResponse>("/api/v1/seasons/current"),
     apiMaybe<ArticleListResponse>("/api/v1/articles?limit=50"),
     apiMaybe<JournalistListResponse>("/api/v1/journalists"),
+    apiMaybe<PlayerListResponse>("/api/v1/players"),
   ]);
   return {
     q,
     results: searchLeague(q, {
+      players: players?.items ?? [],
       teams: season?.teams ?? [],
       articles: articles?.items ?? [],
       journalists: journalists?.items ?? [],
@@ -37,7 +45,9 @@ export const meta: Route.MetaFunction = ({ data }) => seo(data?.q ? `Search: ${d
 
 export default function Search({ loaderData }: Route.ComponentProps) {
   const { q, results } = loaderData;
-  const total = results ? results.teams.length + results.articles.length + results.journalists.length : 0;
+  const total = results
+    ? results.players.length + results.teams.length + results.articles.length + results.journalists.length
+    : 0;
   return (
     <div className="space-y-8">
       <SectionHeader as="h1" banner eyebrow="Teams, stories, personalities" title="Search" />
@@ -50,7 +60,7 @@ export default function Search({ loaderData }: Route.ComponentProps) {
           name="q"
           type="search"
           defaultValue={q}
-          placeholder="Try “Rovers”, “high press” or “Nia”"
+          placeholder="Try a player, “Rovers” or “high press”"
           className="min-w-0 flex-1 rounded-xl border border-line bg-surface px-4 py-3 text-lg shadow-[var(--shadow-card)]"
         />
         <button type="submit" className="parallelogram grad-violet font-semi text-lg font-bold uppercase text-white">
@@ -60,13 +70,38 @@ export default function Search({ loaderData }: Route.ComponentProps) {
       {results &&
         (total === 0 ? (
           <EmptyState title={`Nothing found for “${q}”`}>
-            Search covers club names, story headlines and the league's journalists.
+            Search covers players, club names, story headlines and the league's journalists.
           </EmptyState>
         ) : (
           <p className="text-sm text-muted-text" role="status">
             {total} result{total === 1 ? "" : "s"} for “{q}”
           </p>
         ))}
+      {results && results.players.length > 0 && (
+        <section aria-labelledby="r-players">
+          <SectionHeader id="r-players" title="Players" />
+          <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {results.players.map((p) => (
+              <li key={p.id} className="card-surface flex items-center gap-3 p-4">
+                <span className="tabular inline-flex size-10 shrink-0 items-center justify-center rounded-full bg-canvas font-display text-xl font-extrabold">
+                  {p.shirtNumber}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <Link to={playerHref(p)} className="block font-semi text-xl font-bold hover:underline">
+                    {p.name}
+                  </Link>
+                  <span className="text-sm text-muted-text">
+                    {p.goals} goal{p.goals === 1 ? "" : "s"} in {p.starts} start{p.starts === 1 ? "" : "s"} ·{" "}
+                    <Link to={`/teams/${p.team.slug}`} className="underline-offset-4 hover:underline">
+                      {p.team.name}
+                    </Link>
+                  </span>
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
       {results && results.teams.length > 0 && (
         <section aria-labelledby="r-teams">
           <SectionHeader id="r-teams" title="Teams" />

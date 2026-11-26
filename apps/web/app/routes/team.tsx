@@ -1,13 +1,15 @@
-import type {
-  ArticleListResponse,
-  BudgetResponse,
-  ManagerProfile,
-  PlayerCareersResponse,
-  Position,
-  SeasonResponse,
-  TeamDetailResponse,
-  TeamDugoutResponse,
+import {
+  type ArticleListResponse,
+  type BudgetResponse,
+  type ManagerProfile,
+  type PlayerCareersResponse,
+  type Position,
+  playerHref,
+  type SeasonResponse,
+  type TeamDetailResponse,
+  type TeamDugoutResponse,
 } from "@autosoccer/contracts";
+import { Link } from "react-router";
 import { AgentProfileCard } from "../components/AgentProfileCard";
 import { ArticleCard } from "../components/ArticleCard";
 import { BudgetMeter } from "../components/BudgetMeter";
@@ -268,6 +270,12 @@ export default function Team({ loaderData }: Route.ComponentProps) {
                       </svg>
                     </summary>
                     <div className="border-t border-line bg-panel px-4 py-3">
+                      <Link
+                        to={playerHref(p)}
+                        className="mb-3 inline-block text-sm font-semibold text-violet-deep underline-offset-4 hover:underline"
+                      >
+                        {p.name}'s career page <span aria-hidden>→</span>
+                      </Link>
                       <PlayerRatings player={p} />
                       {careers.find((c) => c.playerId === p.id) && (
                         <PlayerCareer career={careers.find((c) => c.playerId === p.id)!} />

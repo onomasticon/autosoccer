@@ -1,6 +1,17 @@
 import type { OfficialEvent } from "@autosoccer/contracts";
 import { describe, expect, it } from "vitest";
-import { buildHighlights, CATCH_MIN_SPEED, reelNext } from "./highlights";
+import { buildHighlights, CATCH_MIN_SPEED, clipReel, reelNext } from "./highlights";
+
+describe("clipReel", () => {
+  it("windows each goal with build-up, merges close goals and drops out-of-match ticks", () => {
+    const r = clipReel([600, 9_999_999, 3000, 3300], { finalTick: 10_000, tickRate: 60 });
+    expect(r).toEqual([
+      { start: 180, end: 780 },
+      { start: 2580, end: 3480 },
+    ]);
+    expect(clipReel([], { finalTick: 10, tickRate: 60 })).toEqual([]);
+  });
+});
 
 const R = 60;
 const period = (tick: number, type: "periodStart" | "periodEnd", p: "firstHalf" | "secondHalf"): OfficialEvent => ({

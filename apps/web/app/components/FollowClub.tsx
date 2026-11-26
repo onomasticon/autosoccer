@@ -2,12 +2,21 @@
  * Follow a club (stored on this device only) and the homepage "Your Club" module.
  * Server render and hydration show the neutral state; the followed club appears after hydration.
  */
-import type { ArticleCardView, FixtureStory, FixtureView, ManagerStory, Team } from "@autosoccer/contracts";
+import {
+  type ArticleCardView,
+  type FixtureStory,
+  type FixtureView,
+  type ManagerStory,
+  playerHref,
+  type Spotlight,
+  type Team,
+} from "@autosoccer/contracts";
 import { useEffect, useId, useState } from "react";
 import { Link } from "react-router";
 import { useFollowedClub } from "../lib/follow";
 import { type CatchUp, catchUp, nextSeen, readSeen, resultLine, untilKickoff, writeSeen } from "../lib/lastSeen";
 import { kickoffUtc, matchdayHref, nextMatchStatus } from "../lib/matchday";
+import { spotlightHref } from "../lib/spotlight";
 import { ArticleCard } from "./ArticleCard";
 import { DECISION_TEXT, ProvenanceChip } from "./Dugout";
 import { FixtureCard } from "./MatchScoreCard";
@@ -55,12 +64,36 @@ function ClubPicker({
   current,
   onPick,
   label,
+  reasons,
 }: {
   teams: Team[];
   current: string | null;
   onPick: (slug: string) => void;
   label: string;
+  /** A short reason to pick each club (by team id): shown as a card per club. */
+  reasons?: Record<string, string>;
 }) {
+  if (reasons && teams.some((t) => reasons[t.id]))
+    return (
+      <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4" aria-label={label} data-testid="club-choices">
+        {teams.map((t) => (
+          <li key={t.id}>
+            <button
+              type="button"
+              aria-pressed={t.slug === current}
+              className="flex size-full min-h-16 items-start gap-3 rounded-xl border border-line bg-surface p-3 text-left hover:border-violet focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet aria-pressed:border-violet aria-pressed:bg-lavender"
+              onClick={() => onPick(t.slug)}
+            >
+              <TeamBadge team={t} size="md" decorative />
+              <span className="min-w-0">
+                <span className="block font-semi text-lg font-bold leading-tight">{t.name}</span>
+                {reasons[t.id] && <span className="block text-sm text-muted-text">{reasons[t.id]}</span>}
+              </span>
+            </button>
+          </li>
+        ))}
+      </ul>
+    );
   return (
     <ul className="flex flex-wrap gap-2" aria-label={label}>
       {teams.map((t) => (
@@ -91,6 +124,8 @@ export function YourClub({
   articles,
   season = "",
   nextStories = {},
+  reasons,
+  moments = {},
 }: {
   teams: Team[];
   fixtures: FixtureView[];
@@ -100,6 +135,10 @@ export function YourClub({
   season?: string;
   /** Fixture stories for the next round, by fixture id. */
   nextStories?: Record<string, FixtureStory>;
+  /** A short reason to pick each club, by team id (new visitors). */
+  reasons?: Record<string, string>;
+  /** Each club's latest meaningful moment (spotlight/1), by team id. */
+  moments?: Record<string, Spotlight | null>;
 }) {
   const { slug, known, follow, unfollow } = useFollowedClub();
   const [picking, setPicking] = useState(false);
@@ -125,14 +164,16 @@ export function YourClub({
       <section aria-labelledby={headingId} className="card-surface flex flex-wrap items-center gap-x-4 gap-y-3 p-4">
         <div className="min-w-0 flex-1">
           <h2 id={headingId} className="font-semi text-lg font-extrabold">
-            Follow a club
+            {reasons ? "Pick a side" : "Follow a club"}
           </h2>
           <p className="text-sm text-muted-text">
-            Get its last result, next match and its AI manager's latest thinking here. Saved on this device only, no
+            Get its latest moment, next match and its AI manager's latest thinking here. Saved on this device only, no
             account needed.
           </p>
         </div>
-        <ClubPicker teams={teams} current={null} onPick={pick} label="Choose a club to follow" />
+        <div className={reasons ? "w-full" : ""}>
+          <ClubPicker teams={teams} current={null} onPick={pick} label="Choose a club to follow" reasons={reasons} />
+        </div>
       </section>
     );
 
@@ -167,6 +208,7 @@ export function YourClub({
     .filter((l) => l.kind !== "fixture" && l.kind !== "tactics")
     .slice(0, 2);
   const countdown = next && now !== null ? untilKickoff(next.scheduledAt, now) : null;
+  const moment = moments[team.id] ?? null;
 
   return (
     <Panel
@@ -204,6 +246,26 @@ export function YourClub({
           A new season has started since your last visit. {team.name} start again from zero.
         </p>
       )}
+      {moment && (
+        <div className="mb-4 rounded-xl border border-line bg-panel p-3 text-sm" data-testid="club-moment">
+          <h3 className="text-xs font-bold uppercase tracking-wider text-muted-text">
+            Latest moment · {moment.season.name}, round {moment.round}
+          </h3>
+          <p className="mt-1 font-semibold">{moment.headline}</p>
+          <p className="text-muted-text">{moment.detail}</p>
+          <p className="mt-1 flex flex-wrap gap-x-4">
+            <Link
+              to={spotlightHref(moment)}
+              className="font-semibold text-violet-deep underline-offset-4 hover:underline"
+            >
+              {moment.action} <span aria-hidden>→</span>
+            </Link>
+            <Link to={playerHref(moment.player)} className="font-semibold underline-offset-4 hover:underline">
+              {moment.player.name}'s career
+            </Link>
+          </p>
+        </div>
+      )}
       <div className="grid gap-5 lg:grid-cols-3">
         <div className="space-y-2">
           <h3 className="text-xs font-bold uppercase tracking-wider text-muted-text">Next match</h3>
@@ -221,11 +283,14 @@ export function YourClub({
                 {countdown && <span className="text-muted-text"> ({countdown})</span>}
               </p>
               {stakes.length > 0 && (
-                <ul className="space-y-1 text-sm">
-                  {stakes.map((l) => (
-                    <li key={l.text}>{l.text}</li>
-                  ))}
-                </ul>
+                <div className="text-sm" data-testid="sporting-question">
+                  <p className="text-xs font-bold uppercase tracking-wider text-muted-text">What's at stake</p>
+                  <ul className="space-y-1">
+                    {stakes.map((l) => (
+                      <li key={l.text}>{l.text}</li>
+                    ))}
+                  </ul>
+                </div>
               )}
               <Link
                 to={matchdayHref(next.id)}

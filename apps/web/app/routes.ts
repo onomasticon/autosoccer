@@ -7,6 +7,7 @@ export default [
   route("history", "routes/history.tsx"),
   route("teams", "routes/teams.tsx"),
   route("teams/:slug", "routes/team.tsx"),
+  route("players/:id/:name?", "routes/player.tsx"),
   route("matches/:id", "routes/match.tsx"),
   route("matchday/:fixtureId", "routes/matchday.tsx"),
   route("matches/:id/replay.json.gz", "routes/replay.ts"),

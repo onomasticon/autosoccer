@@ -6,9 +6,11 @@ import type {
   FixtureView,
   JournalistListResponse,
   MatchDetailResponse,
+  ScorersResponse,
   SeasonListResponse,
   SeasonResponse,
   SeasonSummary,
+  SpotlightResponse,
   StandingsResponse,
 } from "@autosoccer/contracts";
 import { Link } from "react-router";
@@ -20,6 +22,7 @@ import { YourClub } from "../components/FollowClub";
 import { LeadStory } from "../components/LeadStory";
 import { FixtureRow } from "../components/MatchScoreCard";
 import { MatchViewer } from "../components/match-viewer/MatchViewer";
+import { PlayerSpotlight } from "../components/PlayerSpotlight";
 import { RouteError } from "../components/RouteError";
 import { Panel, SectionHeader } from "../components/SectionHeader";
 import { StandingsTable } from "../components/StandingsTable";
@@ -28,6 +31,7 @@ import { TitleRaceLine } from "../components/TitleRace";
 import { apiMaybe, apiOptional } from "../lib/api.server";
 import { formatDate } from "../lib/format";
 import { seo } from "../lib/seo";
+import { clubReasons, focusFor } from "../lib/spotlight";
 import type { Route } from "./+types/home";
 
 export const meta: Route.MetaFunction = () => seo(null);
@@ -48,14 +52,19 @@ export async function loader() {
       fixtures: [],
       previous: null,
       nextStories: {},
+      spotlight: null,
+      reasons: {},
     };
   const slug = current.season.slug;
-  const [standings, fixtures, articles, journalists, dugout] = await Promise.all([
+  const [standings, fixtures, articles, journalists, dugout, spotlight, seasons, allTime] = await Promise.all([
     apiMaybe<StandingsResponse>(`/api/v1/seasons/${slug}/standings`),
     apiMaybe<FixturesResponse>(`/api/v1/seasons/${slug}/fixtures`),
     apiMaybe<ArticleListResponse>("/api/v1/articles?limit=8"),
     apiMaybe<JournalistListResponse>("/api/v1/journalists"),
     apiMaybe<DugoutResponse>(`/api/v1/seasons/${slug}/dugout`),
+    apiMaybe<SpotlightResponse>("/api/v1/spotlight"),
+    apiMaybe<SeasonListResponse>("/api/v1/seasons"),
+    apiMaybe<ScorersResponse>("/api/v1/scorers"),
   ]);
   const all: FixtureView[] = fixtures?.rounds.flatMap((r) => r.fixtures) ?? [];
   const completed = all.filter((f) => f.status === "completed" && f.matchId);
@@ -66,8 +75,7 @@ export async function loader() {
   let previous: SeasonSummary | null = null;
   let latest = completed.at(-1);
   if (!latest) {
-    const history = await apiMaybe<SeasonListResponse>("/api/v1/seasons");
-    previous = history?.items.find((s) => s.season.status === "completed" && s.season.slug !== slug) ?? null;
+    previous = seasons?.items.find((s) => s.season.status === "completed" && s.season.slug !== slug) ?? null;
     if (previous) {
       const prev = await apiMaybe<FixturesResponse>(`/api/v1/seasons/${previous.season.slug}/fixtures`);
       latest = prev?.rounds
@@ -76,7 +84,11 @@ export async function loader() {
         .at(-1);
     }
   }
-  const featured = latest?.matchId ? await apiMaybe<MatchDetailResponse>(`/api/v1/matches/${latest.matchId}`) : null;
+  // The featured replay is the spotlight's match when it has one (so the lead and the pitch agree),
+  // else the latest result.
+  const lead = spotlight?.lead ?? null;
+  const featuredId = lead?.matchId && lead.replay ? lead.matchId : latest?.matchId;
+  const featured = featuredId ? await apiMaybe<MatchDetailResponse>(`/api/v1/matches/${featuredId}`) : null;
   // Stakes for the next round (each club plays once a round), for Your Club. Shared data only: the
   // followed club is picked in the browser, so this page stays the same for every visitor.
   const nextRound = Math.min(...all.filter((f) => f.status !== "completed").map((f) => f.round));
@@ -98,6 +110,14 @@ export async function loader() {
     fixtures: all,
     previous,
     nextStories,
+    spotlight,
+    reasons: clubReasons({
+      teams: current.teams,
+      seasons: seasons?.items ?? [],
+      allTimeScorers: allTime?.items ?? [],
+      standings: standings?.rows ?? null,
+      lead,
+    }),
   };
 }
 
@@ -171,6 +191,8 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     fixtures,
     previous,
     nextStories,
+    spotlight,
+    reasons,
   } = loaderData;
   if (!season)
     return (
@@ -183,9 +205,53 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     articles.find((a) => featured && a.matchId === featured.match.id && a.kind === "match_report") ?? articles[0];
   const stories = articles.filter((a) => a !== lead).slice(0, 3);
   const schedule = upcoming.length ? upcoming : results;
+  const spot = spotlight?.lead ?? null;
+  const focus = spot && featured && spot.matchId === featured.match.id ? focusFor(featured, spot.player.id) : null;
+  const moments = Object.fromEntries((spotlight?.clubs ?? []).map((c) => [c.teamId, c.moment]));
+  const replay = featured?.replay ? (
+    <section aria-labelledby="featured-replay" className="flex flex-col" id="replay">
+      <h2 id="featured-replay" className="sr-only">
+        Replay: {featured.fixture.home.name} {featured.match.homeScore}–{featured.match.awayScore}{" "}
+        {featured.fixture.away.name}
+      </h2>
+      <MatchViewer
+        replayUrl={`/matches/${featured.match.id}/replay.json.gz`}
+        home={featured.fixture.home}
+        away={featured.fixture.away}
+        events={featured.events}
+        playerNames={new Map([...featured.lineups.home, ...featured.lineups.away].map((p) => [p.id, p.name]))}
+        lineups={featured.lineups}
+        focus={focus ?? undefined}
+        compact
+      />
+      <Link
+        to={`/matches/${featured.match.id}`}
+        className="mt-1 self-end text-sm font-semibold underline-offset-4 hover:underline"
+      >
+        {previous && featured.fixture.round === previous.rounds
+          ? `${previous.season.name}, last match`
+          : `Matchweek ${pad2(featured.fixture.round)}`}{" "}
+        match centre <span aria-hidden>→</span>
+      </Link>
+    </section>
+  ) : spot ? (
+    <EmptyState title="No replay for this one">
+      {spot.matchId
+        ? "This match has no stored replay, so there's no clip to play. The match record has every goal."
+        : "No goals in the latest round, so there's no clip to play. The next match is one tap away."}
+    </EmptyState>
+  ) : (
+    <EmptyState title="No replay yet">The latest match replay appears here after the first result.</EmptyState>
+  );
   return (
     <div className="space-y-6">
       <h1 className="sr-only">Auto Soccer — {season.name}</h1>
+      {spot && (
+        <div className="grid items-stretch gap-6 lg:grid-cols-2">
+          <PlayerSpotlight lead={spot} />
+          {replay}
+        </div>
+      )}
       <YourClub
         teams={teams}
         fixtures={fixtures}
@@ -193,9 +259,11 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         articles={articles}
         season={season.slug}
         nextStories={nextStories}
+        reasons={reasons}
+        moments={moments}
       />
       {!previous && <FeaturedMatchday fixtures={fixtures} />}
-      <div className="grid items-stretch gap-6 lg:grid-cols-2">
+      <div className={`grid items-stretch gap-6 ${spot ? "" : "lg:grid-cols-2"}`}>
         {previous ? (
           <OffSeasonCard previous={previous} next={season.name} firstKickoff={upcoming[0]?.scheduledAt ?? null} />
         ) : lead ? (
@@ -206,31 +274,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
             <p className="text-muted-text">AI journalists file reports from the official record after each match.</p>
           </div>
         )}
-        {featured?.replay ? (
-          <section aria-labelledby="featured-replay" className="flex flex-col">
-            <h2 id="featured-replay" className="sr-only">
-              Replay: {featured.fixture.home.name} {featured.match.homeScore}–{featured.match.awayScore}{" "}
-              {featured.fixture.away.name}
-            </h2>
-            <MatchViewer
-              replayUrl={`/matches/${featured.match.id}/replay.json.gz`}
-              home={featured.fixture.home}
-              away={featured.fixture.away}
-              events={featured.events}
-              playerNames={new Map([...featured.lineups.home, ...featured.lineups.away].map((p) => [p.id, p.name]))}
-              compact
-            />
-            <Link
-              to={`/matches/${featured.match.id}`}
-              className="mt-1 self-end text-sm font-semibold underline-offset-4 hover:underline"
-            >
-              {previous ? `${previous.season.name}, last match` : `Matchweek ${pad2(featured.fixture.round)}`} match
-              centre <span aria-hidden>→</span>
-            </Link>
-          </section>
-        ) : (
-          <EmptyState title="No replay yet">The latest match replay appears here after the first result.</EmptyState>
-        )}
+        {!spot && replay}
       </div>
 
       {dugout ? (

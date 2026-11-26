@@ -1,10 +1,11 @@
-import type {
-  ArticleListResponse,
-  FixtureStory,
-  MatchDetailResponse,
-  OfficialEvent,
-  Player,
-  TeamMatchStats,
+import {
+  type ArticleListResponse,
+  type FixtureStory,
+  type MatchDetailResponse,
+  type OfficialEvent,
+  type Player,
+  playerHref,
+  type TeamMatchStats,
 } from "@autosoccer/contracts";
 import { useState } from "react";
 import { Link } from "react-router";
@@ -19,16 +20,18 @@ import { TeamBadge } from "../components/TeamBadge";
 import { apiMaybe, apiOr404 } from "../lib/api.server";
 import { formatClock, formatDate } from "../lib/format";
 import { seo } from "../lib/seo";
+import { focusFor } from "../lib/spotlight";
 import { describeDeployment } from "../lib/tactics";
 import type { Route } from "./+types/match";
 
-export async function loader({ params }: Route.LoaderArgs) {
+export async function loader({ params, request }: Route.LoaderArgs) {
+  const clip = new URL(request.url).searchParams.get("clip");
   const detail = await apiOr404<MatchDetailResponse>(`/api/v1/matches/${encodeURIComponent(params.id)}`);
   const reports = await apiMaybe<ArticleListResponse>(
     `/api/v1/articles?match=${encodeURIComponent(params.id)}&limit=3`,
   );
   const story = await apiMaybe<FixtureStory>(`/api/v1/fixtures/${encodeURIComponent(detail.fixture.id)}/story`);
-  return { ...detail, reports: reports?.items ?? [], story };
+  return { ...detail, reports: reports?.items ?? [], story, clip: clip && /^[0-9a-f-]{36}$/i.test(clip) ? clip : null };
 }
 
 export const meta: Route.MetaFunction = ({ data }) => {
@@ -211,7 +214,9 @@ function Lineup({ players, title }: { players: Player[]; title: string }) {
         {players.map((p) => (
           <li key={p.id} className="flex gap-2">
             <span className="tabular w-6 text-right font-bold">{p.shirtNumber}</span>
-            <span className="flex-1">{p.name}</span>
+            <Link to={playerHref(p)} className="flex-1 underline-offset-4 hover:underline">
+              {p.name}
+            </Link>
             <span className="text-muted-text">{p.position}</span>
           </li>
         ))}
@@ -221,7 +226,9 @@ function Lineup({ players, title }: { players: Player[]; title: string }) {
 }
 
 export default function MatchCentre({ loaderData }: Route.ComponentProps) {
-  const { match, fixture, events, stats, lineups, replay, revisions, reports, story } = loaderData;
+  const { match, fixture, events, stats, lineups, replay, revisions, reports, story, clip } = loaderData;
+  // ?clip=<player id>: their goals, with build-up, played straight away (the homepage lead's action).
+  const focus = clip ? focusFor({ events, lineups }, clip, { autoplay: true }) : null;
   const names = new Map([...lineups.home, ...lineups.away].map((p) => [p.id, p.name]));
   const done = match.status === "completed";
   const tactics = (r: (typeof revisions)["home"]) =>
@@ -296,14 +303,17 @@ export default function MatchCentre({ loaderData }: Route.ComponentProps) {
       <div className="grid gap-8 lg:grid-cols-12">
         <div className="space-y-8 lg:col-span-8">
           {replay ? (
-            <MatchViewer
-              replayUrl={`/matches/${match.id}/replay.json.gz`}
-              home={fixture.home}
-              away={fixture.away}
-              events={events}
-              playerNames={names}
-              lineups={lineups}
-            />
+            <div id="replay" className="scroll-mt-24">
+              <MatchViewer
+                replayUrl={`/matches/${match.id}/replay.json.gz`}
+                home={fixture.home}
+                away={fixture.away}
+                events={events}
+                playerNames={names}
+                lineups={lineups}
+                focus={focus ?? undefined}
+              />
+            </div>
           ) : (
             <EmptyState title={done ? "Replay unavailable" : "Not played yet"}>
               {done ? "This match has no stored replay." : "The replay appears here once the match has been simulated."}
