@@ -242,10 +242,10 @@ async function articleRef(
   const rows =
     where.kind === "preview"
       ? await db<StoryArticle[]>`
-          select slug, kind, headline from articles where fixture_id = ${where.fixtureId} and kind = 'preview' and status = 'published'
+          select slug, kind, headline from articles where fixture_id = ${where.fixtureId} and kind = 'preview' and status = 'published' and published_at <= now()
           order by published_at limit 1`
       : await db<StoryArticle[]>`
-          select slug, kind, headline from articles where match_id = ${where.matchId} and kind = 'match_report' and status = 'published'
+          select slug, kind, headline from articles where match_id = ${where.matchId} and kind = 'match_report' and status = 'published' and published_at <= now()
           order by published_at limit 1`;
   return rows[0] ?? null;
 }

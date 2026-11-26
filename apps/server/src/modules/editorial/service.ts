@@ -1,4 +1,4 @@
-import type { EditorialFacts } from "@autosoccer/contracts";
+import type { EditorialFacts, NewsTopic } from "@autosoccer/contracts";
 import type { Db } from "@autosoccer/db";
 import { enqueue } from "../../jobs/queue.ts";
 import { PermanentJobError } from "../../jobs/worker.ts";
@@ -9,7 +9,9 @@ import type { EditorialGate } from "../ledger/service.ts";
 import { matchFacts, prematchFacts, roundFacts } from "./facts.ts";
 import { ArticleDraft, checkGrounding } from "./grounding.ts";
 import { SEED_JOURNALISTS } from "./journalists.ts";
+import { NEWS_JOB, type NewsSubject, newsKey, newsStory } from "./news.ts";
 import { type ArticleKind, type EditorialContext, editorialPrompt, editorialSystem } from "./prompts.ts";
+import { aheadOfSchedule, MATCH_MINUTES, previewAt, reportAt, roundPieceAt, seasonClock, seasonEnd } from "./timing.ts";
 
 export const REPORT_JOB = "article.match_report";
 export const ROUND_JOB = "article.round";
@@ -42,13 +44,21 @@ export async function seedJournalists(db: Db, model: string) {
   }
 }
 
-/** Which journalist writes which kind of piece: reporter → reports; odd rounds analysis, even rounds a column. */
-const ROLE_FOR: Record<ArticleKind, "reporter" | "analyst" | "pundit"> = {
+type Role = "reporter" | "analyst" | "pundit" | "correspondent";
+/**
+ * Which journalist writes which kind of piece: reporter → reports and previews; odd rounds analysis,
+ * even rounds a column; the correspondent → league news.
+ */
+const ROLE_FOR: Record<ArticleKind, Role> = {
   match_report: "reporter",
   preview: "reporter",
   analysis: "analyst",
   column: "pundit",
+  news: "correspondent",
 };
+
+/** How big each kind of piece is (league news sets its own, see news.ts). */
+export const PRIORITY = { match_report: 40, preview: 30, analysis: 50, column: 50 } as const;
 export const roundPieceKind = (round: number): ArticleKind => (round % 2 === 1 ? "analysis" : "column");
 
 export const slugify = (s: string) =>
@@ -82,6 +92,12 @@ interface WriteTarget {
   teamIds: string[];
   requireScoreFact?: string;
   preview?: { fixtureFact: string };
+  /** Must be cited (league news: the news itself). */
+  requireFact?: string;
+  /** Its place in the news cycle (see timing.ts); held back until then. */
+  publishAt: Date;
+  priority: number;
+  topic?: NewsTopic;
 }
 
 /**
@@ -90,8 +106,11 @@ interface WriteTarget {
  */
 async function writeArticle(deps: EditorialDeps, t: WriteTarget): Promise<ArticleOutcome> {
   const { db, llm } = deps;
-  const [j] = await db<{ id: string; name: string; role: "reporter" | "analyst" | "pundit"; voice: string }[]>`
-    select id, name, role, voice from editorial_agents where role = ${ROLE_FOR[t.kind]} order by created_at limit 1`;
+  // The reporter covers league news until a correspondent is on staff.
+  const role = ROLE_FOR[t.kind];
+  const [j] = await db<{ id: string; name: string; role: Role; voice: string }[]>`
+    select id, name, role, voice from editorial_agents where role = any(${[role, "reporter"]})
+    order by (role = ${role}) desc, created_at limit 1`;
   if (!j) throw new PermanentJobError(`no ${ROLE_FOR[t.kind]} on staff`);
 
   await db`insert into agent_runs (agent_kind, agent_id, purpose, season_id, fixture_id, idempotency_key)
@@ -102,7 +121,7 @@ async function writeArticle(deps: EditorialDeps, t: WriteTarget): Promise<Articl
   if (run!.status === "succeeded") return { status: "already-done" };
   await db`update agent_runs set status = 'running', attempt = attempt + 1, started_at = now(), error = null where id = ${run!.id}`;
 
-  const ctx: EditorialContext = { kind: t.kind, journalist: j, facts: t.facts, round: t.round };
+  const ctx: EditorialContext = { kind: t.kind, journalist: j, facts: t.facts, round: t.round, topic: t.topic };
   const system = editorialSystem(j);
   const prompt = editorialPrompt(ctx);
   const audit: {
@@ -147,13 +166,14 @@ async function writeArticle(deps: EditorialDeps, t: WriteTarget): Promise<Articl
     }
     return r.output;
   };
+  const grounding = { requireScoreFact: t.requireScoreFact, preview: t.preview, requireFact: t.requireFact };
   try {
     let draft = await call(prompt);
-    let errors = checkGrounding(draft, t.facts, { requireScoreFact: t.requireScoreFact, preview: t.preview });
+    let errors = checkGrounding(draft, t.facts, grounding);
     if (errors.length) {
       audit.repair = `${prompt}\n\nYour draft was rejected by the fact checker:\n${errors.map((e) => `- ${e}`).join("\n")}\nFix every problem and answer again.`;
       draft = await call(audit.repair);
-      errors = checkGrounding(draft, t.facts, { requireScoreFact: t.requireScoreFact, preview: t.preview });
+      errors = checkGrounding(draft, t.facts, grounding);
     }
     // Still failing after the repair: the template writer (same facts, no model, no cost, never
     // metered) writes the piece instead. It's checked like any draft; if it fails too, nothing is
@@ -161,7 +181,7 @@ async function writeArticle(deps: EditorialDeps, t: WriteTarget): Promise<Articl
     if (errors.length && deps.fallback && !fellBack) {
       const r = await deps.fallback.complete({ system, prompt, schema: ArticleDraft, task, context: ctx, maxTokens });
       const alt = r.output;
-      const altErrors = checkGrounding(alt, t.facts, { requireScoreFact: t.requireScoreFact, preview: t.preview });
+      const altErrors = checkGrounding(alt, t.facts, grounding);
       if (!altErrors.length) {
         audit.rejected = { draft, errors };
         deps.log?.warn("draft failed the fact check after repair; template writer used", { kind: t.kind, errors });
@@ -175,6 +195,9 @@ async function writeArticle(deps: EditorialDeps, t: WriteTarget): Promise<Articl
     }
     const status = errors.length ? "rejected" : "published";
     const slug = `${slugify(draft.headline) || t.kind}-${run!.id.slice(0, 6)}`;
+    // A season played ahead of its calendar can't follow the news cycle: date it now, not later.
+    const publishAt =
+      t.publishAt.getTime() > Date.now() && (await aheadOfSchedule(db, t.seasonId)) ? new Date() : t.publishAt;
     const cost = metered.cost;
     if (deps.gate && metered.calls > 0) {
       await deps.gate.settle({
@@ -190,9 +213,10 @@ async function writeArticle(deps: EditorialDeps, t: WriteTarget): Promise<Articl
     if (fellBack) deps.log?.info("editorial budget exhausted; template writer used", { kind: t.kind });
     const [article] = await db.begin(async (tx) => {
       const rows = await tx<{ id: string; slug: string }[]>`
-        insert into articles (season_id, slug, kind, status, editorial_agent_id, headline, standfirst, body, citations, match_id, fixture_id, team_ids, agent_run_id, published_at)
+        insert into articles (season_id, slug, kind, status, editorial_agent_id, headline, standfirst, body, citations, match_id, fixture_id, team_ids, agent_run_id, published_at, topic, priority)
         values (${t.seasonId}, ${slug}, ${t.kind}, ${status}, ${j.id}, ${draft.headline.slice(0, 140)}, ${draft.standfirst.slice(0, 300)}, ${draft.body},
-          ${tx.json(draft.citations)}, ${t.matchId}, ${t.fixtureId}, ${t.teamIds}, ${run!.id}, ${status === "published" ? new Date() : null})
+          ${tx.json(draft.citations)}, ${t.matchId}, ${t.fixtureId}, ${t.teamIds}, ${run!.id}, ${status === "published" ? publishAt : null},
+          ${t.topic ?? null}, ${t.priority})
         returning id, slug`;
       await tx`
         update agent_runs set status = ${errors.length ? "failed" : "succeeded"}, prompt = ${tx.json(audit)}, output = ${tx.json(draft as never)},
@@ -225,9 +249,17 @@ class BudgetExhausted extends Error {
 
 export async function writeMatchReport(deps: EditorialDeps, matchId: string): Promise<ArticleOutcome> {
   const facts = await matchFacts(deps.db, matchId);
-  const [f] = await deps.db<{ fixture_id: string; season_id: string; round: number }[]>`
-    select m.fixture_id, f.season_id, f.round from matches m join fixtures f on f.id = m.fixture_id where m.id = ${matchId}`;
+  const [f] = await deps.db<
+    { fixture_id: string; season_id: string; round: number; kickoff: Date | null; idx: number; last: boolean }[]
+  >`
+    select m.fixture_id, f.season_id, f.round, coalesce(f.scheduled_at, m.started_at, m.created_at) as kickoff,
+      (select count(*)::int from fixtures g where g.season_id = f.season_id and g.round = f.round and g.id < f.id) as idx,
+      not exists (select 1 from fixtures g where g.season_id = f.season_id and g.round > f.round) as last
+    from matches m join fixtures f on f.id = m.fixture_id where m.id = ${matchId}`;
+  const clock = await seasonClock(deps.db, f!.season_id);
   return writeArticle(deps, {
+    publishAt: reportAt(f!.kickoff ?? new Date(), f!.idx, clock.gap),
+    priority: PRIORITY.match_report + (f!.last ? 5 : 0),
     key: `${REPORT_JOB}:${matchId}`,
     kind: "match_report",
     seasonId: f!.season_id,
@@ -244,7 +276,12 @@ export async function writeRoundPiece(deps: EditorialDeps, seasonId: string, rou
   const facts = await roundFacts(deps.db, seasonId, round);
   if (!facts.matchIds.length) throw new PermanentJobError(`round ${round} has no results`);
   const { matchIds: _ids, ...ef } = facts;
+  const clock = await seasonClock(deps.db, seasonId);
+  const kickoff = clock.kickoffs.get(round);
   return writeArticle(deps, {
+    publishAt: kickoff ? roundPieceAt(kickoff, clock.gap) : new Date(),
+    // The final round's piece is the verdict on the season.
+    priority: PRIORITY[roundPieceKind(round) as "analysis" | "column"] + (round === clock.lastRound ? 10 : 0),
     key: `${ROUND_JOB}:${seasonId}:${round}`,
     kind: roundPieceKind(round),
     seasonId,
@@ -273,6 +310,8 @@ export async function writePreview(deps: EditorialDeps, fixtureId: string): Prom
   if (f.played || (f.status !== "scheduled" && f.status !== "ready")) return { status: "skipped-kicked-off" };
   const { asOfRound: _asOf, ...facts } = await prematchFacts(deps.db, fixtureId);
   return writeArticle(deps, {
+    publishAt: await previewTime(deps.db, fixtureId),
+    priority: PRIORITY.preview + (f.round === 1 ? 5 : 0),
     key: `${PREVIEW_JOB}:${fixtureId}`,
     kind: "preview",
     seasonId: f.season_id,
@@ -282,6 +321,63 @@ export async function writePreview(deps: EditorialDeps, fixtureId: string): Prom
     fixtureId,
     teamIds: [f.home_team_id, f.away_team_id],
     preview: { fixtureFact: `fixture:${fixtureId}` },
+  });
+}
+
+/**
+ * A preview's place in the run-up to kickoff: after the previous round (or, for round 1, after the
+ * previous season and its transfer window), spread across the round's fixtures.
+ */
+async function previewTime(db: EditorialDeps["db"], fixtureId: string): Promise<Date> {
+  const [f] = await db<{ season_id: string; round: number; kickoff: Date | null; idx: number; n: number }[]>`
+    select f.season_id, f.round, f.scheduled_at as kickoff,
+      (select count(*)::int from fixtures g where g.season_id = f.season_id and g.round = f.round and g.id < f.id) as idx,
+      (select count(*)::int from fixtures g where g.season_id = f.season_id and g.round = f.round) as n
+    from fixtures f where f.id = ${fixtureId}`;
+  if (!f?.kickoff) return new Date();
+  const clock = await seasonClock(db, f.season_id);
+  let prevEnd: Date | null = null;
+  const prevKick = clock.kickoffs.get(f.round - 1);
+  if (prevKick) prevEnd = new Date(prevKick.getTime() + MATCH_MINUTES * 60_000);
+  else {
+    const [p] = await db<{ id: string }[]>`
+      select id from seasons where created_at < (select created_at from seasons where id = ${f.season_id})
+      order by created_at desc limit 1`;
+    const [w] = await db<{ at: Date }[]>`
+      select closed_at as at from transfer_windows where season_id = ${f.season_id} and closed_at is not null`;
+    const ends = [p ? await seasonEnd(db, p.id) : null, w?.at ?? null].filter((d): d is Date => !!d);
+    prevEnd = ends.length ? new Date(Math.max(...ends.map((d) => d.getTime()))) : null;
+  }
+  return previewAt(prevEnd, f.kickoff, f.idx, f.n, clock.gap);
+}
+
+/** League news (news.ts): from the official records, when there's a story; one per subject. */
+export async function writeNews(
+  deps: EditorialDeps,
+  subject: NewsSubject,
+): Promise<ArticleOutcome | { status: "no-story" }> {
+  const story = await newsStory(deps.db, subject);
+  if (!story) return { status: "no-story" };
+  return writeArticle(deps, {
+    key: newsKey(subject),
+    kind: "news",
+    topic: subject.topic,
+    seasonId: subject.seasonId,
+    round: story.round,
+    facts: {
+      contract: "editorial-facts/1",
+      seasonId: subject.seasonId,
+      matchId: null,
+      generatedFrom: { resultFinalHash: null, standingsAfterRound: null },
+      match: null,
+      facts: story.facts,
+    },
+    matchId: null,
+    fixtureId: null,
+    teamIds: story.teamIds,
+    requireFact: story.lead,
+    publishAt: story.publishAt,
+    priority: story.priority,
   });
 }
 
@@ -325,6 +421,11 @@ export function editorialJobHandlers(deps: EditorialDeps) {
     },
     [PREVIEW_JOB]: async (job: { payload: Record<string, unknown> }) => {
       const out = await writePreview(deps, String(job.payload.previewOf));
+      return { result: out, artifacts: out.status === "published" ? [{ kind: "article", id: out.articleId }] : [] };
+    },
+    [NEWS_JOB]: async (job: { payload: Record<string, unknown> }) => {
+      const p = job.payload as unknown as NewsSubject;
+      const out = await writeNews(deps, { topic: p.topic, seasonId: p.seasonId, teamId: p.teamId ?? null });
       return { result: out, artifacts: out.status === "published" ? [{ kind: "article", id: out.articleId }] : [] };
     },
     [ROUND_JOB]: async (job: { payload: Record<string, unknown> }) => {

@@ -21,7 +21,13 @@ export const meta: Route.MetaFunction = ({ data }) =>
       ])
     : seo("Article not found");
 
-const KIND = { match_report: "Match report", preview: "Preview", analysis: "Analysis", column: "Opinion" } as const;
+const KIND = {
+  match_report: "Match report",
+  preview: "Preview",
+  analysis: "Analysis",
+  column: "Opinion",
+  news: "League news",
+} as const;
 
 /** Where a cited fact lives on the site. */
 function factLink(factId: string): string | null {

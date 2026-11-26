@@ -23,7 +23,7 @@ export function ArticleThumb({ seed, kind, className = "" }: { seed: string; kin
   const h = hash(seed);
   const a = P[h % 4]!;
   const b = P[(h >>> 3) % 4 === h % 4 ? ((h % 4) + 1) % 4 : (h >>> 3) % 4]!;
-  const motif = kind === "analysis" ? "chart" : kind === "column" ? "crowd" : "board";
+  const motif = kind === "analysis" ? "chart" : kind === "column" ? "crowd" : kind === "news" ? "bulletin" : "board";
   const gid = useId();
   const [light, deep] = BACKDROPS[(h >>> 7) % BACKDROPS.length]!;
   return (
@@ -72,6 +72,37 @@ export function ArticleThumb({ seed, kind, className = "" }: { seed: string; kin
               width="16"
               height={((h >>> (i * 4)) % 5) * 14 + 14}
               fill={i % 2 ? "var(--color-violet)" : "var(--color-coral)"}
+            />
+          ))}
+        </g>
+      )}
+      {motif === "bulletin" && (
+        <g>
+          <rect
+            x="160"
+            y="34"
+            width="112"
+            height="112"
+            rx="6"
+            fill="var(--color-surface)"
+            stroke="var(--color-ink)"
+            strokeWidth="3"
+          />
+          <rect x="174" y="48" width="84" height="16" rx="2" fill="var(--color-ink)" />
+          <rect x="174" y="74" width="38" height="30" rx="2" fill={a} />
+          {[0, 1, 2].map((i) => (
+            <rect key={i} x="220" y={76 + i * 10} width="38" height="4" rx="2" fill="var(--color-ink)" opacity="0.5" />
+          ))}
+          {[0, 1, 2].map((i) => (
+            <rect
+              key={i}
+              x="174"
+              y={114 + i * 10}
+              width={84 - i * 16}
+              height="4"
+              rx="2"
+              fill="var(--color-ink)"
+              opacity="0.5"
             />
           ))}
         </g>

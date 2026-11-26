@@ -1,13 +1,15 @@
-import type { EditorialFacts } from "@autosoccer/contracts";
+import type { EditorialFacts, NewsTopic } from "@autosoccer/contracts";
 import type { SeedJournalist } from "./journalists.ts";
 
-export type ArticleKind = "match_report" | "preview" | "analysis" | "column";
+export type ArticleKind = "match_report" | "preview" | "analysis" | "column" | "news";
 
 export interface EditorialContext {
   kind: ArticleKind;
   journalist: Pick<SeedJournalist, "name" | "role" | "voice">;
   facts: EditorialFacts;
   round: number;
+  /** League news only: what the story is about. */
+  topic?: NewsTopic;
 }
 
 /** Stable system prompt per journalist (cache-friendly). */
@@ -33,10 +35,34 @@ const BRIEF: Record<ArticleKind, string> = {
     "Write a tactical analysis of the round: pick the most instructive contrast between teams' recorded tactics and their recorded statistics, and explain what the numbers show. Finish with what to watch next round.",
   column:
     "Write an opinion column about the state of the league after this round: who is rising, who is struggling, and one bold but fair prediction. Opinions are welcome; facts must be cited.",
+  news: "Write a league news story.",
 };
 
+/**
+ * League news is reported from inside the league: what happened, who it affects and what it means
+ * for the coming season, in the league's own terms (the league, the clubs, their owners and
+ * managers), never as software release notes.
+ */
+const NEWS_BRIEF: Record<NewsTopic, string> = {
+  champions:
+    "Write the news story of the season's champions: who won the title and how (points, margin), what it means for their record, the season's top scorer, and how the rest of the table finished.",
+  league:
+    "Write the news story of the league's changes for the new season: which clubs join (and how many there are now), how the season is shaped, and any new rules clubs now play under, explained in plain terms for supporters.",
+  takeover:
+    "Write the news story of a club's takeover: who the club were, why they withdrew, what the new owners have put in, the club's new name and what it keeps.",
+  withdrawal:
+    "Write the breaking news story of a club declared bankrupt mid-season: why, from which round, what happens to its remaining fixtures and to the table.",
+  transfers:
+    "Write the transfer window round-up: the deals completed (biggest first) with their fees, and how busy the market was.",
+  finances:
+    "Write the story of the money each club takes into the season: who has the most, the wage bills, and who has the least room for error.",
+};
+const NEWS_RULES =
+  "Report it as news from inside the league. Never use software words such as update, patch, release, feature, version, rule id, database or simulator setting. Don't invent quotes, owners' names, reasons or numbers that aren't in the facts.";
+
 export function editorialPrompt(c: EditorialContext): string {
-  return `${BRIEF[c.kind]}
+  const brief = c.kind === "news" && c.topic ? `${NEWS_BRIEF[c.topic]} ${NEWS_RULES}` : BRIEF[c.kind];
+  return `${brief}
 
 Official facts (id → statement):
 ${c.facts.facts.map((f) => `- ${f.id} → ${f.statement}`).join("\n")}

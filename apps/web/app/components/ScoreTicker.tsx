@@ -47,16 +47,31 @@ function TickerItem({ f }: { f: FixtureView }) {
 export interface ScoreTickerProps {
   fixtures: FixtureView[] | null;
   matchweek?: number | null;
+  /** The season the matchweek belongs to, e.g. "Season 16". */
+  season?: string | null;
   next?: FixtureView | null;
   loading?: boolean;
 }
 
 /** Broadcast matchweek bar under the global navigation. Scrolls horizontally on small screens. */
-export function ScoreTicker({ fixtures, matchweek, next, loading }: ScoreTickerProps) {
+export function ScoreTicker({ fixtures, matchweek, season, next, loading }: ScoreTickerProps) {
+  const seasonNo = season?.match(/(\d+)$/)?.[1];
   return (
     <section aria-label="Scores" className="mx-auto max-w-[1440px] px-4 pb-2 sm:px-6">
       <div className="relative flex min-h-14 items-stretch">
         <p className="parallelogram relative z-10 flex shrink-0 items-center bg-yellow py-2 pl-6 pr-7 font-wide text-lg font-black uppercase italic leading-none text-ink shadow-[0_4px_14px_rgb(255_203_69/0.35)] sm:text-xl">
+          {season && (
+            <span data-testid="ticker-season">
+              <span className="hidden sm:inline">{season}</span>
+              <span className="sm:hidden" aria-hidden>
+                S{seasonNo ?? ""}
+              </span>
+              <span className="sr-only sm:hidden">{season}</span>
+              <span className="mx-2 opacity-50" aria-hidden>
+                ·
+              </span>
+            </span>
+          )}
           <span className="hidden sm:inline">Matchweek&nbsp;</span>
           <span className="sm:hidden">MW&nbsp;</span>
           <span className="tabular">{matchweek ? pad(matchweek) : "–"}</span>
@@ -81,7 +96,7 @@ export function ScoreTicker({ fixtures, matchweek, next, loading }: ScoreTickerP
             <ul
               className="relative flex min-w-0 flex-1 items-center overflow-x-auto px-2 py-2 [scrollbar-width:thin]"
               data-testid="score-ticker"
-              aria-label={`Matchweek ${matchweek ?? ""} fixtures`}
+              aria-label={`${season ? `${season}, ` : ""}Matchweek ${matchweek ?? ""} fixtures`}
               // biome-ignore lint/a11y/noNoninteractiveTabindex: the strip scrolls horizontally, so keyboard users must be able to focus it
               tabIndex={0}
             >

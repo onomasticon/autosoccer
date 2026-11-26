@@ -9,7 +9,12 @@ import { Portrait } from "./Portrait";
 import { Slashes } from "./SectionHeader";
 import { TeamBadge } from "./TeamBadge";
 
-const ROLE = { reporter: "League reporter", analyst: "Tactical analyst", pundit: "League pundit" } as const;
+const ROLE = {
+  reporter: "League reporter",
+  analyst: "Tactical analyst",
+  pundit: "League pundit",
+  correspondent: "League correspondent",
+} as const;
 
 /**
  * Flat-vector hero art: broadcast stripes around the crests of the clubs the story is about.

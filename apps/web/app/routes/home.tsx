@@ -59,7 +59,8 @@ export async function loader() {
   const [standings, fixtures, articles, journalists, dugout, spotlight, seasons, allTime] = await Promise.all([
     apiMaybe<StandingsResponse>(`/api/v1/seasons/${slug}/standings`),
     apiMaybe<FixturesResponse>(`/api/v1/seasons/${slug}/fixtures`),
-    apiMaybe<ArticleListResponse>("/api/v1/articles?limit=8"),
+    // Biggest stories first (priority, fading with age): a champion is the headline.
+    apiMaybe<ArticleListResponse>("/api/v1/articles?limit=8&sort=priority"),
     apiMaybe<JournalistListResponse>("/api/v1/journalists"),
     apiMaybe<DugoutResponse>(`/api/v1/seasons/${slug}/dugout`),
     apiMaybe<SpotlightResponse>("/api/v1/spotlight"),
@@ -172,10 +173,33 @@ export function OffSeasonCard({
 
 const pad2 = (n: number) => String(n).padStart(2, "0");
 
+/** A story this big (champions, a bankruptcy, a takeover, league changes) leads the page. */
+export const HEADLINE_PRIORITY = 75;
+
 /**
- * Homepage, laid out after the approved mockup (docs/design/assets/homepage-reference.png):
- * lead story + genuine replay, then Inside the Dugout (the AI managers' decision → match → lesson
- * loop, the league's point of difference), then stories / table / schedule panels, then league voices.
+ * Picks the homepage's stories from a priority-ranked list: the headline (a big enough story),
+ * the lead (the headline, else the report on the featured match, else the top story) and the
+ * next three.
+ */
+export function pickStories<T extends { id: string; kind: string; matchId: string | null; priority?: number }>(
+  ranked: T[],
+  featuredMatchId: string | null,
+  offSeason: boolean,
+) {
+  const headline = !offSeason && ranked[0] && (ranked[0].priority ?? 0) >= HEADLINE_PRIORITY ? ranked[0] : null;
+  const lead =
+    headline ??
+    ranked.find((a) => featuredMatchId && a.matchId === featuredMatchId && a.kind === "match_report") ??
+    ranked[0] ??
+    null;
+  return { headline, lead, stories: ranked.filter((a) => a !== lead).slice(0, 3) };
+}
+
+/**
+ * Homepage, laid out after the approved mockup (docs/design/assets/homepage-reference.png), led by
+ * the biggest story: between seasons the champion, in season a headline story when there is one;
+ * then the player spotlight and genuine replay, your club, the matchday, the stories / table /
+ * schedule panels, Inside the Dugout (the AI managers' decision → match → lesson loop), and voices.
  */
 export default function Home({ loaderData }: Route.ComponentProps) {
   const {
@@ -200,10 +224,9 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         The first season will appear here once it's scheduled.
       </EmptyState>
     );
-  // Lead with the report on the featured (latest) match when there is one, so story and replay agree.
-  const lead =
-    articles.find((a) => featured && a.matchId === featured.match.id && a.kind === "match_report") ?? articles[0];
-  const stories = articles.filter((a) => a !== lead).slice(0, 3);
+  // Articles come biggest story first. Without a headline, lead with the report on the featured
+  // (latest) match, so story and replay agree.
+  const { headline, lead, stories } = pickStories(articles, featured?.match.id ?? null, !!previous);
   const schedule = upcoming.length ? upcoming : results;
   const spot = spotlight?.lead ?? null;
   const focus = spot && featured && spot.matchId === featured.match.id ? focusFor(featured, spot.player.id) : null;
@@ -246,6 +269,11 @@ export default function Home({ loaderData }: Route.ComponentProps) {
   return (
     <div className="space-y-6">
       <h1 className="sr-only">Auto Soccer — {season.name}</h1>
+      {previous ? (
+        <OffSeasonCard previous={previous} next={season.name} firstKickoff={upcoming[0]?.scheduledAt ?? null} />
+      ) : (
+        headline && <LeadStory article={headline} teams={teams} />
+      )}
       {spot && (
         <div className="grid items-stretch gap-6 lg:grid-cols-2">
           <PlayerSpotlight lead={spot} />
@@ -263,26 +291,18 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         moments={moments}
       />
       {!previous && <FeaturedMatchday fixtures={fixtures} />}
-      <div className={`grid items-stretch gap-6 ${spot ? "" : "lg:grid-cols-2"}`}>
-        {previous ? (
-          <OffSeasonCard previous={previous} next={season.name} firstKickoff={upcoming[0]?.scheduledAt ?? null} />
-        ) : lead ? (
-          <LeadStory article={lead} teams={teams} />
-        ) : (
-          <div className="card-surface p-6">
-            <SectionHeader as="h2" banner eyebrow={season.name} title="This week in the league" />
-            <p className="text-muted-text">AI journalists file reports from the official record after each match.</p>
-          </div>
-        )}
-        {!spot && replay}
-      </div>
-
-      {dugout ? (
-        <InsideTheDugout featured={dugout.featured} stories={dugout.stories} />
-      ) : (
-        <ErrorState title="Inside the Dugout is unavailable">
-          The managers' decisions couldn't be loaded just now. Results and stories below are unaffected.
-        </ErrorState>
+      {(!(previous || headline) || !spot) && (
+        <div className={`grid items-stretch gap-6 ${spot || previous || headline ? "" : "lg:grid-cols-2"}`}>
+          {previous || headline ? null : lead ? (
+            <LeadStory article={lead} teams={teams} />
+          ) : (
+            <div className="card-surface p-6">
+              <SectionHeader as="h2" banner eyebrow={season.name} title="This week in the league" />
+              <p className="text-muted-text">AI journalists file reports from the official record after each match.</p>
+            </div>
+          )}
+          {!spot && replay}
+        </div>
       )}
 
       <div className="grid gap-6 lg:grid-cols-2 xl:grid-cols-3">
@@ -337,6 +357,14 @@ export default function Home({ loaderData }: Route.ComponentProps) {
           )}
         </Panel>
       </div>
+
+      {dugout ? (
+        <InsideTheDugout featured={dugout.featured} stories={dugout.stories} />
+      ) : (
+        <ErrorState title="Inside the Dugout is unavailable">
+          The managers' decisions couldn't be loaded just now. Results and stories above are unaffected.
+        </ErrorState>
+      )}
 
       <VoicesStrip agents={journalists.map((j) => ({ ...j, href: `/journalists/${j.slug}` }))} />
     </div>

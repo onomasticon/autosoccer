@@ -237,6 +237,8 @@ export const ArticleCardView = Article.pick({
   matchId: true,
   teamIds: true,
   aiGenerated: true,
+  topic: true,
+  priority: true,
   publishedAt: true,
 }).extend({ author: EditorialAgent.pick({ slug: true, name: true, role: true, avatar: true }) });
 export const ArticleListResponse = z.object({ items: z.array(ArticleCardView), total: z.number().int() });
@@ -406,8 +408,13 @@ export const ROUTES: RouteDef[] = [
     method: "get",
     path: "/articles",
     operationId: "listArticles",
-    summary: "Published articles, newest first",
-    query: { limit: z.coerce.number().int().min(1).max(50).optional(), team: Slug.optional(), match: Id.optional() },
+    summary: "Published articles: newest first, or biggest story first with sort=priority",
+    query: {
+      limit: z.coerce.number().int().min(1).max(50).optional(),
+      team: Slug.optional(),
+      match: Id.optional(),
+      sort: z.enum(["recent", "priority"]).optional(),
+    },
     response: ArticleListResponse,
     responseName: "ArticleListResponse",
   },

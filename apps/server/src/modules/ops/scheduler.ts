@@ -10,6 +10,7 @@
 import type { Db } from "@autosoccer/db";
 import type { Logger } from "../../log.ts";
 import { managerRoundHook } from "../agents/service.ts";
+import { enqueueNews } from "../editorial/news.ts";
 import { enqueuePreviews } from "../editorial/service.ts";
 import { refreshUpcomingSeason, rolloverSeason } from "../league/rollover.ts";
 import { type AdvanceResult, advanceSeason } from "../league/service.ts";
@@ -35,7 +36,7 @@ export interface TickOptions {
     roundMinutes?: number;
     cadence?: "interval" | "weekly" | "twice-weekly";
   };
-  /** Enqueue match previews for each season's next round (needs the editorial job handlers). */
+  /** Enqueue match previews and league news (needs the editorial job handlers). */
   previews?: boolean;
 }
 
@@ -79,6 +80,8 @@ export async function schedulerTick(db: Db, opts: TickOptions): Promise<TickResu
       const rolledOver = opts.rollover
         ? await rolloverSeason(db, { ...opts.rollover, now: opts.now, log: opts.log })
         : null;
+      // League news (champions, league changes, takeovers, bankruptcies, the window, club money).
+      if (opts.previews) await enqueueNews(db);
       return { leader: true, seasons: out, rolledOver };
     } finally {
       await conn`select pg_advisory_unlock(${LEADER_LOCK})`;

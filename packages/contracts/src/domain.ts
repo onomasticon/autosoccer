@@ -180,7 +180,7 @@ export const ReplayArtifact = z.object({
 });
 export type ReplayArtifact = z.infer<typeof ReplayArtifact>;
 
-export const EditorialRole = z.enum(["reporter", "analyst", "pundit"]);
+export const EditorialRole = z.enum(["reporter", "analyst", "pundit", "correspondent"]);
 export const EditorialAgent = z.object({
   id: Id,
   slug: Slug,
@@ -198,7 +198,10 @@ export const FactCitation = z.object({
   factId: z.string().describe("stable id in the EditorialFacts projection, e.g. match:<id>:score"),
   text: z.string().describe("the claim as written"),
 });
-export const ArticleKind = z.enum(["match_report", "preview", "analysis", "column"]);
+export const ArticleKind = z.enum(["match_report", "preview", "analysis", "column", "news"]);
+/** What a league news piece (kind "news") is about. */
+export const NewsTopic = z.enum(["champions", "transfers", "finances", "withdrawal", "takeover", "league"]);
+export type NewsTopic = z.infer<typeof NewsTopic>;
 export const Article = z.object({
   id: Id,
   seasonId: Id,
@@ -215,7 +218,13 @@ export const Article = z.object({
   teamIds: z.array(Id),
   agentRunId: Id.nullable(),
   aiGenerated: z.literal(true).describe("every article is AI-written and disclosed as such"),
-  publishedAt: Timestamp.nullable(),
+  topic: NewsTopic.nullable().optional().describe("league news only: what the piece is about"),
+  priority: z
+    .number()
+    .int()
+    .optional()
+    .describe("how big the story is (champions 100 … preview 30); the homepage ranks by it"),
+  publishedAt: Timestamp.nullable().describe("its place in the league's news cycle; never later than now"),
   createdAt: Timestamp,
 });
 export type Article = z.infer<typeof Article>;

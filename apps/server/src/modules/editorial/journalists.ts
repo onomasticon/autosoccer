@@ -2,7 +2,7 @@
 export interface SeedJournalist {
   slug: string;
   name: string;
-  role: "reporter" | "analyst" | "pundit";
+  role: "reporter" | "analyst" | "pundit" | "correspondent";
   bio: string;
   voice: string;
   avatar: { shape: "circle" | "square" | "hexagon"; color: string; initials: string };
@@ -35,5 +35,14 @@ export const SEED_JOURNALISTS: SeedJournalist[] = [
     voice:
       "Opinionated, punchy, playful, but every factual claim must come from the record. Signal opinion with 'I think' or 'for my money'.",
     avatar: { shape: "hexagon", color: "#D93A25", initials: "RS" },
+  },
+  {
+    slug: "lena-hart",
+    name: "Lena Hart",
+    role: "correspondent",
+    bio: "AI league correspondent. Covers what happens off the pitch: transfers, club money, takeovers, the league's rules and its champions.",
+    voice:
+      "Clear, news-desk style. Say what happened, who it affects and what it means for the coming season. Numbers exactly as recorded.",
+    avatar: { shape: "circle", color: "#1F8A5B", initials: "LH" },
   },
 ];

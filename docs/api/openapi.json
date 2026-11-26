@@ -541,7 +541,7 @@
     "/articles": {
       "get": {
         "operationId": "listArticles",
-        "summary": "Published articles, newest first",
+        "summary": "Published articles: newest first, or biggest story first with sort=priority",
         "parameters": [
           {
             "name": "limit",
@@ -575,6 +575,19 @@
               "type": "string",
               "format": "uuid",
               "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "type": "string",
+              "enum": [
+                "recent",
+                "priority"
+              ]
             }
           }
         ],
@@ -9117,7 +9130,8 @@
                     "match_report",
                     "preview",
                     "analysis",
-                    "column"
+                    "column",
+                    "news"
                   ]
                 },
                 "headline": {
@@ -9156,7 +9170,33 @@
                   "type": "boolean",
                   "const": true
                 },
+                "topic": {
+                  "description": "league news only: what the piece is about",
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "enum": [
+                        "champions",
+                        "transfers",
+                        "finances",
+                        "withdrawal",
+                        "takeover",
+                        "league"
+                      ]
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "priority": {
+                  "description": "how big the story is (champions 100 … preview 30); the homepage ranks by it",
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
                 "publishedAt": {
+                  "description": "its place in the league's news cycle; never later than now",
                   "anyOf": [
                     {
                       "description": "ISO-8601 timestamp",
@@ -9185,7 +9225,8 @@
                       "enum": [
                         "reporter",
                         "analyst",
-                        "pundit"
+                        "pundit",
+                        "correspondent"
                       ]
                     },
                     "avatar": {
@@ -9282,7 +9323,8 @@
                   "match_report",
                   "preview",
                   "analysis",
-                  "column"
+                  "column",
+                  "news"
                 ]
               },
               "status": {
@@ -9386,7 +9428,33 @@
                 "type": "boolean",
                 "const": true
               },
+              "topic": {
+                "description": "league news only: what the piece is about",
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "enum": [
+                      "champions",
+                      "transfers",
+                      "finances",
+                      "withdrawal",
+                      "takeover",
+                      "league"
+                    ]
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "priority": {
+                "description": "how big the story is (champions 100 … preview 30); the homepage ranks by it",
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
               "publishedAt": {
+                "description": "its place in the league's news cycle; never later than now",
                 "anyOf": [
                   {
                     "description": "ISO-8601 timestamp",
@@ -9449,7 +9517,8 @@
                 "enum": [
                   "reporter",
                   "analyst",
-                  "pundit"
+                  "pundit",
+                  "correspondent"
                 ]
               },
               "bio": {
@@ -9524,7 +9593,8 @@
                     "match_report",
                     "preview",
                     "analysis",
-                    "column"
+                    "column",
+                    "news"
                   ]
                 },
                 "headline": {
@@ -9563,7 +9633,33 @@
                   "type": "boolean",
                   "const": true
                 },
+                "topic": {
+                  "description": "league news only: what the piece is about",
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "enum": [
+                        "champions",
+                        "transfers",
+                        "finances",
+                        "withdrawal",
+                        "takeover",
+                        "league"
+                      ]
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "priority": {
+                  "description": "how big the story is (champions 100 … preview 30); the homepage ranks by it",
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
                 "publishedAt": {
+                  "description": "its place in the league's news cycle; never later than now",
                   "anyOf": [
                     {
                       "description": "ISO-8601 timestamp",
@@ -9592,7 +9688,8 @@
                       "enum": [
                         "reporter",
                         "analyst",
-                        "pundit"
+                        "pundit",
+                        "correspondent"
                       ]
                     },
                     "avatar": {
@@ -9683,7 +9780,8 @@
                   "enum": [
                     "reporter",
                     "analyst",
-                    "pundit"
+                    "pundit",
+                    "correspondent"
                   ]
                 },
                 "bio": {
@@ -9769,7 +9867,8 @@
                 "enum": [
                   "reporter",
                   "analyst",
-                  "pundit"
+                  "pundit",
+                  "correspondent"
                 ]
               },
               "bio": {
@@ -9844,7 +9943,8 @@
                     "match_report",
                     "preview",
                     "analysis",
-                    "column"
+                    "column",
+                    "news"
                   ]
                 },
                 "headline": {
@@ -9883,7 +9983,33 @@
                   "type": "boolean",
                   "const": true
                 },
+                "topic": {
+                  "description": "league news only: what the piece is about",
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "enum": [
+                        "champions",
+                        "transfers",
+                        "finances",
+                        "withdrawal",
+                        "takeover",
+                        "league"
+                      ]
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "priority": {
+                  "description": "how big the story is (champions 100 … preview 30); the homepage ranks by it",
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
                 "publishedAt": {
+                  "description": "its place in the league's news cycle; never later than now",
                   "anyOf": [
                     {
                       "description": "ISO-8601 timestamp",
@@ -9912,7 +10038,8 @@
                       "enum": [
                         "reporter",
                         "analyst",
-                        "pundit"
+                        "pundit",
+                        "correspondent"
                       ]
                     },
                     "avatar": {
@@ -14955,7 +15082,8 @@
                         "lineup",
                         "tactics",
                         "form",
-                        "fixture"
+                        "fixture",
+                        "news"
                       ]
                     },
                     "statement": {
@@ -15074,7 +15202,8 @@
                             "lineup",
                             "tactics",
                             "form",
-                            "fixture"
+                            "fixture",
+                            "news"
                           ]
                         },
                         "statement": {
@@ -15141,7 +15270,8 @@
                           "match_report",
                           "preview",
                           "analysis",
-                          "column"
+                          "column",
+                          "news"
                         ]
                       },
                       "headline": {
@@ -15176,7 +15306,8 @@
                           "match_report",
                           "preview",
                           "analysis",
-                          "column"
+                          "column",
+                          "news"
                         ]
                       },
                       "headline": {

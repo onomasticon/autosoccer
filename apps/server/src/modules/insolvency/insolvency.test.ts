@@ -1,4 +1,6 @@
 import {
+  ArticleDetailResponse,
+  ArticleListResponse,
   ClubFinancesResponse,
   FixtureStory,
   FixturesResponse,
@@ -14,6 +16,9 @@ import { createWorker } from "../../jobs/worker.ts";
 import { offlineManagerLlm } from "../agents/offline.ts";
 import { managerRoundHook, seedManagers } from "../agents/service.ts";
 import { prematchFacts } from "../editorial/facts.ts";
+import { enqueueNews, NEWS_PRIORITY, type NewsSubject } from "../editorial/news.ts";
+import { offlineEditorialLlm } from "../editorial/offline.ts";
+import { seedJournalists, writeNews } from "../editorial/service.ts";
 import { RULES } from "../finance/rules.ts";
 import { settleFinances } from "../finance/settle.ts";
 import { forfeitOf, seasonTeams, standingRows } from "../league/read.ts";
@@ -323,5 +328,65 @@ describe("bankruptcy through the season lifecycle", () => {
       from fixtures f where f.season_id = ${s2} and f.round = 1 and ${first}::uuid in (f.home_team_id, f.away_team_id)`;
     expect(f).toEqual({ outcome: null, matches: 1 });
     expect(await t.db`select 1 from club_withdrawals where season_id = ${s2}`).toHaveLength(0);
+  });
+
+  it("the league desk reports the champions, both bankruptcies, the takeovers, the window and the money, once each", async () => {
+    await seedJournalists(t.db, MODEL);
+    const deps = { db: t.db, llm: offlineEditorialLlm(MODEL) };
+    const subjects: NewsSubject[] = [
+      { topic: "champions", seasonId: s1 },
+      { topic: "withdrawal", seasonId: s1, teamId: first },
+      { topic: "withdrawal", seasonId: s1, teamId: second },
+      { topic: "takeover", seasonId: s2, teamId: first },
+      { topic: "takeover", seasonId: s2, teamId: second },
+      { topic: "transfers", seasonId: s2 },
+      { topic: "finances", seasonId: s2 },
+    ];
+    // The sweep finds every one of them (plus league changes, which the job decides on), idempotently.
+    await enqueueNews(t.db);
+    await enqueueNews(t.db);
+    const keys = await t.db`select idempotency_key from jobs where kind = 'article.news'`;
+    expect(keys).toHaveLength(subjects.length + 1);
+    for (const s of subjects) expect(await writeNews(deps, s)).toMatchObject({ status: "published" });
+    for (const s of subjects) expect(await writeNews(deps, s)).toEqual({ status: "already-done" });
+    // Same clubs and rules as last season: nothing to announce.
+    expect(await writeNews(deps, { topic: "league", seasonId: s2 })).toEqual({ status: "no-story" });
+
+    const news = await t.db<
+      { slug: string; topic: string; priority: number; headline: string; body: string; role: string }[]
+    >`
+      select a.slug, a.topic, a.priority, a.headline, a.body, e.role from articles a
+      join editorial_agents e on e.id = a.editorial_agent_id where a.kind = 'news' and a.status = 'published'`;
+    expect(news).toHaveLength(subjects.length);
+    expect(new Set(news.map((n) => n.role))).toEqual(new Set(["correspondent"]));
+    const by = (topic: string) => news.filter((n) => n.topic === topic);
+    expect(by("champions")[0]!.priority).toBe(NEWS_PRIORITY.champions);
+    // Bankruptcy is reported under the name the club had that season, with the reason on record.
+    const oldName = before["harbour-city"]!.name;
+    const bust = by("withdrawal").find((n) => n.body.includes(`${oldName} have been declared bankrupt`))!;
+    expect(bust.body).toContain("before round 4");
+    expect(bust.body).toContain("Couldn't pay round 4 wages");
+    expect(bust.body).toMatch(/walkovers?: each opponent is awarded 3 points/);
+    const [now] = await t.db<{ name: string }[]>`select name from teams where id = ${first}`;
+    const rescue = by("takeover").find((n) => n.body.includes(`as ${now!.name}`))!;
+    expect(rescue.body).toContain(`${oldName} have been taken over by new owners`);
+    expect(rescue.body).toMatch(/fresh capital/);
+    expect(by("transfers")[0]!.body).toMatch(/transfer window has closed/);
+    expect(by("finances")[0]!.body).toMatch(/a wage bill of .+ a round/);
+    // Told from inside the league, never as release notes.
+    for (const n of news)
+      expect(`${n.headline}\n${n.body}`).not.toMatch(
+        /\b(patch|update|release|feature|version|insolvency\/1|finance\/1)\b/i,
+      );
+
+    // Served to readers with topic and priority; the homepage ranking is biggest story first (fading with age).
+    const list = await get("/articles?limit=50&sort=priority", ArticleListResponse);
+    const rank = (a: (typeof list.items)[number]) =>
+      (a.priority ?? 0) - ((Date.now() - Date.parse(a.publishedAt!)) / 3_600_000) * 8;
+    const ranks = list.items.map(rank);
+    expect(ranks).toEqual([...ranks].sort((a, b) => b - a));
+    expect(list.items.filter((a) => a.kind === "news").every((a) => a.author.role === "correspondent")).toBe(true);
+    const detail = await get(`/articles/${bust.slug}`, ArticleDetailResponse);
+    expect(detail.article).toMatchObject({ kind: "news", topic: "withdrawal", priority: NEWS_PRIORITY.withdrawal });
   });
 });
