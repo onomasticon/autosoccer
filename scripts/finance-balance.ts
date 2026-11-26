@@ -19,11 +19,11 @@ import { createWorker } from "../apps/server/src/jobs/worker.ts";
 import { offlineManagerLlm } from "../apps/server/src/modules/agents/offline.ts";
 import { managerRoundHook, seedManagers } from "../apps/server/src/modules/agents/service.ts";
 import { formatCredits, RULES } from "../apps/server/src/modules/finance/rules.ts";
+import { INSOLVENCY } from "../apps/server/src/modules/insolvency/rules.ts";
 import { standingRows } from "../apps/server/src/modules/league/read.ts";
 import { rolloverSeason } from "../apps/server/src/modules/league/rollover.ts";
 import { SEED_TEAMS } from "../apps/server/src/modules/league/seed-data.ts";
 import { advanceSeason, createSeason, seedTeams } from "../apps/server/src/modules/league/service.ts";
-import { INSOLVENCY } from "../apps/server/src/modules/insolvency/rules.ts";
 import { TRANSFER } from "../apps/server/src/modules/transfers/rules.ts";
 import { tickTransfers } from "../apps/server/src/modules/transfers/window.ts";
 
