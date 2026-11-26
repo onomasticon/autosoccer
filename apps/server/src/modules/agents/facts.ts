@@ -7,6 +7,7 @@ import {
   type TeamMatchStats,
 } from "@autosoccer/contracts";
 import type { Db } from "@autosoccer/db";
+import { clubPosition } from "../finance/settle.ts";
 import { ratedPlayer, seasonRatings } from "../league/careers.ts";
 import { seasonTeamSize, standingRows } from "../league/read.ts";
 import type { PlayerRow } from "../mappers.ts";
@@ -176,6 +177,7 @@ export async function managerFacts(
     })),
     recent: (await completedMatches(db, fixture.season_id, teamId, upTo)).map((m) => matchFact(m, teamId)),
     opponentRecent: (await completedMatches(db, fixture.season_id, oppId, upTo)).map((m) => matchFact(m, oppId)),
+    finances: await clubPosition(db, fixture.season_id, teamId),
   };
 }
 

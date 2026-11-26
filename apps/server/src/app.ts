@@ -6,6 +6,7 @@ import { type Logger, silentLogger } from "./log.ts";
 import { agentRoutes } from "./modules/agents/routes.ts";
 import { dugoutRoutes } from "./modules/dugout/routes.ts";
 import { editorialRoutes } from "./modules/editorial/routes.ts";
+import { financeRoutes } from "./modules/finance/routes.ts";
 import { leagueRoutes } from "./modules/league/routes.ts";
 import { ledgerRoutes } from "./modules/ledger/routes.ts";
 import { matchRoutes } from "./modules/matches/routes.ts";
@@ -65,6 +66,7 @@ export function createApp({ db, store, log = silentLogger, opsToken }: AppDeps) 
   api.route("/", dugoutRoutes({ db }));
   api.route("/", storyRoutes({ db }));
   api.route("/", spotlightRoutes({ db }));
+  api.route("/", financeRoutes({ db }));
   api.route("/", opsRoutes({ db, token: opsToken }));
   app.route(`/api/${API_VERSION}`, api);
 

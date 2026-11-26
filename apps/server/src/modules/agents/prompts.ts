@@ -77,6 +77,14 @@ export interface ManagerFacts {
   table: Array<{ position: number; team: string; played: number; points: number; goalDifference: number }>;
   recent: MatchSummaryFact[];
   opponentRecent: MatchSummaryFact[];
+  /** The club's fictional treasury (finance/1), when the season has club finances. */
+  finances?: {
+    balance: number;
+    payrollPerRound: number;
+    roundsToPay: number;
+    remainingPayroll: number;
+    headroom: number;
+  } | null;
 }
 
 export interface PostMatchFacts extends ManagerFacts {
@@ -138,7 +146,20 @@ ${f.squad.map(squadLine).join("\n")}
 
 ## Current setup
 Tactics: ${f.current.tactics ? describeTactics(f.current.tactics) : "league baseline"}
-Starters (slot order): ${f.current.starters.join(", ")}`;
+Starters (slot order): ${f.current.starters.join(", ")}${financeFacts(f)}`;
+}
+
+/** The club's fictional treasury (credits, cr): cash, wages still due this season, headroom. */
+function financeFacts(f: ManagerFacts): string {
+  const m = f.finances;
+  if (!m) return "";
+  const cr = (n: number) => `${n.toLocaleString("en-GB")} cr`;
+  return `
+
+## Club finances (fictional credits)
+Cash: ${cr(m.balance)}
+Wages: ${cr(m.payrollPerRound)} a round; ${m.roundsToPay} round${m.roundsToPay === 1 ? "" : "s"} still to pay this season (${cr(m.remainingPayroll)})
+Headroom after those wages: ${cr(m.headroom)} (before any prize money or result income, which depend on results)`;
 }
 
 export function preMatchPrompt(f: ManagerFacts): string {

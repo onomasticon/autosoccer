@@ -6,6 +6,7 @@ import type { LlmClient } from "../modules/agents/llm.ts";
 import { type ComputeGate, enqueueManagerJobs, managerJobHandlers } from "../modules/agents/service.ts";
 import { offlineEditorialLlm } from "../modules/editorial/offline.ts";
 import { editorialJobHandlers, enqueueEditorial } from "../modules/editorial/service.ts";
+import { settleFinances } from "../modules/finance/settle.ts";
 import { type EditorialGate, editorialGate, ledgerGate } from "../modules/ledger/service.ts";
 import { MATCH_JOB, matchJobHandler } from "../modules/matches/service.ts";
 import type { JobHandler } from "./worker.ts";
@@ -33,6 +34,9 @@ export function buildHandlers(d: PlatformDeps): Record<string, JobHandler> {
       // After every official result (asynchronously, never during the simulation):
       // managers review it, and the newsroom writes about it.
       onCompleted: async (fixtureId) => {
+        // Result income (idempotent; the scheduler's reconciler would also catch it next tick).
+        const [f] = await d.db<{ season_id: string }[]>`select season_id from fixtures where id = ${fixtureId}`;
+        if (f) await settleFinances(d.db, f.season_id);
         await enqueueManagerJobs(d.db, "post", fixtureId);
         if (d.editorialLlm) await enqueueEditorial(d.db, fixtureId);
       },

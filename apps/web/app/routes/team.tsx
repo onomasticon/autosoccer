@@ -1,6 +1,7 @@
 import {
   type ArticleListResponse,
   type BudgetResponse,
+  type ClubFinancesResponse,
   type ManagerProfile,
   type PlayerCareersResponse,
   type Position,
@@ -13,6 +14,7 @@ import { Link } from "react-router";
 import { AgentProfileCard } from "../components/AgentProfileCard";
 import { ArticleCard } from "../components/ArticleCard";
 import { BudgetMeter } from "../components/BudgetMeter";
+import { ClubFinances } from "../components/ClubFinances";
 import { DugoutTimeline } from "../components/Dugout";
 import { FollowButton } from "../components/FollowClub";
 import { ManagerArc } from "../components/ManagerArc";
@@ -40,10 +42,12 @@ export async function loader({ params }: Route.LoaderArgs) {
     : null;
   const profile = await apiMaybe<ManagerProfile>(`/api/v1/teams/${encodeURIComponent(params.slug)}/manager-profile`);
   const careers = await apiMaybe<PlayerCareersResponse>(`/api/v1/teams/${encodeURIComponent(params.slug)}/careers`);
+  const finances = await apiMaybe<ClubFinancesResponse>(`/api/v1/teams/${encodeURIComponent(params.slug)}/finances`);
   return {
     ...detail,
     profile,
     careers: careers?.players ?? [],
+    finances,
     news: news?.items ?? [],
     budget: budgetRow,
     dugout: dugout?.story ?? null,
@@ -77,6 +81,7 @@ export default function Team({ loaderData }: Route.ComponentProps) {
     memoryWrittenAfter,
     profile,
     careers,
+    finances,
   } = loaderData;
   const results = fixtures.filter((f) => f.status === "completed");
   const upcoming = fixtures.filter((f) => f.status !== "completed");
@@ -243,6 +248,12 @@ export default function Team({ loaderData }: Route.ComponentProps) {
               </div>
             )}
           </section>
+          {finances && (
+            <section aria-labelledby="finances">
+              <SectionHeader id="finances" title="Club finances" meta="Fictional credits" />
+              <ClubFinances finances={finances} />
+            </section>
+          )}
           <section aria-labelledby="squad">
             <SectionHeader id="squad" title="Squad" />
             <ul className="card-surface divide-y divide-line">

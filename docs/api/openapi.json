@@ -1010,6 +1010,47 @@
           }
         }
       }
+    },
+    "/teams/{team}/finances": {
+      "get": {
+        "operationId": "getClubFinances",
+        "summary": "Club finances (club-finances/1): the club's fictional treasury: balance, wages still due, headroom, income and spending by season and source, recent entries, and the rule's numbers",
+        "parameters": [
+          {
+            "name": "team",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$schema": "https://json-schema.org/draft/2020-12/schema",
+              "type": "string",
+              "maxLength": 80,
+              "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClubFinancesResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -16321,6 +16362,403 @@
           "contract",
           "team",
           "players"
+        ],
+        "additionalProperties": false
+      },
+      "ClubFinancesResponse": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "contract": {
+            "type": "string",
+            "const": "club-finances/1"
+          },
+          "team": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "description": "UUID primary key",
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              "slug": {
+                "type": "string",
+                "maxLength": 80,
+                "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+              },
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 60
+              },
+              "shortName": {
+                "type": "string",
+                "minLength": 2,
+                "maxLength": 4
+              },
+              "city": {
+                "type": "string",
+                "maxLength": 60
+              },
+              "colors": {
+                "type": "object",
+                "properties": {
+                  "primary": {
+                    "type": "string",
+                    "pattern": "^#[0-9A-Fa-f]{6}$"
+                  },
+                  "secondary": {
+                    "type": "string",
+                    "pattern": "^#[0-9A-Fa-f]{6}$"
+                  }
+                },
+                "required": [
+                  "primary",
+                  "secondary"
+                ],
+                "additionalProperties": false
+              },
+              "crest": {
+                "type": "object",
+                "properties": {
+                  "shape": {
+                    "type": "string",
+                    "enum": [
+                      "shield",
+                      "circle",
+                      "hexagon",
+                      "diamond"
+                    ]
+                  },
+                  "glyph": {
+                    "description": "short monogram rendered on the badge",
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 3
+                  }
+                },
+                "required": [
+                  "shape",
+                  "glyph"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "id",
+              "slug",
+              "name",
+              "shortName",
+              "city",
+              "colors",
+              "crest"
+            ],
+            "additionalProperties": false
+          },
+          "active": {
+            "type": "boolean"
+          },
+          "rule": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "balance": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "payroll": {
+            "type": "object",
+            "properties": {
+              "perRound": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "players": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "roundsToPay": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "remaining": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              }
+            },
+            "required": [
+              "perRound",
+              "players",
+              "roundsToPay",
+              "remaining"
+            ],
+            "additionalProperties": false
+          },
+          "headroom": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "seasons": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "season": {
+                  "type": "object",
+                  "properties": {
+                    "slug": {
+                      "type": "string",
+                      "maxLength": 80,
+                      "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+                    },
+                    "name": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "slug",
+                    "name"
+                  ],
+                  "additionalProperties": false
+                },
+                "bySource": {
+                  "type": "object",
+                  "properties": {
+                    "distribution": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "results": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "prize": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "payroll": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "required": [
+                    "distribution",
+                    "results",
+                    "prize",
+                    "payroll"
+                  ],
+                  "additionalProperties": false
+                },
+                "net": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                }
+              },
+              "required": [
+                "season",
+                "bySource",
+                "net"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "entries": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "enum": [
+                    "opening",
+                    "distribution",
+                    "result",
+                    "prize",
+                    "payroll"
+                  ]
+                },
+                "season": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "slug": {
+                          "type": "string",
+                          "maxLength": 80,
+                          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+                        },
+                        "name": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "slug",
+                        "name"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "round": {
+                  "anyOf": [
+                    {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "amount": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "memo": {
+                  "type": "string"
+                },
+                "at": {
+                  "description": "ISO-8601 timestamp",
+                  "type": "string",
+                  "format": "date-time",
+                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                }
+              },
+              "required": [
+                "kind",
+                "season",
+                "round",
+                "amount",
+                "memo",
+                "at"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "rules": {
+            "type": "object",
+            "properties": {
+              "opening": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "distribution": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "result": {
+                "type": "object",
+                "properties": {
+                  "win": {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
+                  },
+                  "draw": {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
+                  },
+                  "loss": {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
+                  }
+                },
+                "required": [
+                  "win",
+                  "draw",
+                  "loss"
+                ],
+                "additionalProperties": false
+              },
+              "prize": {
+                "type": "array",
+                "items": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                }
+              },
+              "wage": {
+                "type": "object",
+                "properties": {
+                  "base": {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
+                  },
+                  "perPoint": {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
+                  },
+                  "floor": {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
+                  },
+                  "min": {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
+                  }
+                },
+                "required": [
+                  "base",
+                  "perPoint",
+                  "floor",
+                  "min"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "opening",
+              "distribution",
+              "result",
+              "prize",
+              "wage"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "contract",
+          "team",
+          "active",
+          "rule",
+          "balance",
+          "payroll",
+          "headroom",
+          "seasons",
+          "entries",
+          "rules"
         ],
         "additionalProperties": false
       }
