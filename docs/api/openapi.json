@@ -1385,6 +1385,37 @@
                               "L"
                             ]
                           }
+                        },
+                        "walkovers": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        "forfeits": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        "withdrawn": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "round": {
+                                  "type": "integer",
+                                  "exclusiveMinimum": 0,
+                                  "maximum": 9007199254740991
+                                }
+                              },
+                              "required": [
+                                "round"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
                         }
                       },
                       "required": [
@@ -1551,6 +1582,37 @@
                               "L"
                             ]
                           }
+                        },
+                        "walkovers": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        "forfeits": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        "withdrawn": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "round": {
+                                  "type": "integer",
+                                  "exclusiveMinimum": 0,
+                                  "maximum": 9007199254740991
+                                }
+                              },
+                              "required": [
+                                "round"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
                         }
                       },
                       "required": [
@@ -3033,6 +3095,37 @@
                       "L"
                     ]
                   }
+                },
+                "walkovers": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "forfeits": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "withdrawn": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "round": {
+                          "type": "integer",
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991
+                        }
+                      },
+                      "required": [
+                        "round"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
                 }
               },
               "required": [
@@ -3242,6 +3335,115 @@
               "clinched"
             ],
             "additionalProperties": false
+          },
+          "withdrawals": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "team": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "description": "UUID primary key",
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    },
+                    "slug": {
+                      "type": "string",
+                      "maxLength": 80,
+                      "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+                    },
+                    "name": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 60
+                    },
+                    "shortName": {
+                      "type": "string",
+                      "minLength": 2,
+                      "maxLength": 4
+                    },
+                    "city": {
+                      "type": "string",
+                      "maxLength": 60
+                    },
+                    "colors": {
+                      "type": "object",
+                      "properties": {
+                        "primary": {
+                          "type": "string",
+                          "pattern": "^#[0-9A-Fa-f]{6}$"
+                        },
+                        "secondary": {
+                          "type": "string",
+                          "pattern": "^#[0-9A-Fa-f]{6}$"
+                        }
+                      },
+                      "required": [
+                        "primary",
+                        "secondary"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "crest": {
+                      "type": "object",
+                      "properties": {
+                        "shape": {
+                          "type": "string",
+                          "enum": [
+                            "shield",
+                            "circle",
+                            "hexagon",
+                            "diamond"
+                          ]
+                        },
+                        "glyph": {
+                          "description": "short monogram rendered on the badge",
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 3
+                        }
+                      },
+                      "required": [
+                        "shape",
+                        "glyph"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "slug",
+                    "name",
+                    "shortName",
+                    "city",
+                    "colors",
+                    "crest"
+                  ],
+                  "additionalProperties": false
+                },
+                "round": {
+                  "type": "integer",
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "reason": {
+                  "type": "string"
+                },
+                "declaredAt": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "team",
+                "round",
+                "reason",
+                "declaredAt"
+              ],
+              "additionalProperties": false
+            }
           }
         },
         "required": [
@@ -3620,6 +3822,55 @@
                             "required": [
                               "home",
                               "away"
+                            ],
+                            "additionalProperties": false
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "forfeit": {
+                        "anyOf": [
+                          {
+                            "type": "object",
+                            "properties": {
+                              "kind": {
+                                "type": "string",
+                                "enum": [
+                                  "walkover",
+                                  "void"
+                                ]
+                              },
+                              "awardedTo": {
+                                "anyOf": [
+                                  {
+                                    "description": "UUID primary key",
+                                    "type": "string",
+                                    "format": "uuid",
+                                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              },
+                              "withdrawn": {
+                                "minItems": 1,
+                                "maxItems": 2,
+                                "type": "array",
+                                "items": {
+                                  "description": "UUID primary key",
+                                  "type": "string",
+                                  "format": "uuid",
+                                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                                }
+                              }
+                            },
+                            "required": [
+                              "kind",
+                              "awardedTo",
+                              "withdrawn"
                             ],
                             "additionalProperties": false
                           },
@@ -4272,6 +4523,37 @@
                         "L"
                       ]
                     }
+                  },
+                  "walkovers": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "forfeits": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "withdrawn": {
+                    "anyOf": [
+                      {
+                        "type": "object",
+                        "properties": {
+                          "round": {
+                            "type": "integer",
+                            "exclusiveMinimum": 0,
+                            "maximum": 9007199254740991
+                          }
+                        },
+                        "required": [
+                          "round"
+                        ],
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
                   }
                 },
                 "required": [
@@ -4556,6 +4838,55 @@
                       "type": "null"
                     }
                   ]
+                },
+                "forfeit": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "kind": {
+                          "type": "string",
+                          "enum": [
+                            "walkover",
+                            "void"
+                          ]
+                        },
+                        "awardedTo": {
+                          "anyOf": [
+                            {
+                              "description": "UUID primary key",
+                              "type": "string",
+                              "format": "uuid",
+                              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "withdrawn": {
+                          "minItems": 1,
+                          "maxItems": 2,
+                          "type": "array",
+                          "items": {
+                            "description": "UUID primary key",
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                          }
+                        }
+                      },
+                      "required": [
+                        "kind",
+                        "awardedTo",
+                        "withdrawn"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
                 }
               },
               "required": [
@@ -4716,6 +5047,34 @@
                 },
                 "champion": {
                   "type": "boolean"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "withdrawn": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "round": {
+                          "type": "integer",
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        "reason": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "round",
+                        "reason"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
                 }
               },
               "required": [
@@ -4724,6 +5083,63 @@
                 "points",
                 "played",
                 "champion"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "identities": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "shortName": {
+                  "type": "string"
+                },
+                "fromSeason": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "slug": {
+                          "type": "string",
+                          "maxLength": 80,
+                          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+                        },
+                        "name": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "slug",
+                        "name"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "reason": {
+                  "type": "string",
+                  "enum": [
+                    "founding",
+                    "takeover"
+                  ]
+                },
+                "memo": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "name",
+                "shortName",
+                "fromSeason",
+                "reason",
+                "memo"
               ],
               "additionalProperties": false
             }
@@ -5222,6 +5638,55 @@
                     "required": [
                       "home",
                       "away"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "forfeit": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "enum": [
+                          "walkover",
+                          "void"
+                        ]
+                      },
+                      "awardedTo": {
+                        "anyOf": [
+                          {
+                            "description": "UUID primary key",
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "withdrawn": {
+                        "minItems": 1,
+                        "maxItems": 2,
+                        "type": "array",
+                        "items": {
+                          "description": "UUID primary key",
+                          "type": "string",
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                        }
+                      }
+                    },
+                    "required": [
+                      "kind",
+                      "awardedTo",
+                      "withdrawn"
                     ],
                     "additionalProperties": false
                   },
@@ -12988,7 +13453,8 @@
               "playing",
               "completed",
               "delayed",
-              "failed"
+              "failed",
+              "forfeited"
             ]
           },
           "home": {
@@ -14735,6 +15201,227 @@
               "report"
             ],
             "additionalProperties": false
+          },
+          "forfeit": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "walkover",
+                      "void"
+                    ]
+                  },
+                  "awardedTo": {
+                    "anyOf": [
+                      {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "description": "UUID primary key",
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                          },
+                          "slug": {
+                            "type": "string",
+                            "maxLength": 80,
+                            "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+                          },
+                          "name": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 60
+                          },
+                          "shortName": {
+                            "type": "string",
+                            "minLength": 2,
+                            "maxLength": 4
+                          },
+                          "city": {
+                            "type": "string",
+                            "maxLength": 60
+                          },
+                          "colors": {
+                            "type": "object",
+                            "properties": {
+                              "primary": {
+                                "type": "string",
+                                "pattern": "^#[0-9A-Fa-f]{6}$"
+                              },
+                              "secondary": {
+                                "type": "string",
+                                "pattern": "^#[0-9A-Fa-f]{6}$"
+                              }
+                            },
+                            "required": [
+                              "primary",
+                              "secondary"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "crest": {
+                            "type": "object",
+                            "properties": {
+                              "shape": {
+                                "type": "string",
+                                "enum": [
+                                  "shield",
+                                  "circle",
+                                  "hexagon",
+                                  "diamond"
+                                ]
+                              },
+                              "glyph": {
+                                "description": "short monogram rendered on the badge",
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 3
+                              }
+                            },
+                            "required": [
+                              "shape",
+                              "glyph"
+                            ],
+                            "additionalProperties": false
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "slug",
+                          "name",
+                          "shortName",
+                          "city",
+                          "colors",
+                          "crest"
+                        ],
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "withdrawn": {
+                    "minItems": 1,
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "team": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "description": "UUID primary key",
+                              "type": "string",
+                              "format": "uuid",
+                              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                            },
+                            "slug": {
+                              "type": "string",
+                              "maxLength": 80,
+                              "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+                            },
+                            "name": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 60
+                            },
+                            "shortName": {
+                              "type": "string",
+                              "minLength": 2,
+                              "maxLength": 4
+                            },
+                            "city": {
+                              "type": "string",
+                              "maxLength": 60
+                            },
+                            "colors": {
+                              "type": "object",
+                              "properties": {
+                                "primary": {
+                                  "type": "string",
+                                  "pattern": "^#[0-9A-Fa-f]{6}$"
+                                },
+                                "secondary": {
+                                  "type": "string",
+                                  "pattern": "^#[0-9A-Fa-f]{6}$"
+                                }
+                              },
+                              "required": [
+                                "primary",
+                                "secondary"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "crest": {
+                              "type": "object",
+                              "properties": {
+                                "shape": {
+                                  "type": "string",
+                                  "enum": [
+                                    "shield",
+                                    "circle",
+                                    "hexagon",
+                                    "diamond"
+                                  ]
+                                },
+                                "glyph": {
+                                  "description": "short monogram rendered on the badge",
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 3
+                                }
+                              },
+                              "required": [
+                                "shape",
+                                "glyph"
+                              ],
+                              "additionalProperties": false
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "slug",
+                            "name",
+                            "shortName",
+                            "city",
+                            "colors",
+                            "crest"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "round": {
+                          "type": "integer",
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        "reason": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "team",
+                        "round",
+                        "reason"
+                      ],
+                      "additionalProperties": false
+                    }
+                  }
+                },
+                "required": [
+                  "kind",
+                  "awardedTo",
+                  "withdrawn"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
@@ -16769,6 +17456,12 @@
                       "type": "integer",
                       "minimum": -9007199254740991,
                       "maximum": 9007199254740991
+                    },
+                    "takeover": {
+                      "default": 0,
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
                     }
                   },
                   "required": [
@@ -16776,7 +17469,8 @@
                     "results",
                     "prize",
                     "payroll",
-                    "transfers"
+                    "transfers",
+                    "takeover"
                   ],
                   "additionalProperties": false
                 },
@@ -16807,7 +17501,8 @@
                     "result",
                     "prize",
                     "payroll",
-                    "transfer"
+                    "transfer",
+                    "takeover"
                   ]
                 },
                 "season": {

@@ -1,6 +1,8 @@
 /** Read model for the transfer window (transfer-window/1). */
+
 import { type BidStatus, TRANSFERS_CONTRACT, type TransferWindowResponse } from "@autosoccer/contracts";
 import type { Db } from "@autosoccer/db";
+import { teamsAsOf } from "../insolvency/takeover.ts";
 import { overallRating, playerAttributes } from "../league/attributes.ts";
 import { type TeamRow, toTeam } from "../mappers.ts";
 import type { WindowRow } from "./market.ts";
@@ -26,7 +28,7 @@ export async function transferWindow(db: Db, seasonSlug?: string): Promise<Trans
     closeBeforeKickoffMin: TRANSFER.window.closeBeforeKickoffMin,
   };
   if (!w) return { contract: TRANSFERS_CONTRACT, window: null, listings: [], bids: [], rules };
-  const teams = new Map((await db<TeamRow[]>`select * from teams`).map((t) => [t.id, toTeam(t)]));
+  const teams = await teamsAsOf(db, w.season_id);
   const players = new Map(
     (
       await db<

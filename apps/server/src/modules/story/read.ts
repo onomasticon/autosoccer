@@ -19,7 +19,8 @@ import {
 import type { Db } from "@autosoccer/db";
 import { teamDugout } from "../dugout/read.ts";
 import { matchFacts, prematchFacts } from "../editorial/facts.ts";
-import { type SeasonRow, seasonTeams, standingRows } from "../league/read.ts";
+import { withdrawals } from "../insolvency/check.ts";
+import { forfeitOf, type SeasonRow, seasonTeams, seasonWithdrawals, standingRows } from "../league/read.ts";
 
 interface FixtureRow {
   id: string;
@@ -264,10 +265,24 @@ export async function fixtureStory(db: Db, fixtureId: string, now = new Date()):
   const home = teams.get(f.home_team_id)!;
   const away = teams.get(f.away_team_id)!;
   const completed = f.status === "completed" && f.match_status === "completed";
+  // A club in this fixture has withdrawn (bankrupt): it's a walkover or void, never played.
+  const ff = forfeitOf(f, await withdrawals(db, f.season_id));
+  const forfeit: FixtureStory["forfeit"] = ff
+    ? {
+        kind: ff.kind,
+        awardedTo: ff.awardedTo ? teams.get(ff.awardedTo)! : null,
+        withdrawn: (await seasonWithdrawals(db, f.season_id))
+          .filter((w) => ff.withdrawn.includes(w.team.id))
+          .map((w) => ({ team: w.team, round: w.round, reason: w.reason })),
+      }
+    : null;
 
   const pre = await prematchFacts(db, f.id);
   const before = await snapshot(db, f.season_id, f.round - 1);
-  const after = completed ? await snapshot(db, f.season_id, f.round) : new Map<string, StandingSnapshot>();
+  const after =
+    completed || (ff && f.status === "completed")
+      ? await snapshot(db, f.season_id, f.round)
+      : new Map<string, StandingSnapshot>();
 
   const side = async (team: Team): Promise<StorySide> => {
     const story = await teamDugout(db, season!, team);
@@ -287,7 +302,7 @@ export async function fixtureStory(db: Db, fixtureId: string, now = new Date()):
   // honest no-decision (budget, rejected, failed). The pre-season plan alone isn't a decision.
   const done = new Set(["new", "kept", "skipped_budget", "rejected", "failed"]);
   const decided = [hs, as].every((s) => s.decision && done.has(s.decision.status));
-  const stage = await stageOf(db, f, decided, now);
+  const stage = ff ? "forfeited" : await stageOf(db, f, decided, now);
 
   let postmatch: FixtureStory["postmatch"] = null;
   if (completed && f.match_id) {
@@ -334,6 +349,7 @@ export async function fixtureStory(db: Db, fixtureId: string, now = new Date()):
       facts: pre.facts,
     },
     postmatch,
+    forfeit,
     articles: {
       preview: await articleRef(db, { fixtureId: f.id, kind: "preview" }),
       report: completed && f.match_id ? await articleRef(db, { matchId: f.match_id, kind: "match_report" }) : null,

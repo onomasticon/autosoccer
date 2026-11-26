@@ -23,6 +23,7 @@ import {
   seasonRace,
   seasonSummaries,
   seasonTeams,
+  seasonWithdrawals,
   standingRows,
   toSeason,
 } from "./read.ts";
@@ -59,7 +60,8 @@ export function leagueRoutes({ db }: { db: Db }) {
     if (!s) return notFound(c, "Season");
     const { rows, afterRound } = await standingRows(db, s.id);
     const race = await seasonRace(db, s.id, rows, afterRound);
-    return contractJson(c, StandingsResponse, { season: toSeason(s), afterRound, rows, race });
+    const withdrawals = await seasonWithdrawals(db, s.id);
+    return contractJson(c, StandingsResponse, { season: toSeason(s), afterRound, rows, race, withdrawals });
   });
 
   r.get("/seasons/:season/fixtures", async (c) => {
@@ -113,15 +115,40 @@ export function leagueRoutes({ db }: { db: Db }) {
     const history = [];
     for (const s of done) {
       const row = (await standingRows(db, s.id)).rows.find((x) => x.team.id === t.id);
+      const [w] = await db<{ effective_round: number; reason: string }[]>`
+        select effective_round, reason from club_withdrawals where season_id = ${s.id} and team_id = ${t.id}`;
       if (row)
         history.push({
           season: { slug: s.slug, name: s.name },
           position: row.position,
           points: row.points,
           played: row.played,
-          champion: row.position === 1,
+          champion: row.position === 1 && !w,
+          ...(row.team.name !== t.name ? { name: row.team.name } : {}),
+          ...(w ? { withdrawn: { round: w.effective_round, reason: w.reason } } : {}),
         });
     }
+    const identities = (
+      await db<
+        {
+          name: string;
+          short_name: string;
+          reason: "founding" | "takeover";
+          memo: string;
+          slug: string | null;
+          season_name: string | null;
+        }[]
+      >`
+        select i.name, i.short_name, i.reason, i.memo, s.slug, s.name as season_name
+        from team_identities i left join seasons s on s.id = i.from_season_id
+        where i.team_id = ${t.id} order by s.created_at nulls first, i.created_at`
+    ).map((i) => ({
+      name: i.name,
+      shortName: i.short_name,
+      fromSeason: i.slug && i.season_name ? { slug: i.slug, name: i.season_name } : null,
+      reason: i.reason,
+      memo: i.memo,
+    }));
     // Goals per player for this club (own goals excluded): this season and all time. Goals a player
     // scored for another club before a transfer stay with that club.
     const goalRows = await db<{ player_id: string; season_id: string; n: number }[]>`
@@ -168,6 +195,7 @@ export function leagueRoutes({ db }: { db: Db }) {
       fixtures,
       currentRevision,
       history,
+      identities,
       goals,
       memoryWrittenAfter: written ? { season: written.name, round: written.round } : null,
     });

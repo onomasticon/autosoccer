@@ -3,6 +3,8 @@ import type { Db } from "@autosoccer/db";
 import { SIM_VERSION } from "@autosoccer/sim-adapter";
 import { FINANCE_RULE } from "../finance/rules.ts";
 import { settleFinances } from "../finance/settle.ts";
+import { checkSolvency, resolveForfeits, withdrawals, withdrawnBy } from "../insolvency/check.ts";
+import { INSOLVENCY_RULE } from "../insolvency/rules.ts";
 import { enqueueFixture } from "../matches/service.ts";
 import { TRANSFER_RULE } from "../transfers/rules.ts";
 import { closeWindowForKickoff } from "../transfers/window.ts";
@@ -22,6 +24,11 @@ export async function seedTeams(db: Db, teams: readonly SeedTeam[] = SEED_TEAMS)
         on conflict (slug) do nothing`;
       const [row] = await tx<{ id: string }[]>`select id from teams where slug = ${t.slug}`;
       ids.set(t.slug, row!.id);
+      // The club's founding identity (dated identity history, see insolvency/takeover.ts).
+      await tx`
+        insert into team_identities (team_id, name, short_name, city, primary_color, secondary_color, crest, reason)
+        select id, name, short_name, city, primary_color, secondary_color, crest, 'founding' from teams where id = ${row!.id}
+        on conflict (team_id) where from_season_id is null do nothing`;
       for (const p of t.players) {
         await tx`insert into players (team_id, name, shirt_number, position)
           values (${row!.id}, ${p.name}, ${p.number}, ${p.position}) on conflict (team_id, shirt_number) do nothing`;
@@ -75,6 +82,8 @@ export interface CreateSeasonInput {
   financeRule?: string | null;
   /** Transfer rule (transfer/1 by default when the season has finances); null: no transfer window. */
   transferRule?: string | null;
+  /** Insolvency rule (insolvency/1 by default when the season has finances); null: no solvency checks. */
+  insolvencyRule?: string | null;
 }
 
 /**
@@ -105,11 +114,16 @@ export async function createSeason(db: Db, input: CreateSeasonInput): Promise<{ 
     const startsAt = input.startsAt ?? new Date();
     const financeRule = input.financeRule === undefined ? FINANCE_RULE : input.financeRule;
     const transferRule = financeRule ? (input.transferRule === undefined ? TRANSFER_RULE : input.transferRule) : null;
+    const insolvencyRule = financeRule
+      ? input.insolvencyRule === undefined
+        ? INSOLVENCY_RULE
+        : input.insolvencyRule
+      : null;
     const [season] = await tx<{ id: string }[]>`
-      insert into seasons (slug, name, status, seed, sim_version, players_per_team, budget_per_team_micro_usd, editorial_budget_micro_usd, starts_at, finance_rule, transfer_rule)
+      insert into seasons (slug, name, status, seed, sim_version, players_per_team, budget_per_team_micro_usd, editorial_budget_micro_usd, starts_at, finance_rule, transfer_rule, insolvency_rule)
       values (${input.slug}, ${input.name}, 'scheduled', ${input.seed}, ${input.simVersion ?? SIM_VERSION}, ${input.playersPerTeam ?? 7},
         ${input.budgetPerTeamMicroUsd}, ${input.editorialBudgetMicroUsd ?? DEFAULT_EDITORIAL_BUDGET_MICRO_USD}, ${startsAt},
-        ${financeRule}, ${transferRule}) returning id`;
+        ${financeRule}, ${transferRule}, ${insolvencyRule}) returning id`;
     for (const t of teams) await tx`insert into season_teams (season_id, team_id) values (${season!.id}, ${t.id})`;
     await registerSquads(tx as unknown as Db, season!.id);
     const order = seededOrder(teams, input.seed);
@@ -164,8 +178,13 @@ export async function advanceSeason(db: Db, seasonId: string, opts: AdvanceOptio
     return { state: "completed" };
   }
   const round = next.round;
-  const fixtures = await db<{ id: string; status: string }[]>`
+  // Payroll check (insolvency/1) as soon as the round is next, before its previews and manager
+  // decisions. Round 1 waits for the transfer window to close: its deals move cash.
+  const [window] = await db`select 1 from transfer_windows where season_id = ${seasonId} and phase <> 'closed'`;
+  if (!window) await checkSolvency(db, seasonId, round);
+  const roundFixtures = () => db<{ id: string; status: string }[]>`
     select f.id, f.status from fixtures f where f.season_id = ${seasonId} and f.round = ${round} order by f.id`;
+  let fixtures = await roundFixtures();
   const failed = await db<{ fixture_id: string }[]>`
     select (j.payload->>'fixtureId') as fixture_id from jobs j
     where j.kind = 'match.play' and j.status = 'failed' and (j.payload->>'fixtureId') = any(${fixtures.map((f) => f.id)})`;
@@ -180,13 +199,11 @@ export async function advanceSeason(db: Db, seasonId: string, opts: AdvanceOptio
     // The season starts on time: an open transfer window settles and closes before any round is
     // released (and before the managers pick their round-1 sides from the new squads).
     await closeWindowForKickoff(db, seasonId);
-    if (
-      opts.beforeRound &&
-      !(await opts.beforeRound(
-        round,
-        toRelease.map((f) => f.id),
-      ))
-    ) {
+    await checkSolvency(db, seasonId, round);
+    // A withdrawn club's fixtures resolve now, as walkovers (or void): never simulated.
+    if (await resolveForfeits(db, seasonId, round)) fixtures = await roundFixtures();
+    const live = fixtures.filter((f) => f.status === "scheduled").map((f) => f.id);
+    if (live.length && opts.beforeRound && !(await opts.beforeRound(round, live))) {
       return { state: "waiting", round, reason: "pre-round work in progress" };
     }
   }
@@ -204,20 +221,34 @@ export async function advanceSeason(db: Db, seasonId: string, opts: AdvanceOptio
   return { state: "playing", round, enqueued, pending: fixtures.filter((f) => f.status !== "completed").length };
 }
 
-/** Official results so far (completed matches only). */
+/** Official results so far: completed matches, and fixtures resolved as walkovers or void. */
 export async function seasonResults(db: Db, seasonId: string): Promise<Result[]> {
   const rows = await db<{ round: number; home: string; away: string; home_score: number; away_score: number }[]>`
     select f.round, f.home_team_id as home, f.away_team_id as away, m.home_score, m.away_score
     from fixtures f join matches m on m.fixture_id = f.id
     where f.season_id = ${seasonId} and m.status = 'completed'
     order by f.round`;
-  return rows.map((r) => ({
-    round: r.round,
-    home: r.home,
-    away: r.away,
-    homeGoals: r.home_score,
-    awayGoals: r.away_score,
-  }));
+  const forfeits = await db<{ round: number; home: string; away: string; outcome: string; winner: string | null }[]>`
+    select f.round, f.home_team_id as home, f.away_team_id as away, f.outcome, f.walkover_team_id as winner
+    from fixtures f where f.season_id = ${seasonId} and f.outcome is not null and f.status = 'completed'
+    order by f.round`;
+  return [
+    ...rows.map((r) => ({
+      round: r.round,
+      home: r.home,
+      away: r.away,
+      homeGoals: r.home_score,
+      awayGoals: r.away_score,
+    })),
+    ...forfeits.map((r) => ({
+      round: r.round,
+      home: r.home,
+      away: r.away,
+      homeGoals: 0,
+      awayGoals: 0,
+      walkover: (r.outcome === "void" ? "void" : r.winner === r.home ? "home" : "away") as Result["walkover"],
+    })),
+  ].sort((a, b) => a.round - b.round);
 }
 
 /**
@@ -237,11 +268,16 @@ export async function seasonStandings(
   const [done] = await db<{ round: number | null }[]>`
     select max(round)::int as round from fixtures f where season_id = ${seasonId}
       and not exists (select 1 from fixtures g where g.season_id = f.season_id and g.round <= f.round and g.status <> 'completed')`;
+  // A historical snapshot shows a club as withdrawn once it has forfeited a fixture by then.
+  const gone = await withdrawals(db, seasonId);
+  const through = opts.throughRound ?? Number.POSITIVE_INFINITY;
+  const out = withdrawnBy(gone, through);
   return {
     rows: computeStandings(
       teams.map((t) => t.id),
       results,
       (id) => names.get(id) ?? id,
+      new Map([...gone].filter(([t]) => out.has(t))),
     ),
     afterRound: Math.min(done?.round ?? 0, opts.throughRound ?? Number.POSITIVE_INFINITY),
   };

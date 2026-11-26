@@ -1,6 +1,7 @@
 /** Read-model queries shared by the league API routes (and later the editorial facts). */
 import {
   type FixtureView,
+  type Forfeit,
   type RecordsResponse,
   type ScorerRow,
   type Season,
@@ -10,9 +11,12 @@ import {
   type TeamSize,
   type TitleRace,
   toTeamSize,
+  type Withdrawal,
 } from "@autosoccer/contracts";
 import type { Db } from "@autosoccer/db";
-import { type FixtureRow, type TeamRow, toFixtureView, toTeam } from "../mappers.ts";
+import { withdrawals } from "../insolvency/check.ts";
+import { teamsAsOf } from "../insolvency/takeover.ts";
+import { type FixtureRow, toFixtureView } from "../mappers.ts";
 import { titleRace } from "./race.ts";
 import { seasonStandings } from "./service.ts";
 
@@ -72,7 +76,7 @@ export async function scorers(db: Db, seasonId: string | null, limit = 10): Prom
     select g.player_id, p.name, g.team_id, g.goals, coalesce(a.matches, 0)::int as matches
     from goals g join players p on p.id = g.player_id left join apps a on a.player_id = g.player_id
     order by g.goals desc, a.matches asc nulls last, p.name limit ${limit}`;
-  const teams = new Map((await db<TeamRow[]>`select * from teams`).map((t) => [t.id, toTeam(t)]));
+  const teams = await teamsAsOf(db, seasonId);
   let rank = 0;
   return rows.map((r, i) => {
     if (i === 0 || r.goals !== rows[i - 1]!.goals) rank = i + 1;
@@ -91,7 +95,6 @@ export async function scorers(db: Db, seasonId: string | null, limit = 10): Prom
 export async function leagueRecords(db: Db): Promise<RecordsResponse> {
   const seasons = await db<{ id: string; slug: string; name: string }[]>`
     select id, slug, name from seasons where status = 'completed' order by starts_at nulls last, created_at`;
-  const teams = new Map((await db<TeamRow[]>`select * from teams`).map((t) => [t.id, toTeam(t)]));
   const out: RecordsResponse = { mostPoints: [], perfectSeasons: [], mostGoalsInSeason: [], biggestWin: [] };
   const best = <T>(list: T[], key: (x: T) => number) => {
     const top = Math.max(...list.map(key));
@@ -102,6 +105,7 @@ export async function leagueRecords(db: Db): Promise<RecordsResponse> {
   const wins: RecordsResponse["biggestWin"] = [];
   for (const s of seasons) {
     const ref = { slug: s.slug, name: s.name };
+    const teams = await teamsAsOf(db, s.id);
     const { rows } = await standingRows(db, s.id);
     for (const r of rows) {
       points.push({ season: ref, team: r.team, points: r.points, played: r.played });
@@ -196,21 +200,52 @@ export async function seasonBySlug(db: Db, slug: string): Promise<SeasonRow | nu
   return row ?? null;
 }
 
+/** A season's clubs, as they were known that season (a club renamed after a takeover keeps its old name there). */
 export async function seasonTeams(db: Db, seasonId: string): Promise<Map<string, Team>> {
-  const rows = await db<TeamRow[]>`
-    select t.* from season_teams st join teams t on t.id = st.team_id where st.season_id = ${seasonId} order by t.name`;
-  return new Map(rows.map((t) => [t.id, toTeam(t)]));
+  const ids = new Set(
+    (await db<{ team_id: string }[]>`select team_id from season_teams where season_id = ${seasonId}`).map(
+      (r) => r.team_id,
+    ),
+  );
+  const all = await teamsAsOf(db, seasonId);
+  return new Map([...all].filter(([id]) => ids.has(id)).sort((a, b) => a[1].name.localeCompare(b[1].name)));
+}
+
+/** Clubs declared bankrupt in a season, in the order they withdrew. */
+export async function seasonWithdrawals(db: Db, seasonId: string): Promise<Withdrawal[]> {
+  const teams = await seasonTeams(db, seasonId);
+  const rows = await db<{ team_id: string; effective_round: number; reason: string; declared_at: Date }[]>`
+    select team_id, effective_round, reason, declared_at from club_withdrawals where season_id = ${seasonId}
+    order by effective_round, declared_at, team_id`;
+  return rows.map((r) => ({
+    team: teams.get(r.team_id)!,
+    round: r.effective_round,
+    reason: r.reason,
+    declaredAt: r.declared_at.toISOString(),
+  }));
+}
+
+/** A fixture's forfeit, once a club in it has withdrawn by its round (resolved or still to come). */
+export function forfeitOf(
+  f: { round: number; home_team_id: string; away_team_id: string },
+  gone: Map<string, number>,
+): Forfeit | null {
+  const out = [f.home_team_id, f.away_team_id].filter((t) => (gone.get(t) ?? Number.POSITIVE_INFINITY) <= f.round);
+  if (!out.length) return null;
+  if (out.length === 2) return { kind: "void", awardedTo: null, withdrawn: out };
+  return { kind: "walkover", awardedTo: out[0] === f.home_team_id ? f.away_team_id : f.home_team_id, withdrawn: out };
 }
 
 export async function fixtureViews(db: Db, seasonId: string, teamId?: string): Promise<FixtureView[]> {
   const teams = await seasonTeams(db, seasonId);
+  const gone = await withdrawals(db, seasonId);
   const rows = await db<FixtureRow[]>`
     select f.*, m.id as match_id, m.home_score, m.away_score
     from fixtures f left join matches m on m.fixture_id = f.id
     where f.season_id = ${seasonId}
       and (${teamId ?? null}::uuid is null or ${teamId ?? null}::uuid in (f.home_team_id, f.away_team_id))
     order by f.round, f.scheduled_at, f.id`;
-  return rows.map((r) => toFixtureView(r, teams));
+  return rows.map((r) => ({ ...toFixtureView(r, teams), forfeit: forfeitOf(r, gone) }));
 }
 
 /** The title race after `afterRound`: remaining fixtures are the ones in later rounds. */
@@ -227,8 +262,9 @@ export async function seasonRace(
   const [r] = await db<
     { n: number }[]
   >`select coalesce(max(round), 0)::int as n from fixtures where season_id = ${seasonId}`;
+  // A withdrawn club can't win the title (and is already placed last).
   const race = titleRace({
-    rows: rows.map((x) => ({ teamId: x.team.id, points: x.points })),
+    rows: rows.filter((x) => !x.withdrawn).map((x) => ({ teamId: x.team.id, points: x.points })),
     remaining: new Map(left.map((l) => [l.team_id, l.n])),
   });
   const team = new Map(rows.map((x) => [x.team.id, x.team]));
@@ -257,6 +293,10 @@ export async function standingRows(
   const { rows, afterRound } = await seasonStandings(db, seasonId, opts);
   return {
     afterRound,
-    rows: rows.map(({ team, ...r }) => ({ ...r, team: teams.get(team)! })),
+    rows: rows.map(({ team, withdrawnFrom, ...r }) => ({
+      ...r,
+      team: teams.get(team)!,
+      withdrawn: withdrawnFrom === null ? null : { round: withdrawnFrom },
+    })),
   };
 }

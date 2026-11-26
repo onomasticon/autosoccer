@@ -150,7 +150,8 @@ ${f.needs.map((n) => `- ${n}`).join("\n")}
 ## Rules (${f.format.playersPerTeam}-a-side)
 - Up to ${f.rules.maxListings} listings and ${f.rules.maxBids} bids per club; minimum bid ${cr(f.rules.minFee)}; you can't bid more than your cash.
 - Every squad keeps at least ${f.rules.minSquad} players and ${f.rules.goalkeepers} goalkeeper, and at most ${f.rules.maxSquad}.
-- A seller may refuse any offer, however large.`;
+- A seller may refuse any offer, however large.
+- Bankruptcy: before each round, a club must be able to pay that round's wages from its cash (plus the distribution in round 1). A club that can't is withdrawn for the rest of the season: its remaining fixtures are walkovers to its opponents and it gets no finishing prize.`;
 }
 
 export function transferSystem(f: TransferFacts): string {

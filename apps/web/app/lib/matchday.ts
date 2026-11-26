@@ -12,7 +12,15 @@ export const STAGE_INFO: Record<StoryStage, { act: Act; label: string; tone: "mu
   completed: { act: "reaction", label: "Full time", tone: "done" },
   delayed: { act: "build-up", label: "Delayed", tone: "warn" },
   failed: { act: "build-up", label: "Held up", tone: "warn" },
+  forfeited: { act: "reaction", label: "Walkover", tone: "warn" },
 };
+
+/** "Walkover to Northgate Comets" / "Void": the headline for a forfeited fixture. */
+export function forfeitHeadline(story: FixtureStory): string | null {
+  const ff = story.forfeit;
+  if (!ff) return null;
+  return ff.kind === "void" ? "Void: both clubs withdrew" : `Walkover to ${ff.awardedTo?.name ?? "the opponent"}`;
+}
 
 export const matchdayHref = (fixtureId: string) => `/matchday/${fixtureId}`;
 
@@ -21,12 +29,13 @@ export const matchdayHref = (fixtureId: string) => `/matchday/${fixtureId}`;
  * unfinished fixtures (its build-up, or a match being played), else the latest result.
  */
 export function featuredFixture(fixtures: readonly FixtureView[]): FixtureView | null {
-  const open = fixtures.filter((f) => f.status !== "completed");
+  // A forfeited fixture (a club withdrew) is never played, so it's never the featured matchday.
+  const open = fixtures.filter((f) => f.status !== "completed" && !f.forfeit);
   if (open.length) {
     const round = Math.min(...open.map((f) => f.round));
     return open.find((f) => f.round === round) ?? null;
   }
-  return [...fixtures].reverse().find((f) => f.status === "completed") ?? null;
+  return [...fixtures].reverse().find((f) => f.status === "completed" && !f.forfeit) ?? null;
 }
 
 /**
@@ -89,6 +98,11 @@ export function watchNote(story: FixtureStory, hasReplay: boolean): { title: str
         title: "Held up",
         body: "The match hit a problem and is waiting for an operator. No result has been recorded, and none will be guessed.",
       };
+    case "forfeited":
+      return {
+        title: "Not played",
+        body: "A club in this fixture has withdrawn from the season, so it isn't simulated: there is no replay, lineup or goals.",
+      };
     default:
       return {
         title: "Not played yet",
@@ -129,6 +143,11 @@ export function nextMatchStatus(f: FixtureView, story: FixtureStory | null): { l
       return { label: "Delayed", detail: "Kick-off time has passed and the match hasn't started yet." };
     case "failed":
       return { label: "Held up", detail: "The match is waiting for an operator; no result yet." };
+    case "forfeited":
+      return {
+        label: "Walkover",
+        detail: "A club in this fixture withdrew from the season (bankrupt), so it won't be played.",
+      };
     default:
       return { label: "Full time", detail: "The result is in." };
   }

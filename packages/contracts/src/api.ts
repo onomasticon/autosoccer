@@ -39,13 +39,36 @@ export const StandingRow = z.object({
   points: z.number().int().nonnegative(),
   /** Most recent last. */
   form: z.array(FormResult).max(5),
+  /** Wins awarded by walkover and fixtures forfeited (insolvency/1); included in won / lost. */
+  walkovers: z.number().int().nonnegative().optional(),
+  forfeits: z.number().int().nonnegative().optional(),
+  /**
+   * Set when the club withdrew from the season (bankrupt): the first round it didn't play. A
+   * withdrawn club is placed below every club still in the season and can't win a prize.
+   */
+  withdrawn: z.object({ round: z.number().int().positive() }).nullable().optional(),
 });
 export type StandingRow = z.infer<typeof StandingRow>;
+
+/**
+ * A fixture that isn't played because a club withdrew (insolvency/1): a walkover awarded to the club
+ * still in (3 points, no goals), or void when both have withdrawn. Set as soon as it's known, before
+ * the fixture's round resolves it (`status` is completed once it has).
+ */
+export const Forfeit = z.object({
+  kind: z.enum(["walkover", "void"]),
+  /** The club awarded the walkover (null when void). */
+  awardedTo: Id.nullable(),
+  /** The withdrawn club(s). */
+  withdrawn: z.array(Id).min(1).max(2),
+});
+export type Forfeit = z.infer<typeof Forfeit>;
 
 export const FixtureView = Fixture.extend({
   home: Team,
   away: Team,
   score: z.object({ home: z.number().int(), away: z.number().int() }).nullable(),
+  forfeit: Forfeit.nullable().optional(),
 });
 export type FixtureView = z.infer<typeof FixtureView>;
 
@@ -70,11 +93,22 @@ export const TitleRace = z.object({
 });
 export type TitleRace = z.infer<typeof TitleRace>;
 
+/** A club declared bankrupt in a season (insolvency/1). */
+export const Withdrawal = z.object({
+  team: Team,
+  /** The first round it didn't play. */
+  round: z.number().int().positive(),
+  reason: z.string(),
+  declaredAt: z.string(),
+});
+export type Withdrawal = z.infer<typeof Withdrawal>;
+
 export const StandingsResponse = z.object({
   season: Season,
   afterRound: z.number().int().nonnegative(),
   rows: z.array(StandingRow),
   race: TitleRace,
+  withdrawals: z.array(Withdrawal).optional(),
 });
 /** One line of the roll of honour: a season and, once played, who won it and who scored most. */
 export const SeasonSummary = z.object({
@@ -156,8 +190,25 @@ export const TeamDetailResponse = z.object({
       points: z.number().int().nonnegative(),
       played: z.number().int().nonnegative(),
       champion: z.boolean(),
+      /** The club's name that season, when it differs from today's (before a takeover). */
+      name: z.string().optional(),
+      /** Set when the club withdrew from that season (bankrupt). */
+      withdrawn: z.object({ round: z.number().int().positive(), reason: z.string() }).nullable().optional(),
     }),
   ),
+  /** Dated identities, oldest first: the founding name, then one per takeover. */
+  identities: z
+    .array(
+      z.object({
+        name: z.string(),
+        shortName: z.string(),
+        /** First season under this name (null: since the club was founded). */
+        fromSeason: Season.pick({ slug: true, name: true }).nullable(),
+        reason: z.enum(["founding", "takeover"]),
+        memo: z.string(),
+      }),
+    )
+    .optional(),
   /** Goals per squad player: this season and all seasons (own goals excluded). */
   goals: z.array(
     z.object({ playerId: Id, season: z.number().int().nonnegative(), allTime: z.number().int().nonnegative() }),

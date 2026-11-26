@@ -15,6 +15,7 @@ const SOURCES = [
   ["prize", "Finishing prize"],
   ["payroll", "Wages"],
   ["transfers", "Transfer fees"],
+  ["takeover", "Takeover capital"],
 ] as const;
 
 /**

@@ -4,6 +4,30 @@ import { formatDate } from "../lib/format";
 import { StatusChip } from "./StatusChip";
 import { TeamBadge } from "./TeamBadge";
 
+/**
+ * A fixture that isn't played because a club withdrew (bankrupt): "W/O" (walkover) or "Void", and
+ * a plain sentence saying who is awarded it.
+ */
+export function forfeitText(fixture: FixtureView): { mark: string; sentence: string } | null {
+  const ff = fixture.forfeit;
+  if (!ff) return null;
+  if (ff.kind === "void") return { mark: "Void", sentence: "Not played: both clubs withdrew. No points." };
+  const to = ff.awardedTo === fixture.home.id ? fixture.home : fixture.away;
+  return { mark: "W/O", sentence: `Walkover to ${to.name}: 3 points, no goals.` };
+}
+
+function ForfeitMark({ mark, sentence }: { mark: string; sentence: string }) {
+  return (
+    <span
+      className="rounded-md bg-coral px-2 py-0.5 font-display text-lg font-extrabold text-ink"
+      title={sentence}
+      aria-hidden
+    >
+      {mark}
+    </span>
+  );
+}
+
 function Side({
   team,
   score,
@@ -69,10 +93,14 @@ export function MatchScoreCard({ fixture }: { fixture: FixtureView }) {
 /** Compact single-line fixture row for lists (fixtures page, team page). */
 export function FixtureCard({ fixture }: { fixture: FixtureView }) {
   const s = fixture.score;
+  const ff = forfeitText(fixture);
+  const awarded = fixture.forfeit?.awardedTo;
   const inner = (
     <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 sm:gap-4">
       <div className="flex min-w-0 items-center justify-end gap-2 text-right">
-        <span className={`truncate text-sm sm:text-base ${s && s.home > s.away ? "font-bold" : ""}`}>
+        <span
+          className={`truncate text-sm sm:text-base ${(s && s.home > s.away) || awarded === fixture.home.id ? "font-bold" : ""}`}
+        >
           {fixture.home.name}
         </span>
         <TeamBadge team={fixture.home} size="sm" decorative />
@@ -82,13 +110,17 @@ export function FixtureCard({ fixture }: { fixture: FixtureView }) {
           <span className="tabular rounded-md bg-ink px-2 py-0.5 font-display text-xl font-extrabold text-white">
             {s.home}–{s.away}
           </span>
+        ) : ff ? (
+          <ForfeitMark {...ff} />
         ) : (
           <span className="rounded-md border border-line px-2 py-0.5 font-display text-lg font-bold text-muted-text">
             v
           </span>
         )}
         <span className="mt-1">
-          {!s && fixture.status === "scheduled" && fixture.scheduledAt ? (
+          {ff ? (
+            <span className="block max-w-[11rem] text-center text-xs font-semibold text-muted-text">{ff.sentence}</span>
+          ) : !s && fixture.status === "scheduled" && fixture.scheduledAt ? (
             <time dateTime={fixture.scheduledAt} className="text-xs font-semibold text-muted-text">
               {formatDate(fixture.scheduledAt, { weekday: true, time: true })}
             </time>
@@ -99,7 +131,9 @@ export function FixtureCard({ fixture }: { fixture: FixtureView }) {
       </div>
       <div className="flex min-w-0 items-center gap-2">
         <TeamBadge team={fixture.away} size="sm" decorative />
-        <span className={`truncate text-sm sm:text-base ${s && s.away > s.home ? "font-bold" : ""}`}>
+        <span
+          className={`truncate text-sm sm:text-base ${(s && s.away > s.home) || awarded === fixture.away.id ? "font-bold" : ""}`}
+        >
           {fixture.away.name}
         </span>
       </div>
@@ -107,7 +141,20 @@ export function FixtureCard({ fixture }: { fixture: FixtureView }) {
   );
   const label = s
     ? `${fixture.home.name} ${s.home}, ${fixture.away.name} ${s.away}`
-    : `${fixture.home.name} versus ${fixture.away.name}`;
+    : ff
+      ? `${fixture.home.name} versus ${fixture.away.name}. ${ff.sentence}`
+      : `${fixture.home.name} versus ${fixture.away.name}`;
+  if (ff)
+    return (
+      <Link
+        to={`/matchday/${fixture.id}`}
+        aria-label={`${label} Open matchday`}
+        className="card-surface block px-3 py-3 hover:bg-canvas sm:px-4"
+        data-testid="fixture-card"
+      >
+        {inner}
+      </Link>
+    );
   return fixture.matchId ? (
     <Link
       to={`/matches/${fixture.matchId}`}
@@ -132,9 +179,12 @@ const pad2 = (n: number) => String(n).padStart(2, "0");
  */
 export function FixtureRow({ fixture }: { fixture: FixtureView }) {
   const s = fixture.score;
+  const ff = forfeitText(fixture);
   const label = s
     ? `Matchweek ${fixture.round}: ${fixture.home.name} ${s.home}, ${fixture.away.name} ${s.away}`
-    : `Matchweek ${fixture.round}: ${fixture.home.name} versus ${fixture.away.name}`;
+    : ff
+      ? `Matchweek ${fixture.round}: ${fixture.home.name} versus ${fixture.away.name}. ${ff.sentence}`
+      : `Matchweek ${fixture.round}: ${fixture.home.name} versus ${fixture.away.name}`;
   const inner = (
     <>
       <span className="tabular shrink-0 rounded-md bg-lavender px-2 py-1 font-semi text-base font-bold text-slate-violet">
@@ -146,6 +196,8 @@ export function FixtureRow({ fixture }: { fixture: FixtureView }) {
         <span className="shrink-0 text-sm font-semibold text-muted-text">
           {s ? (
             <span className="tabular font-semi text-lg font-extrabold text-ink">{`${s.home}–${s.away}`}</span>
+          ) : ff ? (
+            <span className="rounded bg-coral px-1 font-semi text-sm font-extrabold text-ink">{ff.mark}</span>
           ) : (
             "vs"
           )}
@@ -154,7 +206,9 @@ export function FixtureRow({ fixture }: { fixture: FixtureView }) {
         <TeamBadge team={fixture.away} size="sm" decorative />
       </span>
       <span className="tabular shrink-0 text-right text-sm font-semibold">
-        {s ? (
+        {ff ? (
+          <span className="text-muted-text">{fixture.forfeit?.kind === "void" ? "Void" : "Walkover"}</span>
+        ) : s ? (
           <StatusChip status={fixture.status} />
         ) : fixture.scheduledAt ? (
           // Date over time, so a narrow panel keeps room for the team names.
