@@ -31,7 +31,8 @@
     "ui:check": "node scripts/ui-check.mjs",
     "tactics:compare": "bun scripts/tactics-compare.ts",
     "ops": "bun scripts/ops.ts",
-    "season:e2e": "bun scripts/season-e2e.ts"
+    "season:e2e": "bun scripts/season-e2e.ts",
+    "finance:balance": "bun scripts/finance-balance.ts"
   },
   "devDependencies": {
     "@biomejs/biome": "2.2.5",

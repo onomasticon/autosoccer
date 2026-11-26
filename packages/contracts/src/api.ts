@@ -18,6 +18,7 @@ import {
   Team,
 } from "./domain.ts";
 import { DugoutResponse, ManagerProfile, TeamDugoutResponse } from "./dugout.ts";
+import { ClubFinancesResponse } from "./finance.ts";
 import { Match, OfficialEvent, TeamMatchStats } from "./match.ts";
 import { PlayerListResponse, PlayerProfileResponse, SpotlightResponse } from "./spotlight.ts";
 import { FixtureStory } from "./story.ts";
@@ -484,4 +485,15 @@ ROUTES.push({
   params: { team: Slug },
   response: PlayerCareersResponse,
   responseName: "PlayerCareersResponse",
+});
+
+ROUTES.push({
+  method: "get",
+  path: "/teams/{team}/finances",
+  operationId: "getClubFinances",
+  summary:
+    "Club finances (club-finances/1): the club's fictional treasury: balance, wages still due, headroom, income and spending by season and source, recent entries, and the rule's numbers",
+  params: { team: Slug },
+  response: ClubFinancesResponse,
+  responseName: "ClubFinancesResponse",
 });

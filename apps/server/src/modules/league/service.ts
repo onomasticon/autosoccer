@@ -1,6 +1,8 @@
 import type { TeamSize } from "@autosoccer/contracts";
 import type { Db } from "@autosoccer/db";
 import { SIM_VERSION } from "@autosoccer/sim-adapter";
+import { FINANCE_RULE } from "../finance/rules.ts";
+import { settleFinances } from "../finance/settle.ts";
 import { enqueueFixture } from "../matches/service.ts";
 import { type Cadence, kickoffs } from "./cadence.ts";
 import { doubleRoundRobin, fixtureSeed, seededOrder } from "./schedule.ts";
@@ -64,6 +66,8 @@ export interface CreateSeasonInput {
   cadence?: Cadence;
   /** Players per side. Default 7 (7-a-side); the launch season was 5-a-side. */
   playersPerTeam?: TeamSize;
+  /** Club finance rule (finance/1 by default); null creates a season without club finances. */
+  financeRule?: string | null;
 }
 
 /**
@@ -80,9 +84,10 @@ export async function createSeason(db: Db, input: CreateSeasonInput): Promise<{ 
     if (teams.length !== input.teamSlugs.length) throw new Error(`unknown team in ${input.teamSlugs.join(", ")}`);
     const startsAt = input.startsAt ?? new Date();
     const [season] = await tx<{ id: string }[]>`
-      insert into seasons (slug, name, status, seed, sim_version, players_per_team, budget_per_team_micro_usd, editorial_budget_micro_usd, starts_at)
+      insert into seasons (slug, name, status, seed, sim_version, players_per_team, budget_per_team_micro_usd, editorial_budget_micro_usd, starts_at, finance_rule)
       values (${input.slug}, ${input.name}, 'scheduled', ${input.seed}, ${input.simVersion ?? SIM_VERSION}, ${input.playersPerTeam ?? 7},
-        ${input.budgetPerTeamMicroUsd}, ${input.editorialBudgetMicroUsd ?? DEFAULT_EDITORIAL_BUDGET_MICRO_USD}, ${startsAt}) returning id`;
+        ${input.budgetPerTeamMicroUsd}, ${input.editorialBudgetMicroUsd ?? DEFAULT_EDITORIAL_BUDGET_MICRO_USD}, ${startsAt},
+        ${input.financeRule === undefined ? FINANCE_RULE : input.financeRule}) returning id`;
     for (const t of teams) await tx`insert into season_teams (season_id, team_id) values (${season!.id}, ${t.id})`;
     const order = seededOrder(teams, input.seed);
     const bySlug = new Map(teams.map((t) => [t.slug, t.id]));
@@ -132,6 +137,7 @@ export async function advanceSeason(db: Db, seasonId: string, opts: AdvanceOptio
     group by round order by round limit 1`;
   if (!next) {
     await db`update seasons set status = 'completed', completed_at = coalesce(completed_at, now()) where id = ${seasonId}`;
+    await settleFinances(db, seasonId); // finishing-position prizes (idempotent)
     return { state: "completed" };
   }
   const round = next.round;
@@ -162,6 +168,11 @@ export async function advanceSeason(db: Db, seasonId: string, opts: AdvanceOptio
   for (const f of fixtures.filter((x) => x.status !== "completed")) {
     if (f.status === "scheduled")
       await db`update fixtures set status = 'ready', updated_at = now() where id = ${f.id} and status = 'scheduled'`;
+  }
+  // Club finances for the released round (distribution, wages, any results not yet settled),
+  // before its matches are prepared. Idempotent: every entry has a settlement key.
+  await settleFinances(db, seasonId);
+  for (const f of fixtures.filter((x) => x.status !== "completed")) {
     if ((await enqueueFixture(db, f.id)).created) enqueued++;
   }
   return { state: "playing", round, enqueued, pending: fixtures.filter((f) => f.status !== "completed").length };
