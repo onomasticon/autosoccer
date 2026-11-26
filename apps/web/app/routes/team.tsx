@@ -273,7 +273,15 @@ export default function Team({ loaderData }: Route.ComponentProps) {
                       <span className="tabular inline-flex size-8 items-center justify-center rounded-full bg-canvas font-display text-lg font-extrabold">
                         {p.shirtNumber}
                       </span>
-                      <span className="flex-1 font-medium">{p.name}</span>
+                      <span className="flex-1 font-medium">
+                        {p.name}
+                        {typeof careers.find((c) => c.playerId === p.id)?.age === "number" && (
+                          <span className="ml-2 text-xs font-normal text-muted-text">
+                            {careers.find((c) => c.playerId === p.id)!.age}
+                            <span className="sr-only"> years old</span>
+                          </span>
+                        )}
+                      </span>
                       <PlayerGoals g={goals.find((g) => g.playerId === p.id)} />
                       <span className="w-6 text-xs font-semibold uppercase tracking-wider text-muted-text">
                         <abbr title={POSITION_NAME[p.position]}>{p.position}</abbr>

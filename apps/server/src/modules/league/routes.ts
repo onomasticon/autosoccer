@@ -92,9 +92,11 @@ export function leagueRoutes({ db }: { db: Db }) {
     // Ratings as of the current season (its snapshot, else the baseline).
     const cur = await currentSeason(db);
     const snapshot = cur ? await seasonRatings(db, cur.id) : new Map();
-    const players = (await db<PlayerRow[]>`select * from players where team_id = ${t.id} order by shirt_number`).map(
-      (p) => ratedPlayer(p, snapshot),
-    );
+    const players = (
+      await db<
+        PlayerRow[]
+      >`select * from players where retired_season_id is null and team_id = ${t.id} order by shirt_number`
+    ).map((p) => ratedPlayer(p, snapshot));
     const [mgr] = await db<
       {
         id: string;

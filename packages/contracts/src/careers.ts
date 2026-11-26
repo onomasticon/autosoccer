@@ -13,6 +13,8 @@ export const CAREERS_CONTRACT = "player-careers/1";
 
 export const CareerSeason = z.object({
   season: z.object({ slug: Slug, name: z.string() }),
+  /** The player's age that season (ageing/1); null before ageing applied. */
+  age: z.number().int().nullable().optional(),
   /** The club the player was registered with that season (players move only between seasons). */
   team: Team.optional(),
   /** snapshot: written for this season (develop/1 or baseline); baseline: from before snapshots. */
@@ -36,6 +38,12 @@ export const PlayerCareer = z.object({
   name: z.string(),
   shirtNumber: z.number().int(),
   position: Position,
+  /** Age this season (ageing/1); null before ageing applied to the player. */
+  age: z.number().int().nullable().optional(),
+  /** The last season a retired player played; null while they play on. */
+  retired: z.object({ slug: z.string(), name: z.string() }).nullable().optional(),
+  /** The season an academy graduate was promoted after; null for everyone else. */
+  graduate: z.object({ slug: z.string(), name: z.string() }).nullable().optional(),
   /** Oldest season first; only seasons the club played. */
   seasons: z.array(CareerSeason),
   /** The club's last five matches this season: did the player start, and goals scored. */

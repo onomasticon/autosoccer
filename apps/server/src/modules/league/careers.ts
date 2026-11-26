@@ -25,9 +25,13 @@ import {
 } from "@autosoccer/contracts";
 import type { Db } from "@autosoccer/db";
 import { type PlayerRow, type TeamRow, toPlayer, toTeam } from "../mappers.ts";
+import { ageDeltas, ageIn } from "./ageing.ts";
 import { overallRating, playerAttributes } from "./attributes.ts";
+import { seasonNumber } from "./rollover.ts";
 
 export const DEVELOP_RULE = "develop/1";
+/** develop/1 plus ageing/1: the same record-driven changes, and a season of age at the player's hidden rate. */
+export const DEVELOP_AGE_RULE = "develop/2";
 
 /** The two ratings each position develops through regular play. */
 export const KEY_ATTRIBUTES: Record<Position, [AttributeName, AttributeName]> = {
@@ -68,7 +72,13 @@ const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v
  *     by club or name).
  *  Each rating moves at most MAX_STEP a season and stays within 25–95.
  */
-export function develop(prev: PlayerAttributes, position: Position, rec: SeasonRecord, seed: string): Development {
+export function develop(
+  prev: PlayerAttributes,
+  position: Position,
+  rec: SeasonRecord,
+  seed: string,
+  ageing?: { age: number; rate: number },
+): Development {
   const delta = new Map<AttributeName, { d: number; reasons: string[] }>();
   const add = (a: AttributeName, d: number, why: string) => {
     const cur = delta.get(a) ?? { d: 0, reasons: [] };
@@ -86,6 +96,12 @@ export function develop(prev: PlayerAttributes, position: Position, rec: SeasonR
   if (position !== "GK" && rec.goals >= 2 && rec.goals >= 0.4 * rec.starts && prev.shooting < GROWTH_CEILING)
     add("shooting", 1, `${rec.goals} goals in ${rec.starts} starts`);
   for (const a of ATTRIBUTE_NAMES) if (prev[a] >= REVERSION_FROM) add(a, -1, "reverting from the top of the scale");
+  // ageing/1: young players improve, older ones decline (see ageing.ts).
+  if (ageing)
+    for (const d of ageDeltas(ageing.age, position, ageing.rate, seed)) {
+      if (d.delta > 0 && prev[d.attribute] >= GROWTH_CEILING) continue;
+      add(d.attribute, d.delta, d.delta > 0 ? `developing at ${ageing.age}` : `ageing at ${ageing.age}`);
+    }
   const h = createHash("sha256").update(`career:${seed}`).digest();
   add(ATTRIBUTE_NAMES[h[0]! % ATTRIBUTE_NAMES.length]!, h[1]! % 2 ? 1 : -1, "seasonal variation");
 
@@ -161,23 +177,32 @@ export async function developSeason(db: Db, toSeasonId: string, fromSeasonId: st
   const players = await db<(PlayerRow & { season_slug: string })[]>`
     select p.*, s.slug as season_slug from players p
     join season_teams st on st.team_id = p.team_id join seasons s on s.id = st.season_id
-    where st.season_id = ${toSeasonId} order by p.team_id, p.shirt_number`;
+    where st.season_id = ${toSeasonId} and p.retired_season_id is null order by p.team_id, p.shirt_number`;
+  const seasonNo = seasonNumber(players[0]?.season_slug ?? "");
   const prev = fromSeasonId ? await seasonRatings(db, fromSeasonId) : new Map<string, PlayerAttributes>();
   const records = fromSeasonId ? await seasonRecords(db, fromSeasonId) : new Map<string, SeasonRecord>();
   let written = 0;
   for (const p of players) {
     const base =
-      prev.get(p.id) ?? playerAttributes({ name: p.name, shirtNumber: p.shirt_number, position: p.position });
+      prev.get(p.id) ??
+      p.base_attributes ??
+      playerAttributes({ name: p.name, shirtNumber: p.shirt_number, position: p.position });
     const rec = records.get(p.id);
-    const dev = rec && rec.teamMatches > 0 ? develop(base, p.position, rec, `${p.id}:${p.season_slug}`) : null;
+    // ageing/1: the age they are this season and their hidden rate (null before ageing applies).
+    const age = ageIn(p.born_season, seasonNo);
+    const ageing = age !== null && p.development_rate != null ? { age, rate: Number(p.development_rate) } : undefined;
+    const dev =
+      (rec && rec.teamMatches > 0) || (ageing && fromSeasonId && prev.has(p.id))
+        ? develop(base, p.position, rec ?? { teamMatches: 0, starts: 0, goals: 0 }, `${p.id}:${p.season_slug}`, ageing)
+        : null;
     const attributes = dev?.attributes ?? base;
     const basis = dev
-      ? { from: fromSeasonId, fromSnapshot: prev.has(p.id), record: rec, changes: dev.changes }
+      ? { from: fromSeasonId, fromSnapshot: prev.has(p.id), record: rec ?? null, age, changes: dev.changes }
       : { from: fromSeasonId, record: rec ?? null, changes: [] };
     const r = await db`
       insert into player_ratings (player_id, season_id, attributes, overall, rule, basis)
       values (${p.id}, ${toSeasonId}, ${db.json(attributes as never)}, ${overallRating(attributes, p.position)},
-        ${dev ? DEVELOP_RULE : "baseline"}, ${db.json(basis as never)})
+        ${dev ? (ageing ? DEVELOP_AGE_RULE : DEVELOP_RULE) : "baseline"}, ${db.json(basis as never)})
       on conflict (player_id, season_id) do nothing`;
     written += r.count;
   }
@@ -190,8 +215,21 @@ export async function developSeason(db: Db, toSeasonId: string, fromSeasonId: st
  * represented each season, and recent form this season. A player who joined from another club keeps
  * the seasons (and goals) from there, attributed to that club.
  */
-export async function teamCareers(db: Db, team: Team): Promise<PlayerCareersResponse> {
-  const players = await db<PlayerRow[]>`select * from players where team_id = ${team.id} order by shirt_number`;
+export async function teamCareers(db: Db, team: Team, alsoPlayerId?: string): Promise<PlayerCareersResponse> {
+  // The current squad (and, for a player page, that player even if retired).
+  const players = await db<PlayerRow[]>`
+    select * from players where team_id = ${team.id}
+      and (retired_season_id is null or id = ${alsoPlayerId ?? null}::uuid) order by shirt_number`;
+  const [cur] = await db<{ slug: string }[]>`
+    select slug from seasons where status <> 'draft' order by created_at desc limit 1`;
+  const seasonNo = seasonNumber(cur?.slug ?? "");
+  const named = new Map(
+    (
+      await db<{ id: string; slug: string; name: string }[]>`
+        select id, slug, name from seasons
+        where id = any(${players.flatMap((p) => [p.retired_season_id ?? null, p.academy_season_id ?? null]).filter((x): x is string => !!x)}::uuid[])`
+    ).map((s) => [s.id, { slug: s.slug, name: s.name }]),
+  );
   const teamSeasons = await db<{ id: string; slug: string; name: string }[]>`
     select s.id, s.slug, s.name from seasons s join season_teams st on st.season_id = s.id
     where st.team_id = ${team.id} and s.status <> 'draft'
@@ -248,18 +286,24 @@ export async function teamCareers(db: Db, team: Team): Promise<PlayerCareersResp
     contract: CAREERS_CONTRACT,
     team,
     players: players.map((p) => {
-      const baseline = playerAttributes({ name: p.name, shirtNumber: p.shirt_number, position: p.position });
+      const baseline =
+        p.base_attributes ?? playerAttributes({ name: p.name, shirtNumber: p.shirt_number, position: p.position });
+      const academy = p.academy_season_id;
       return {
         playerId: p.id,
         name: p.name,
         shirtNumber: p.shirt_number,
         position: p.position,
+        age: p.retired_season_id ? null : ageIn(p.born_season, seasonNo),
+        retired: p.retired_season_id ? (named.get(p.retired_season_id) ?? null) : null,
+        graduate: academy ? (named.get(academy) ?? null) : null,
         seasons: (seasonsOf.get(p.id) ?? teamSeasons.map((s) => ({ ...s, team }))).map((s) => {
           const r = snap.get(`${p.id}:${s.id}`);
           const rec = records.get(s.id)?.get(p.id) ?? { teamMatches: 0, starts: 0, goals: 0 };
           const attributes = r?.attributes ?? baseline;
           return {
             season: { slug: s.slug, name: s.name },
+            age: ageIn(p.born_season, seasonNumber(s.slug)),
             team: s.team,
             source: r ? ("snapshot" as const) : ("baseline" as const),
             rule: r?.rule ?? null,

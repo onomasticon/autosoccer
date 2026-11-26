@@ -8104,6 +8104,64 @@
                   "FW"
                 ]
               },
+              "age": {
+                "anyOf": [
+                  {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "retired": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "slug": {
+                        "type": "string"
+                      },
+                      "name": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "slug",
+                      "name"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "graduate": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "slug": {
+                        "type": "string"
+                      },
+                      "name": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "slug",
+                      "name"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
               "seasons": {
                 "type": "array",
                 "items": {
@@ -8126,6 +8184,18 @@
                         "name"
                       ],
                       "additionalProperties": false
+                    },
+                    "age": {
+                      "anyOf": [
+                        {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
                     },
                     "team": {
                       "type": "object",
@@ -9181,7 +9251,8 @@
                         "finances",
                         "withdrawal",
                         "takeover",
-                        "league"
+                        "league",
+                        "retirements"
                       ]
                     },
                     {
@@ -9439,7 +9510,8 @@
                       "finances",
                       "withdrawal",
                       "takeover",
-                      "league"
+                      "league",
+                      "retirements"
                     ]
                   },
                   {
@@ -9644,7 +9716,8 @@
                         "finances",
                         "withdrawal",
                         "takeover",
-                        "league"
+                        "league",
+                        "retirements"
                       ]
                     },
                     {
@@ -9994,7 +10067,8 @@
                         "finances",
                         "withdrawal",
                         "takeover",
-                        "league"
+                        "league",
+                        "retirements"
                       ]
                     },
                     {
@@ -17060,6 +17134,64 @@
                     "FW"
                   ]
                 },
+                "age": {
+                  "anyOf": [
+                    {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "retired": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "slug": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "slug",
+                        "name"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "graduate": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "slug": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "slug",
+                        "name"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
                 "seasons": {
                   "type": "array",
                   "items": {
@@ -17082,6 +17214,18 @@
                           "name"
                         ],
                         "additionalProperties": false
+                      },
+                      "age": {
+                        "anyOf": [
+                          {
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
                       },
                       "team": {
                         "type": "object",

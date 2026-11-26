@@ -70,7 +70,9 @@ export async function seedManagers(db: Db, seasonId: string, model: string) {
       values (${team.id}, ${m.slug}, ${m.name}, ${m.persona}, ${m.philosophy}, ${model})
       on conflict (team_id) do nothing`;
     if (!(await latestValidRevision(db, team.id, seasonId))) {
-      const squad = (await db<PlayerRow[]>`select * from players where team_id = ${team.id}`).map(toPlayer);
+      const squad = (
+        await db<PlayerRow[]>`select * from players where retired_season_id is null and team_id = ${team.id}`
+      ).map(toPlayer);
       const size = await seasonTeamSize(db, seasonId);
       await createRevision(db, {
         teamId: team.id,
@@ -228,7 +230,9 @@ export async function runPreMatch(deps: ManagerDeps, fixtureId: string, teamId: 
 
   let usage: Usage | null = null;
   try {
-    const squad = (await db<PlayerRow[]>`select * from players where team_id = ${teamId}`).map(toPlayer);
+    const squad = (
+      await db<PlayerRow[]>`select * from players where retired_season_id is null and team_id = ${teamId}`
+    ).map(toPlayer);
     const byShirt = new Map(squad.map((p) => [p.shirtNumber, p.id]));
     let res = await llm.complete({
       system,

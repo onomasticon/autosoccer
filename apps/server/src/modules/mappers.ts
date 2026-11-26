@@ -41,10 +41,17 @@ export interface PlayerRow {
   name: string;
   shirt_number: number;
   position: Player["position"];
+  /** ageing/1 (see league/ageing.ts); development_rate is hidden and never mapped. */
+  born_season?: number | null;
+  development_rate?: number | null;
+  retired_season_id?: string | null;
+  academy_season_id?: string | null;
+  /** An academy graduate's own starting ratings (founders use the deterministic baseline). */
+  base_attributes?: Player["attributes"] | null;
 }
 export const toPlayer = (r: PlayerRow): Player => {
   const p = { name: r.name, shirtNumber: r.shirt_number, position: r.position };
-  const attributes = playerAttributes(p);
+  const attributes = r.base_attributes ?? playerAttributes(p);
   return {
     id: r.id,
     teamId: r.team_id,

@@ -55,7 +55,7 @@ export async function teamSelection(
     where team_id = ${teamId} and season_id = ${seasonId} and status = 'valid'
     order by version desc limit 1`;
   if (rev) return { revisionId: rev.id, deployment: rev.deployment, lineup: rev.lineup };
-  const players = await db<PlayerRow[]>`select * from players where team_id = ${teamId}`;
+  const players = await db<PlayerRow[]>`select * from players where retired_season_id is null and team_id = ${teamId}`;
   return { revisionId: null, deployment: DEFAULT_DEPLOYMENT, lineup: defaultLineup(players.map(toPlayer), size) };
 }
 
@@ -86,10 +86,9 @@ export async function buildMatchRequest(deps: MatchDeps, fixtureId: string): Pro
     const [team] = await db<{ name: string }[]>`select name from teams where id = ${teamId}`;
     const sel = await teamSelection(db, f.season_id, teamId, size);
     const players = new Map(
-      (await db<PlayerRow[]>`select * from players where team_id = ${teamId}`).map((p) => [
-        p.id,
-        ratedPlayer(p, snapshot),
-      ]),
+      (await db<PlayerRow[]>`select * from players where retired_season_id is null and team_id = ${teamId}`).map(
+        (p) => [p.id, ratedPlayer(p, snapshot)],
+      ),
     );
     const starters = sel.lineup.starters.map((id) => {
       const p = players.get(id);

@@ -346,7 +346,7 @@ describe("bankruptcy through the season lifecycle", () => {
     await enqueueNews(t.db);
     await enqueueNews(t.db);
     const keys = await t.db`select idempotency_key from jobs where kind = 'article.news'`;
-    expect(keys).toHaveLength(subjects.length + 1);
+    expect(keys).toHaveLength(subjects.length + 2); // plus league changes and retirements
     for (const s of subjects) expect(await writeNews(deps, s)).toMatchObject({ status: "published" });
     for (const s of subjects) expect(await writeNews(deps, s)).toEqual({ status: "already-done" });
     // Same clubs and rules as last season: nothing to announce.

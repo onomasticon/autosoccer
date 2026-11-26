@@ -200,7 +200,15 @@ export const FactCitation = z.object({
 });
 export const ArticleKind = z.enum(["match_report", "preview", "analysis", "column", "news"]);
 /** What a league news piece (kind "news") is about. */
-export const NewsTopic = z.enum(["champions", "transfers", "finances", "withdrawal", "takeover", "league"]);
+export const NewsTopic = z.enum([
+  "champions",
+  "transfers",
+  "finances",
+  "withdrawal",
+  "takeover",
+  "league",
+  "retirements",
+]);
 export type NewsTopic = z.infer<typeof NewsTopic>;
 export const Article = z.object({
   id: Id,
