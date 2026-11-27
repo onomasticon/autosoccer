@@ -43,10 +43,58 @@ const FINANCE_2_PRIZES = [
 ];
 
 /**
+ * finance/3 (candidate for the Phase 2 league, #97): sized for 20 clubs rather than 10. Season
+ * amounts for results; a distribution a little lower than finance/2's, because the prize table now
+ * pays every place, falling steeply from the top. Calibrated in the economy harness (#98); not used
+ * by any live season until a new league is created with it.
+ */
+export const FINANCE_3 = {
+  version: "finance/3",
+  opening: 12_000_000,
+  distribution: 4_500_000,
+  /** What a club would earn for winning (drawing) every match of a season; paid per result. */
+  winSeason: 4_800_000,
+  drawSeason: 1_900_000,
+  /** Prizes for 1st and last; between them they fall along a curve (exponent `curve`). */
+  prizeTop: 4_000_000,
+  prizeBottom: 300_000,
+  curve: 2,
+};
+
+/** finance/3's prize table for a league of `clubs`, rounded to 50k cr. */
+export function finance3Prizes(clubs: number, f = FINANCE_3): number[] {
+  return Array.from({ length: clubs }, (_, i) => {
+    const x = clubs > 1 ? (clubs - 1 - i) / (clubs - 1) : 1;
+    return Math.round((f.prizeBottom + (f.prizeTop - f.prizeBottom) * x ** f.curve) / 50_000) * 50_000;
+  });
+}
+
+/** finance/3's numbers for a season of `rounds` (a double round robin of rounds / 2 + 1 clubs). */
+export function finance3(rounds: number, f = FINANCE_3): FinanceRules {
+  const k = REFERENCE_ROUNDS / Math.max(1, rounds);
+  const r1000 = (n: number) => Math.round(n / 1000) * 1000;
+  return {
+    version: f.version,
+    opening: f.opening,
+    distribution: f.distribution,
+    result: { win: r1000(f.winSeason / rounds), draw: r1000(f.drawSeason / rounds), loss: 0 },
+    prize: finance3Prizes(Math.round(rounds / 2) + 1, f),
+    wage: {
+      base: RULES.wage.base * k,
+      perPoint: RULES.wage.perPoint * k,
+      floor: RULES.wage.floor,
+      min: r1000(RULES.wage.min * k),
+    },
+  };
+}
+
+/**
  * The concrete numbers for a season: its rule version and how many rounds it has. finance/1 is
- * fixed; finance/2 scales wages and result income to the season's length.
+ * fixed; finance/2 scales wages and result income to the season's length; finance/3 also sizes the
+ * prize table to the league.
  */
 export function rulesFor(version: string | null | undefined, rounds: number): FinanceRules {
+  if (version === "finance/3") return finance3(rounds);
   if (version !== "finance/2") return RULES;
   const k = REFERENCE_ROUNDS / Math.max(1, rounds);
   const r1000 = (n: number) => Math.round((n * k) / 1000) * 1000;

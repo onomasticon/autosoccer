@@ -84,6 +84,8 @@ try {
   await t.drop();
 }
 
+writeFileSync(OUT.replace(/\.md$/, ".observations.json"), JSON.stringify(obs));
+
 // Fit the surrogate by maximum likelihood (grid search over the three parameters).
 const logFact = (k: number) => {
   let s = 0;
@@ -99,8 +101,8 @@ const ll = (m: MatchModel) =>
 let best: MatchModel = DEFAULT_MATCH;
 let bestLl = Number.NEGATIVE_INFINITY;
 for (let g = 0.6; g <= 2.2; g += 0.05)
-  for (let h = -0.2; h <= 0.3; h += 0.02)
-    for (let k = 0; k <= 0.16; k += 0.005) {
+  for (let h = -0.5; h <= 0.5; h += 0.02)
+    for (let k = -0.1; k <= 0.2; k += 0.005) {
       const m = { goalsPerSide: g, homeAdvantage: h, strengthSlope: k };
       const v = ll(m);
       if (v > bestLl) {
@@ -152,6 +154,8 @@ const lines = [
   `| Surrogate, current default | ${current.matches} | ${f2(current.goalsPerMatch)} | ${p(current.draws)} | ${p(current.homeWins)} | ${p(current.favouriteWins)} |`,
   "",
   `Fitted parameters (maximum likelihood): goals per side ${f2(best.goalsPerSide)}, home advantage ${f2(best.homeAdvantage)}, slope ${best.strengthSlope.toFixed(3)} per rating point. Current default: ${f2(DEFAULT_MATCH.goalsPerSide)}, ${f2(DEFAULT_MATCH.homeAdvantage)}, ${DEFAULT_MATCH.strengthSlope.toFixed(3)}.`,
+  "",
+  `Identifiability: with a median strength gap of ${f2(spread[Math.floor(spread.length / 2)] ?? 0)} points the slope is poorly determined; a fitted slope near 0 means "no detectable effect at these gaps", not "strength doesn't matter". The harness keeps an explicit slope assumption (see DEFAULT_MATCH).`,
   "",
   "Caveats: one small sample; the offline managers' tactics, not the LLMs'. The surrogate only sees squad strength, so tactical",
   "edges (the simulator rewards some setups strongly, see docs/research/sim-plausibility) show up as unexplained variance.",

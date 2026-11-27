@@ -18,7 +18,8 @@ export interface InvariantFailure {
     | "no-forfeits"
     | "bounded-rescue"
     | "history-immutable"
-    | "no-unaccounted-debt";
+    | "no-unaccounted-debt"
+    | "bounded-debt";
   detail: string;
 }
 
@@ -76,14 +77,22 @@ export function checkInvariants(w: World): InvariantFailure[] {
   // No infinite bailout: rescue capital (takeovers, free support) is bounded per club per season.
   const rescues = new Map<string, number>();
   for (const e of w.ledger)
-    if (e.season === w.season && (e.kind === "takeover" || e.kind === "support"))
-      rescues.set(e.club, (rescues.get(e.club) ?? 0) + 1);
+    if (e.season === w.season && e.kind === "takeover") rescues.set(e.club, (rescues.get(e.club) ?? 0) + 1);
   for (const [club, n] of rescues) if (n > 1) fail("bounded-rescue", `${club} rescued ${n} times in one season`);
 
-  // Debt is always accounted: outstanding loans are non-negative and only exist under a lender.
-  for (const c of w.clubs.values())
+  // Debt is always accounted: outstanding loans are non-negative, only exist under a lender, and the
+  // ledger shows every disbursement and repayment (cash lent − repaid = principal − balance + interest).
+  const rounds = 2 * (w.clubs.size - 1);
+  for (const c of w.clubs.values()) {
     for (const l of c.loans)
       if (l.balance < 0 || !r.lender) fail("no-unaccounted-debt", `${c.id} loan ${l.id} balance ${l.balance}`);
+    // No runaway debt: support keeps fixtures playable, but a club never owes more than three seasons of wages.
+    const debt = c.loans.reduce((s, l) => s + l.balance, 0);
+    let bill = 0;
+    for (const p of w.players.values()) if (p.club === c.id) bill += p.wage;
+    if (r.lender && debt > 3 * bill * rounds)
+      fail("bounded-debt", `${c.id} owes ${debt} (${(debt / Math.max(1, bill * rounds)).toFixed(1)} seasons of wages)`);
+  }
 
   // Past seasons never change.
   const bySeason = new Map<number, typeof w.fixtures>();

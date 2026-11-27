@@ -3,7 +3,8 @@
  * transfer/1, insolvency/1, ageing/1), built from the production rule functions rather than copies
  * of their numbers, so a change to production rules changes the harness baseline too.
  */
-import { RULES, rulesFor, wageFor } from "../finance/rules.ts";
+import { FINANCE_3, finance3, RULES, rulesFor, wageFor } from "../finance/rules.ts";
+import { INSOLVENCY_2 } from "../insolvency/recovery.ts";
 import { INSOLVENCY } from "../insolvency/rules.ts";
 import { guideFee, TRANSFER } from "../transfers/rules.ts";
 import type { Ruleset, Scenario } from "./model.ts";
@@ -24,7 +25,41 @@ export const LEGACY: Ruleset = {
   noForfeits: false,
 };
 
-export const RULESETS: Record<string, Ruleset> = { legacy: LEGACY };
+/**
+ * The Phase 2 candidate (#97): finance/3 (sized for 20 clubs) and insolvency/2 (the league lender,
+ * compulsory auctions and administration instead of forfeits), with 14-player squads.
+ */
+export const CANDIDATE: Ruleset = {
+  ...LEGACY,
+  name: "candidate",
+  finance: (rounds) => finance3(rounds),
+  squad: { ...LEGACY.squad, target: 14, max: 16 },
+  insolvency: "recovery",
+  takeoverTo: undefined,
+  lender: {
+    ltv: INSOLVENCY_2.secured.ltv,
+    interestPerSeason: INSOLVENCY_2.secured.interestPerSeason,
+    termSeasons: INSOLVENCY_2.secured.termSeasons,
+    emergencyInterestPerSeason: INSOLVENCY_2.emergency.interestPerSeason,
+    maxDebtSeasons: INSOLVENCY_2.debtCapSeasons,
+  },
+  noForfeits: true,
+};
+
+/** finance/3 numbers to try in a grid (`--rulesets candidate,candidate-lean,…`). */
+const variant = (name: string, over: Partial<typeof FINANCE_3>): Ruleset => ({
+  ...CANDIDATE,
+  name,
+  finance: (rounds) => finance3(rounds, { ...FINANCE_3, ...over }),
+});
+
+export const RULESETS: Record<string, Ruleset> = {
+  legacy: LEGACY,
+  candidate: CANDIDATE,
+  "candidate-lean": variant("candidate-lean", { distribution: 4_000_000 }),
+  "candidate-rich": variant("candidate-rich", { distribution: 5_000_000 }),
+  "candidate-flat": variant("candidate-flat", { curve: 1 }),
+};
 
 export const SCENARIOS: Record<string, Scenario> = {
   baseline: { name: "baseline", description: "Equal opening balance, a mix of policies, every manager available." },

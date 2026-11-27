@@ -77,6 +77,23 @@ export function summarise(g: Group) {
     takeoverCapital: all.reduce((s, x) => s + x.takeoverCapital, 0),
     defaults: all.reduce((s, x) => s + x.defaults, 0),
     forcedSales: all.reduce((s, x) => s + x.forcedSales, 0),
+    emergencies: all.reduce((s, x) => s + x.emergencies, 0),
+    administrations: all.reduce((s, x) => s + x.administrations, 0),
+    recoveries: all.reduce((s, x) => s + x.recoveries, 0),
+    borrowing: all.reduce((s, x) => s + x.borrowing, 0),
+    finalDebt: last.map((s) => s.debt),
+    recoverySeasons: g.runs.flatMap((r) => {
+      const open = new Map<string, number>();
+      const out: number[] = [];
+      for (const e of r.events) {
+        if (e.kind === "administration" && !open.has(e.club)) open.set(e.club, e.season);
+        if (e.kind === "recovery" && open.has(e.club)) {
+          out.push(e.season - open.get(e.club)! + 1);
+          open.delete(e.club);
+        }
+      }
+      return out;
+    }),
     distressedSeasons: all.reduce((s, x) => s + x.distressed, 0),
     deals: all.reduce((s, x) => s + x.deals, 0),
     bids: all.reduce((s, x) => s + x.market.bids, 0),
@@ -170,12 +187,12 @@ export function markdown(
     lines.push(`| ${s.ruleset} | ${s.scenario} | ${show.map((p) => cr(s.cashByPosition[p] ?? 0)).join(" | ")} |`);
   lines.push("", "## Distress", "");
   lines.push(
-    "| Ruleset | Scenario | Withdrawals (forfeits) | Takeovers | Takeover capital | Defaults | Forced sales | Club-seasons in distress |",
-    "| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |",
+    "| Ruleset | Scenario | Withdrawals (forfeits) | Takeovers | Free takeover capital | Emergency loans | Defaults | Forced sales | Administrations | Recoveries | Seasons to recover | Debt at end | Secured borrowing | Club-seasons in distress |",
+    "| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- | --- | ---: | ---: |",
   );
   for (const s of summaries)
     lines.push(
-      `| ${s.ruleset} | ${s.scenario} | ${s.withdrawals} | ${s.takeovers} | ${cr(s.takeoverCapital)} | ${s.defaults} | ${s.forcedSales} | ${s.distressedSeasons} |`,
+      `| ${s.ruleset} | ${s.scenario} | ${s.withdrawals} | ${s.takeovers} | ${cr(s.takeoverCapital)} | ${s.emergencies} | ${s.defaults} | ${s.forcedSales} | ${s.administrations} | ${s.recoveries} | ${s.recoverySeasons.length ? dist(s.recoverySeasons) : "–"} | ${dist(s.finalDebt, cr)} | ${cr(s.borrowing)} | ${s.distressedSeasons} |`,
     );
   lines.push("", "## Market and players", "");
   lines.push(

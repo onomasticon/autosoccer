@@ -53,12 +53,12 @@ export const POLICIES: PolicyName[] = ["conservative", "aggressive", "trader", "
 
 export interface Loan {
   id: string;
+  kind: "secured" | "emergency" | "support";
   principal: number;
   /** Outstanding balance including accrued interest. */
   balance: number;
-  /** Per-round repayment. */
-  instalment: number;
-  kind: "secured" | "emergency";
+  /** Season by which it must be repaid. */
+  dueSeason: number;
   /** Player ids pledged as collateral. */
   collateral: string[];
   openedSeason: number;
@@ -167,7 +167,13 @@ export interface MatchModel {
   homeAdvantage: number;
 }
 
-export const DEFAULT_MATCH: MatchModel = { goalsPerSide: 1.6, strengthSlope: 0.06, homeAdvantage: 0.08 };
+/**
+ * Calibrated against the real simulator (docs/platform/economy-surrogate.md): about 3 goals a match
+ * and no home advantage (the simulator has none). The strength slope can't be identified from
+ * evenly matched squads, so it stays an explicit assumption: 0.06 per rating point, about +6% goals
+ * per point of difference in the starting sevens' mean.
+ */
+export const DEFAULT_MATCH: MatchModel = { goalsPerSide: 1.5, strengthSlope: 0.06, homeAdvantage: 0 };
 
 export interface Scenario {
   name: string;
