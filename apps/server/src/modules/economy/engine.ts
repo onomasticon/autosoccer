@@ -367,7 +367,7 @@ function market(w: World) {
     credit(w, buyer.id, "transfer", -b.fee, `transfer:${w.season}:${p.id}:${buyer.id}`);
     if (from) credit(w, from, "transfer", b.fee, `transfer:${w.season}:${p.id}:${from}`);
     p.club = buyer.id;
-    if (r.contractSeasons) p.contractUntil = w.season + r.contractSeasons.min - 1;
+    if (r.contractSeasons) p.wage = 0; // a new contract, priced at the market when the season starts
     done.add(p.id);
     w.deals.push({ season: w.season, player: p.id, from, to: buyer.id, fee: b.fee, overall: p.overall });
   }
@@ -386,13 +386,53 @@ function takeovers(w: World) {
   }
 }
 
+/** The market multiplier for new contracts: (median club cash ÷ opening)^alpha, clamped. */
+export function marketMultiplier(w: World): number {
+  const m = w.config.ruleset.wageMarket;
+  if (!m || m.alpha === 0) return 1;
+  const opening = w.config.scenario.opening ?? w.config.ruleset.finance(2 * (w.clubs.size - 1)).opening;
+  const cash = [...w.clubs.values()].map((c) => c.cash).sort((a, b) => a - b);
+  const median = cash[Math.floor(cash.length / 2)] ?? opening;
+  return Math.min(m.max, Math.max(m.min, (Math.max(1, median) / Math.max(1, opening)) ** m.alpha));
+}
+
+/**
+ * Wages for the season. Without contracts (legacy): every player's wage follows their rating each
+ * season. With contracts: a wage is fixed for the contract; new signings, graduates and expired
+ * contracts are (re)priced at the rating-based wage times the market multiplier.
+ */
+function setWages(w: World, fr: ReturnType<Ruleset["finance"]>) {
+  const r = w.config.ruleset;
+  if (!r.contractSeasons) {
+    for (const p of w.players.values()) if (!p.retired && p.club) p.wage = r.wage(p.overall, fr);
+    return;
+  }
+  const m = marketMultiplier(w);
+  const y = r.contractYears ?? { young: 3, prime: 2, veteran: 1 };
+  for (const p of w.players.values()) {
+    if (p.retired || !p.club) continue;
+    if (p.wage > 0 && p.contractUntil >= w.season) continue;
+    p.wage = Math.round((r.wage(p.overall, fr) * m) / 1000) * 1000;
+    const years = p.age >= 31 ? y.veteran : p.age >= 27 ? y.prime : y.young;
+    p.contractUntil = w.season + Math.min(r.contractSeasons.max, Math.max(r.contractSeasons.min, years)) - 1;
+  }
+}
+
 function playSeason(w: World) {
   const r = w.config.ruleset;
   const m = w.config.match ?? DEFAULT_MATCH;
   const ids = [...w.clubs.keys()];
   const rounds = 2 * (ids.length - 1);
   const fr = r.finance(rounds);
-  for (const p of w.players.values()) if (!p.retired && p.club) p.wage = r.wage(p.overall, fr);
+  setWages(w, fr);
+  // Running costs: a flat part plus a share of what each club earned last season.
+  const earned = new Map<string, number>();
+  if (r.operatingShare)
+    for (const e of w.ledger)
+      if (e.season === w.season - 1 && (e.kind === "distribution" || e.kind === "result" || e.kind === "prize"))
+        earned.set(e.club, (earned.get(e.club) ?? 0) + e.amount);
+  const operatingOf = (club: string) =>
+    Math.round(((r.operatingPerSeason ?? 0) + (r.operatingShare ?? 0) * (earned.get(club) ?? 0)) / rounds);
   // A seeded order each season, so the same clubs don't always meet in the same round.
   const order = [...ids].sort(
     (a, b) => hash(`${w.config.seed}:${w.season}:${a}`) - hash(`${w.config.seed}:${w.season}:${b}`),
@@ -405,7 +445,7 @@ function playSeason(w: World) {
     for (const c of w.clubs.values()) {
       if (c.withdrawnFrom !== null) continue;
       const due = round === 1 ? fr.distribution : 0;
-      const payroll = squadOf(w, c.id).reduce((s, p) => s + p.wage, 0);
+      const payroll = squadOf(w, c.id).reduce((s, p) => s + p.wage, 0) + operatingOf(c.id);
       if (c.cash + due < payroll) {
         if (r.insolvency === "forfeit") {
           c.withdrawnFrom = round;
@@ -420,6 +460,8 @@ function playSeason(w: World) {
       if (round === 1) credit(w, c.id, "distribution", fr.distribution, `distribution:${w.season}:${c.id}`, 1);
       const payroll = squadOf(w, c.id).reduce((s, p) => s + p.wage, 0);
       credit(w, c.id, "payroll", -payroll, `payroll:${w.season}:${round}:${c.id}`, round);
+      const ops = operatingOf(c.id);
+      if (ops) credit(w, c.id, "operating", -ops, `operating:${w.season}:${round}:${c.id}`, round);
     }
     if (r.lender) serviceLoans(w, round);
     for (const f of calendar.filter((x) => x.round === round)) {
