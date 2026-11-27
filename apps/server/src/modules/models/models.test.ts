@@ -1,7 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 import { LlmOutputError } from "../agents/llm.ts";
-import { GatewayLlm, ModelUnavailableError, openAiCompatible, type Transport, TransportError } from "./gateway.ts";
+import {
+  GatewayLlm,
+  llmForModel,
+  ModelUnavailableError,
+  openAiCompatible,
+  type Transport,
+  TransportError,
+} from "./gateway.ts";
 import { mockTransport, qualify } from "./qualify.ts";
 import { ALLOCATION, checkRegistry, costOf, modelBySlug, projectSpend, REGISTRY } from "./registry.ts";
 import { contrast, SCENARIOS } from "./scenarios.ts";
@@ -65,7 +72,11 @@ describe("gateway", () => {
     await new GatewayLlm(spec, t).complete(req);
     await new GatewayLlm(modelBySlug("deepseek/deepseek-flash")!, t).complete(req);
     expect(bodies[0]).toMatchObject({ model: "gpt-6.2-sol", response_format: { type: "json_schema" } });
-    expect(bodies[1]).toMatchObject({ model: "deepseek-flash", response_format: { type: "json_object" } });
+    expect(bodies[1]).toMatchObject({
+      model: "deepseek/deepseek-v4.1-flash-1017",
+      provider: { order: ["deepseek"], require_parameters: false },
+      response_format: { type: "json_object" },
+    });
     expect(JSON.stringify(bodies[1])).toContain("JSON Schema");
   });
 
@@ -175,5 +186,72 @@ describe("qualification (mock providers, no paid calls)", () => {
     expect(q.qualified).toBe(false);
     expect(q.trials.every((t) => t.outcome === "budget")).toBe(true);
     expect(q.spentMicroUsd).toBe(0);
+  });
+});
+
+describe("routing (direct for OpenAI and Anthropic, pinned OpenRouter for the rest)", () => {
+  it("routes every model as agreed, each OpenRouter model pinned to one host", () => {
+    for (const m of REGISTRY) {
+      if (m.provider === "openai" || m.provider === "anthropic") expect(m.route, m.slug).toBe("direct");
+      else {
+        expect(m.route, m.slug).toBe("openrouter");
+        expect(m.host?.tag, m.slug).toBeTruthy();
+        expect(m.openRouterId, m.slug).toBeTruthy();
+      }
+    }
+    const misrouted = REGISTRY.map((m) => (m.slug === "xai/grok-4.7" ? { ...m, route: "direct" as const } : m));
+    expect(checkRegistry(misrouted)).toContain("xai/grok-4.7 must route through OpenRouter");
+  });
+
+  it("sends OpenRouter the pinned host with fallbacks off, and refuses an answer from another host", async () => {
+    const grok = modelBySlug("xai/grok-4.7")!;
+    const bodies: unknown[] = [];
+    let servedBy = "xAI";
+    const t: Transport = {
+      chat: async (b) => {
+        bodies.push(b);
+        return { content: '{"answer":1}', finishReason: "stop", inputTokens: 1, outputTokens: 1, servedBy };
+      },
+    };
+    await new GatewayLlm(grok, t).complete(req);
+    expect(bodies[0]).toMatchObject({
+      model: "x-ai/grok-4.7",
+      provider: { order: ["xai"], allow_fallbacks: false, require_parameters: true },
+    });
+    servedBy = "Amazon Bedrock";
+    await expect(new GatewayLlm(grok, t, { maxRetries: 0 }).complete(req)).rejects.toThrow(/not the pinned host xAI/);
+    // Direct models carry no OpenRouter routing.
+    servedBy = "OpenAI";
+    await new GatewayLlm(spec, t).complete(req);
+    expect((bodies.at(-1) as { provider?: unknown }).provider).toBeUndefined();
+  });
+
+  it("builds direct, OpenRouter and Anthropic clients from the environment, and never without a key", async () => {
+    const seen: string[] = [];
+    const fetch = (async (url: string, init: RequestInit) => {
+      seen.push(`${url} ${(init.headers as Record<string, string>).authorization}`);
+      return new Response(
+        JSON.stringify({ provider: "Z.AI", choices: [{ message: { content: '{"answer":5}' } }], usage: {} }),
+      );
+    }) as unknown as typeof globalThis.fetch;
+    const env = { OPENAI_API_KEY: "sk-o", OPENROUTER_API_KEY: "sk-or" };
+    await llmForModel(modelBySlug("zai/glm-5.3")!, env, { fetch }).complete(req);
+    await llmForModel(spec, env, { fetch }).complete(req);
+    expect(seen).toEqual([
+      "https://openrouter.ai/api/v1/chat/completions Bearer sk-or",
+      "https://api.openai.com/v1/chat/completions Bearer sk-o",
+    ]);
+    expect(() => llmForModel(modelBySlug("zai/glm-5.3")!, {})).toThrow(/OPENROUTER_API_KEY is not set/);
+    const claude = llmForModel(modelBySlug("anthropic/claude-opus-5-5")!, { ANTHROPIC_API_KEY: "x" });
+    expect(claude).toMatchObject({ provider: "anthropic", model: "anthropic/claude-opus-5-5" });
+  });
+});
+
+describe("league functions run on Anthropic", () => {
+  it("refuses a non-Claude model for the newsroom", async () => {
+    const { loadConfig } = await import("../../config.ts");
+    const base = { DATABASE_URL: "postgres://x:y@localhost:5432/db" };
+    expect(loadConfig({ ...base }).EDITORIAL_MODEL).toBe("claude-opus-5-5");
+    expect(() => loadConfig({ ...base, EDITORIAL_MODEL: "gpt-6.2-sol" })).toThrow(/league functions run on Anthropic/);
   });
 });

@@ -12,30 +12,40 @@ Each Phase 2 club is founded and run by one distinct model. This page covers whi
 
 ## Registry (verified 2026-11-27, by web lookup)
 
-`bun run models list` prints it, and `bun run models check` checks the allocation: 20 distinct models with MiniMax held in reserve.
+`bun run models list` prints it, and `bun run models check` checks the allocation (20 distinct models, MiniMax held in reserve) and the routing.
 
-| Provider | Slots | Candidates | Status |
-| --- | ---: | --- | --- |
-| OpenAI | 3 | `gpt-6.2-astra`, `gpt-6.2-sol`, `gpt-6.1-terra` | Terra stands in for the "Luna" intent. `gpt-6-luna` ($0.10/$0.50) is the alternative. **Needs approval** |
-| Anthropic | 3 | `claude-fable-5-2`, `claude-opus-5-5`, `claude-sonnet-5-5` | Candidates. Dateless IDs are pinned snapshots |
-| Google | 2 | `gemini-4-argon`, `gemini-4-neon` | Candidates. GA isn't confirmed. Argon's price doubles on 2026-12-01, and the higher price is used |
-| Mistral | 2 | `mistral-large-4-0`, `mistral-small-2603` | Small 4's ID is inferred from OpenRouter, so it **needs approval**. Medium 3.5 is deprecated and retires 2027-04-30 |
-| DeepSeek | 2 | `deepseek-v4-pro`, `deepseek-flash` | Candidates. These are DeepSeek's only two models. Both are **moving names** and offer JSON mode only, so the schema is validated here |
-| Alibaba | 2 | `qwen4-max`, `qwen3.8-max-0902` | Candidates |
-| Meta | 2 | `muse-spark-1.3`, `muse-ember-1.0` via OpenRouter | **Needs approval.** Meta's own API serves Muse models, not Llama. Llama 4 Maverick and Scout (April 2025, one host each) are the alternatives |
-| xAI | 1 | `grok-4.7` | Candidate. No dated pin is documented |
-| Cohere | 1 | `command-a-plus-05-2026` | Provisional per #92, and pinned |
-| Moonshot | 1 | `kimi-k3.1-pro` | Candidate. Its price is from OpenRouter, and the higher of two endpoints is used |
-| Z.ai | 1 | `glm-5.3` | Candidate. The lowercase ID is inferred |
-| MiniMax | reserve | `MiniMax-M3` | Allocated only if Cohere fails live qualification |
+## Routing
 
-**Pinning.** Only the Anthropic models, Cohere's, Qwen 3.8 Max and Mistral Large 4.0 have documented pinned IDs. The others may move under the same name. For those, qualification and every run record the version the provider reports, and the operator must accept that before launch.
+- **OpenAI and Anthropic go direct.** OpenAI is called over its own API (OpenAI-compatible transport). Anthropic is called through its SDK, the client production already uses.
+- **Everything else goes through OpenRouter, each model pinned to one host.** The gateway sends `provider: { order: [host], allow_fallbacks: false }`, so OpenRouter won't move a model to another host. If an answer comes back from any host other than the pinned one, the gateway refuses it and the club keeps its last valid decision. One key, `OPENROUTER_API_KEY`, covers all of them.
+- **Hosts.** The lab's own endpoint wherever OpenRouter offers one, on its standard tier (not flex or priority), checked against OpenRouter's endpoint list on 2026-11-27. Several open-weight models are also served by cheaper third-party hosts at reduced precision (fp4/fp8). Pinning to the lab's endpoint keeps every call on the weights the lab serves.
 
-**Prices.** First-party prices are used where they were found, otherwise OpenRouter's (each entry records which). Endpoint base URLs aren't re-verified (`endpointVerified: false`). The first live qualification confirms them.
+| Provider | Slots | Model (OpenRouter ID) | Pinned host | Notes |
+| --- | ---: | --- | --- | --- |
+| OpenAI | 3 | `gpt-6.2-astra`, `gpt-6.2-sol`, `gpt-6.1-terra` | direct | Terra stands in for the "Luna" intent, and `gpt-6-luna` ($0.10/$0.50) is the alternative. **Needs approval** |
+| Anthropic | 3 | `claude-fable-5-2`, `claude-opus-5-5`, `claude-sonnet-5-5` | direct (SDK) | Dateless IDs are pinned snapshots |
+| Google | 2 | `google/gemini-4-argon`, `google/gemini-4-neon` | Google AI Studio | GA isn't confirmed. Argon's price doubles on 2026-12-01, and the higher price is used |
+| Mistral | 2 | `mistralai/mistral-large-4-0`, `mistralai/mistral-small-2603` | Mistral (`mistral/zdr`) | Small 4 **needs approval**. Medium 3.5 is deprecated and retires 2027-04-30 |
+| DeepSeek | 2 | `deepseek/deepseek-v4-pro-0813`, `deepseek/deepseek-v4.1-flash-1017` | DeepSeek | DeepSeek's own endpoint has no JSON-schema mode on OpenRouter, so these run in JSON mode and are validated here. The OpenRouter IDs are dated, which pins versions that DeepSeek's own API doesn't. Peak prices are used |
+| Alibaba | 2 | `qwen/qwen4-max`, `qwen/qwen3.8-max-0902` | Alibaba | |
+| Meta | 2 | `meta/muse-spark-1.3`, `meta/muse-ember` | Meta | **Needs approval:** these are Muse models, not Llama. Ember costs $0.10/$0.50 (corrected) |
+| xAI | 1 | `x-ai/grok-4.7` | xAI | No dated pin is documented |
+| Cohere | 1 | `cohere/command-a-plus` | Cohere (`cohere/fp8`, its only endpoint) | Provisional per #92 |
+| Moonshot | 1 | `moonshotai/kimi-k3.1-pro` | Moonshot AI (`moonshotai/mxfp4`, standard tier) | |
+| Z.ai | 1 | `z-ai/glm-5.3` | Z.AI (`z-ai/fp8`) | |
+| MiniMax | reserve | `minimax/minimax-m3` | Parasail (`parasail/fp8`) | **No first-party MiniMax endpoint on OpenRouter.** The reserve would run on a third-party host in JSON mode. Needs approval if it's ever used |
+
+**Pinning versions.** Only the Anthropic models, Cohere's, Qwen 3.8 Max, Mistral Large 4.0 and the dated DeepSeek IDs pin a version. The others may move under the same name. For those, qualification and every run record what was served, and the operator must accept that before launch.
+
+**Prices.** Each entry records whether its price is first-party or OpenRouter's, at the pinned host. OpenRouter charges a fee on credit purchases, and the spend forecast must add it.
+
+## League functions use Anthropic only
+
+The newsroom (match reports, previews and league news) and any future league-side service run on Anthropic, called direct. `EDITORIAL_MODEL` is validated as a Claude model, and the server refuses to start with anything else. Only the clubs' managers use other providers. Without an Anthropic key, the free offline template writer takes over the newsroom.
 
 ## Gateway (`models/gateway.ts`)
 
-- **Transports.** One OpenAI-compatible transport (`POST {base}/chat/completions`) covers every provider with such an endpoint. OpenRouter is used only where a provider has no direct route (Meta). Anthropic can also keep its SDK client (`agents/llm.ts`).
+- **Clients.** `llmForModel(spec)` returns the right client for a model: the Anthropic SDK, OpenAI's API, or OpenRouter with the pinned host. A missing key is an error, never a silent switch.
 - **Structured output.** Models that support it get a JSON Schema `response_format`. The others get JSON mode, with the schema in the system prompt. Either way the gateway parses and validates the answer against the task's zod schema, and never trusts it.
 - **Bounds.**
   - Every call has a timeout (120 s by default).
@@ -43,14 +53,15 @@ Each Phase 2 club is founded and run by one distinct model. This page covers whi
   - Permanent errors aren't retried.
   - Output that fails validation gets at most one repair turn.
   - Every attempt's tokens are counted, so repairs are charged.
-- **No substitution.** A failure raises `ModelUnavailableError` naming the model. The caller keeps the club's last valid decision; agents/service.ts already falls back to the last valid tactics. Nothing ever calls a different model on a club's behalf.
+- **No substitution.** A failure raises `ModelUnavailableError` naming the model. The caller keeps the club's last valid decision; agents/service.ts already falls back to the last valid tactics. Nothing ever calls a different model, or a different host, on a club's behalf.
+- **Shared dependency.** An OpenRouter outage makes 14 clubs' managers unavailable at once. The rules handle it (every club keeps its last valid decision), and the harness's `provider-downtime` scenario exercises it.
 - **Where it runs.** Only from jobs. Page rendering and simulator ticks can't reach it.
 
 ## Cost controls
 
 - **Two ledgers.** Real model spend is in USD, in the compute ledger (#24: grants, worst-case reservations, charges and releases). It is entirely separate from the clubs' fictional credits.
 - **Worst-case reservation.** Before each call, the compute ledger holds `worstCaseMicroUsd(spec, maxIn, maxOut)` (doubled for a possible repair) and settles it after. A club's season cap is per model, because each club has one model.
-- **Projection.** `bun run models project` estimates spend per model per 30 days. At 5 manager calls per club per day, 6k input and 1.5k output tokens per call, and 20 seasonal calls per 24-day season, the 20 managers would cost about **$108 per 30 days**. The newsroom and hosting are separate. These are estimates from token assumptions, not measurements. Live qualification records real tokens, latency and cost per model.
+- **Projection.** `bun run models project` estimates spend per model per 30 days. At 5 manager calls per club per day, 6k input and 1.5k output tokens per call, and 20 seasonal calls per 24-day season, the 20 managers would cost about **$101 per 30 days**. The newsroom and hosting are separate. These are estimates from token assumptions, not measurements. Live qualification records real tokens, latency and cost per model.
 
 ## Qualification (`models/qualify.ts`, `models/scenarios.ts`)
 
@@ -81,8 +92,8 @@ The mock providers test the harness itself: retries, repairs, timeouts, outages,
 
 ## Decisions needed before live qualification
 
-1. **The Meta slot:** Muse (`muse-spark-1.3` and `muse-ember-1.0`) or Llama 4 (Maverick and Scout)?
+1. **The Meta slot:** Muse (`muse-spark-1.3` and `muse-ember`) or Llama 4 (Maverick and Scout)?
 2. **Mistral's second model:** Small 4, or the deprecated Medium 3.5?
 3. **OpenAI's third model:** Terra or Luna?
-4. **Moving names:** whether to accept models without a pinned snapshot (DeepSeek ×2, and possibly OpenAI, Google, xAI, Kimi, GLM and MiniMax).
-5. **Spend:** the spend cap for live qualification, and keys for each provider (or OpenRouter) through the credential wrappers.
+4. **Moving names:** whether to accept models without a pinned version (OpenAI, Google, xAI, Kimi, GLM and Qwen 4 Max).
+5. **Spend and keys:** the spend cap for live qualification, and three keys through the credential wrappers: Anthropic, OpenAI and OpenRouter.
