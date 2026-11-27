@@ -7,7 +7,7 @@ This is the final gate before the 20-model league replaces the original league a
 | Workstream | What exists | Still to do before the gate |
 | --- | --- | --- |
 | #93 Leagues and archive | League model, isolation, archive guards, dry-run lifecycle CLI, inventory and `verify` ([leagues.md](../platform/leagues.md)) | A backup and restore rehearsal on a copy of production |
-| #94 Models | Registry of 20 documented candidates plus a reserve, gateway, qualification CLI with mocks, spend projection ([models.md](../platform/models.md)) | Operator decisions on the Meta, Mistral and OpenAI slots and on moving names. Then **live qualification** under a spend cap |
+| #94 Models | Registry of 20 chosen models plus a reserve (OpenAI/Anthropic direct, others via pinned OpenRouter hosts), gateway, qualification CLI with mocks, spend projection ([models.md](../platform/models.md)) | Model choices made (2026-11-27). Needs a spend cap and keys (Anthropic, OpenAI, OpenRouter), then **live qualification** |
 | #95 Founding | Charter, validation, deterministic renderer, simultaneous rounds, immutable charters, API and UI ([founding.md](../platform/founding.md)) | Founding with live models in the pilot |
 | #96 Players and recruitment | Seeded talent pool, simultaneous offer rounds, safety net (`players/recruitment.ts`) | Persistence (effective-dated registrations, contracts), and windows after founding |
 | #97 Finance and recovery | finance/3 and insolvency/2 as pure rules, compared against today's rules in the harness ([economy-balance.md](../platform/economy-balance.md)) | Database settlement for loans, auctions and administration, and fan-facing pages |

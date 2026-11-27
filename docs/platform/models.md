@@ -22,20 +22,20 @@ Each Phase 2 club is founded and run by one distinct model. This page covers whi
 
 | Provider | Slots | Model (OpenRouter ID) | Pinned host | Notes |
 | --- | ---: | --- | --- | --- |
-| OpenAI | 3 | `gpt-6.2-astra`, `gpt-6.2-sol`, `gpt-6.1-terra` | direct | Terra stands in for the "Luna" intent, and `gpt-6-luna` ($0.10/$0.50) is the alternative. **Needs approval** |
+| OpenAI | 3 | `gpt-6.2-astra`, `gpt-6.2-sol`, `gpt-6.1-terra` | direct | Terra chosen over Luna |
 | Anthropic | 3 | `claude-fable-5-2`, `claude-opus-5-5`, `claude-sonnet-5-5` | direct (SDK) | Dateless IDs are pinned snapshots |
 | Google | 2 | `google/gemini-4-argon`, `google/gemini-4-neon` | Google AI Studio | GA isn't confirmed. Argon's price doubles on 2026-12-01, and the higher price is used |
-| Mistral | 2 | `mistralai/mistral-large-4-0`, `mistralai/mistral-small-2603` | Mistral (`mistral/zdr`) | Small 4 **needs approval**. Medium 3.5 is deprecated and retires 2027-04-30 |
+| Mistral | 2 | `mistralai/mistral-large-4-0`, `mistralai/mistral-small-2603` | Mistral (`mistral/zdr`) | Small 4 chosen; Medium 3.5 is deprecated |
 | DeepSeek | 2 | `deepseek/deepseek-v4-pro-0813`, `deepseek/deepseek-v4.1-flash-1017` | DeepSeek | DeepSeek's own endpoint has no JSON-schema mode on OpenRouter, so these run in JSON mode and are validated here. The OpenRouter IDs are dated, which pins versions that DeepSeek's own API doesn't. Peak prices are used |
 | Alibaba | 2 | `qwen/qwen4-max`, `qwen/qwen3.8-max-0902` | Alibaba | |
-| Meta | 2 | `meta/muse-spark-1.3`, `meta/muse-ember` | Meta | **Needs approval:** these are Muse models, not Llama. Ember costs $0.10/$0.50 (corrected) |
+| Meta | 2 | `meta/muse-spark-1.3`, `meta/muse-ember` | Meta | Muse chosen over Llama 4. Ember costs $0.10/$0.50 |
 | xAI | 1 | `x-ai/grok-4.7` | xAI | No dated pin is documented |
 | Cohere | 1 | `cohere/command-a-plus` | Cohere (`cohere/fp8`, its only endpoint) | Provisional per #92 |
 | Moonshot | 1 | `moonshotai/kimi-k3.1-pro` | Moonshot AI (`moonshotai/mxfp4`, standard tier) | |
 | Z.ai | 1 | `z-ai/glm-5.3` | Z.AI (`z-ai/fp8`) | |
 | MiniMax | reserve | `minimax/minimax-m3` | Parasail (`parasail/fp8`) | **No first-party MiniMax endpoint on OpenRouter.** The reserve would run on a third-party host in JSON mode. Needs approval if it's ever used |
 
-**Pinning versions.** Only the Anthropic models, Cohere's, Qwen 3.8 Max, Mistral Large 4.0 and the dated DeepSeek IDs pin a version. The others may move under the same name. For those, qualification and every run record what was served, and the operator must accept that before launch.
+**Pinning versions.** Only the Anthropic models, Cohere's, Qwen 3.8 Max, Mistral Large 4.0 and the dated DeepSeek IDs pin a version. The others may move under the same name. For those, qualification and every run record what was served, and the operator has accepted that (see Decisions).
 
 **Prices.** Each entry records whether its price is first-party or OpenRouter's, at the pinned host. OpenRouter charges a fee on credit purchases, and the spend forecast must add it.
 
@@ -90,10 +90,13 @@ bun run models qualify --live --spend-cap-usd 5 --confirm-paid --models all
 
 The mock providers test the harness itself: retries, repairs, timeouts, outages, injection and the spend cap. They don't stand in for real models. **No live qualification has been run**, and Cohere and MiniMax are still to be compared live.
 
-## Decisions needed before live qualification
+## Decisions
 
-1. **The Meta slot:** Muse (`muse-spark-1.3` and `muse-ember`) or Llama 4 (Maverick and Scout)?
-2. **Mistral's second model:** Small 4, or the deprecated Medium 3.5?
-3. **OpenAI's third model:** Terra or Luna?
-4. **Moving names:** whether to accept models without a pinned version (OpenAI, Google, xAI, Kimi, GLM and Qwen 4 Max).
-5. **Spend and keys:** the spend cap for live qualification, and three keys through the credential wrappers: Anthropic, OpenAI and OpenRouter.
+Made by the operator on 2026-11-27:
+
+- **Meta:** Muse (`muse-spark-1.3` and `muse-ember`), not Llama 4.
+- **Mistral's second model:** Small 4, not the deprecated Medium 3.5.
+- **OpenAI's third model:** Terra, not Luna.
+- **Moving names are accepted.** Models without a pinned version may be upgraded by their provider. Every run records the model and host that served it, so an upgrade shows up in the record.
+
+Still open before live qualification: a **spend cap**, and three keys through the credential wrappers (Anthropic, OpenAI and OpenRouter).
