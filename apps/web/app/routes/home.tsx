@@ -60,7 +60,7 @@ export async function loader() {
     apiMaybe<StandingsResponse>(`/api/v1/seasons/${slug}/standings`),
     apiMaybe<FixturesResponse>(`/api/v1/seasons/${slug}/fixtures`),
     // Biggest stories first (priority, fading with age): a champion is the headline.
-    apiMaybe<ArticleListResponse>("/api/v1/articles?limit=8&sort=priority"),
+    apiMaybe<ArticleListResponse>("/api/v1/articles?limit=10&sort=priority"),
     apiMaybe<JournalistListResponse>("/api/v1/journalists"),
     apiMaybe<DugoutResponse>(`/api/v1/seasons/${slug}/dugout`),
     apiMaybe<SpotlightResponse>("/api/v1/spotlight"),
@@ -194,7 +194,7 @@ export function pickStories<T extends { id: string; kind: string; matchId: strin
     ranked.find((a) => featuredMatchId && a.matchId === featuredMatchId && a.kind === "match_report") ??
     ranked[0] ??
     null;
-  return { headline, lead, stories: ranked.filter((a) => a !== lead).slice(0, 3) };
+  return { headline, lead, stories: ranked.filter((a) => a !== lead).slice(0, 5) };
 }
 
 /**
@@ -282,6 +282,33 @@ export default function Home({ loaderData }: Route.ComponentProps) {
           {replay}
         </div>
       )}
+      <section aria-labelledby="latest-news" data-testid="latest-news">
+        <SectionHeader
+          id="latest-news"
+          title="Latest news"
+          action={{ to: "/news", label: "All news" }}
+          meta="Biggest stories first"
+        />
+        {lead || stories.length ? (
+          <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {/* Without a headline at the top, the lead story opens the news, bigger. */}
+            {lead && !headline && !previous && (
+              <div className="sm:col-span-2">
+                <ArticleCard article={lead} variant="lead" />
+              </div>
+            )}
+            {(headline || previous ? articles.filter((a) => a !== headline) : stories)
+              .slice(0, lead && !headline && !previous ? 4 : 6)
+              .map((a) => (
+                <ArticleCard key={a.id} article={a} />
+              ))}
+          </div>
+        ) : (
+          <p className="mt-4 text-sm text-muted-text">
+            AI journalists file reports from the official record after each match, and league news as it happens.
+          </p>
+        )}
+      </section>
       <YourClub
         teams={teams}
         fixtures={fixtures}
@@ -293,39 +320,9 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         moments={moments}
       />
       {!previous && <FeaturedMatchday fixtures={fixtures} />}
-      {(!(previous || headline) || !spot) && (
-        <div className={`grid items-stretch gap-6 ${spot || previous || headline ? "" : "lg:grid-cols-2"}`}>
-          {previous || headline ? null : lead ? (
-            <LeadStory article={lead} teams={teams} />
-          ) : (
-            <div className="card-surface p-6">
-              <SectionHeader as="h2" banner eyebrow={season.name} title="This week in the league" />
-              <p className="text-muted-text">AI journalists file reports from the official record after each match.</p>
-            </div>
-          )}
-          {!spot && replay}
-        </div>
-      )}
+      {!spot && replay}
 
-      <div className="grid gap-6 lg:grid-cols-2 xl:grid-cols-3">
-        <Panel
-          id="latest-stories"
-          title="Latest stories"
-          action={{ to: "/news", label: "View all" }}
-          className="lg:col-span-2 xl:col-span-1"
-        >
-          {stories.length ? (
-            <div className="grid gap-4 divide-line lg:grid-cols-2 xl:grid-cols-1 xl:divide-y [&>*]:pt-0 xl:[&>*+*]:pt-4">
-              {stories.map((a) => (
-                <ArticleCard key={a.id} article={a} variant="row" />
-              ))}
-            </div>
-          ) : (
-            <p className="text-sm text-muted-text">
-              AI journalists file reports from the official record after each match.
-            </p>
-          )}
-        </Panel>
+      <div className="grid gap-6 lg:grid-cols-2">
         <Panel id="table-heading" title="League table" tone="coral" meta={season.name} bodyClassName="p-2 sm:p-3">
           {standings && (
             <TitleRaceLine
