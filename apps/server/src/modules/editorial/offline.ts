@@ -165,7 +165,9 @@ function news(c: EditorialContext): ArticleDraft {
     league: lead.statement,
     takeover: `New owners, new name: ${String(v.to ?? "")}`,
     withdrawal: `${String(v.team ?? "A club")} declared bankrupt`,
-    transfers: Number(v.deals ?? 0) ? "Transfer window closes: the deals done" : "A quiet transfer window",
+    transfers: v.top
+      ? `${(v.top as { player: string }).player} joins ${(v.top as { to: string }).to} for ${(v.top as { fee: string }).fee}${Number(v.deals) > 1 ? ` as the window closes with ${Number(v.deals)} deals` : ""}`
+      : "A quiet transfer window",
     finances: "The money every club takes into the season",
     retirements: `${Number(v.retired ?? 0) === 1 ? "A player retires" : `${Number(v.retired ?? 0)} players retire`}; academy graduates step up`,
   };

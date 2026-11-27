@@ -47,6 +47,30 @@ export interface NewsStory {
   round: number;
 }
 
+/** A fee this big makes the window a headline story (about twice a regular starter's guide fee). */
+export const BIG_FEE = 5_000_000;
+
+/**
+ * How big a window round-up is: a quiet window is minor news, deals are news, a big signing is a
+ * headline (it leads the homepage), and a league-record fee bigger still.
+ */
+export function transferPriority(fees: number[], previousRecord: number): number {
+  if (!fees.length) return 45;
+  const top = Math.max(...fees);
+  if (top > previousRecord && top >= BIG_FEE) return 90;
+  if (top >= BIG_FEE) return 85;
+  return NEWS_PRIORITY.transfers;
+}
+
+/** The biggest fee paid in any earlier window (0 when there's none). */
+async function recordFeeBefore(db: Db, windowId: string): Promise<number> {
+  const [r] = await db<{ fee: string | null }[]>`
+    select max(b.fee)::text as fee from transfer_bids b join transfer_windows w on w.id = b.window_id
+    where b.status = 'completed' and w.id <> ${windowId}
+      and w.created_at < (select created_at from transfer_windows where id = ${windowId})`;
+  return Number(r?.fee ?? 0);
+}
+
 /** How big each story is. Champions are the headline; a quiet window is minor news. */
 export const NEWS_PRIORITY: Record<NewsTopic, number> = {
   champions: 100,
@@ -412,7 +436,18 @@ async function transfers(db: Db, s: SeasonRow): Promise<NewsStory | null> {
       deals.length
         ? `The ${s.name} transfer window has closed with ${plural(deals.length, "completed transfer")} worth ${formatCredits(total)} in all`
         : `The ${s.name} transfer window has closed without a completed transfer`,
-      { deals: deals.length, total },
+      {
+        deals: deals.length,
+        total,
+        top: deals[0]
+          ? {
+              player: deals[0].player,
+              to: name(deals[0].buyer),
+              from: name(deals[0].seller),
+              fee: formatCredits(Number(deals[0].fee)),
+            }
+          : null,
+      },
       "transfer_windows",
     ),
     ...(offers
@@ -485,7 +520,10 @@ async function transfers(db: Db, s: SeasonRow): Promise<NewsStory | null> {
   return {
     facts,
     lead,
-    priority: deals.length ? NEWS_PRIORITY.transfers : 45,
+    priority: transferPriority(
+      deals.map((d) => Number(d.fee)),
+      await recordFeeBefore(db, w.id),
+    ),
     publishAt: newsAt(w.closed_at ?? w.deadline, prev ? await seasonEnd(db, prev.id) : null, 90, gap),
     teamIds: [...new Set(deals.flatMap((d) => [d.buyer, d.seller]))],
     round: 1,
