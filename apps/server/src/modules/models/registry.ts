@@ -10,6 +10,11 @@
  *  - candidate: documented, callable in principle, awaiting live qualification;
  *  - needs-approval: a substitution or a doubtful choice that the operator must approve first;
  *  - reserve: not allocated unless a candidate fails qualification.
+ * Operator decisions (2026-11-27): Meta's slots use Muse (Spark 1.3, Ember), Mistral's second slot
+ * uses Small 4, OpenAI's third uses Terra, and models without a pinned version (moving names) are
+ * accepted: every run records the model and host that served it, so a silent upgrade shows in the
+ * record rather than changing history.
+ *
  * Routing: OpenAI and Anthropic models are called directly on their own APIs. Every other model goes
  * through OpenRouter, pinned to one endpoint (`host`, checked against OpenRouter's endpoint list on
  * 2026-11-27: the lab's own endpoint wherever OpenRouter offers one) with fallbacks disabled, and an
@@ -190,9 +195,9 @@ export const REGISTRY: ModelSpec[] = [
     structuredOutput: "json_schema",
     contextWindow: 1_050_000,
     price: { input: 1, output: 5, source: "first-party" },
-    status: "needs-approval",
+    status: "candidate",
     sources: ["https://developers.openai.com/api/docs/models", OR],
-    notes: "In place of the 'Luna' intent (gpt-6-luna, $0.10/$0.50, is the alternative).",
+    notes: "Chosen over Luna for the third OpenAI slot (operator, 2026-11-27).",
   }),
   // Anthropic: dateless ids are pinned snapshots per the docs.
   m({
@@ -291,9 +296,10 @@ export const REGISTRY: ModelSpec[] = [
     structuredOutput: "json_schema",
     contextWindow: 262_000,
     price: { input: 0.15, output: 0.6, source: "openrouter" },
-    status: "needs-approval",
+    status: "candidate",
     sources: [OR],
-    notes: "API id inferred from OpenRouter, not confirmed in Mistral's docs. Medium 3.5 would retire mid-cycle.",
+    notes:
+      "Chosen for Mistral's second slot (operator, 2026-11-27); Medium 3.5 is deprecated. API id inferred from OpenRouter.",
   }),
   // DeepSeek: exactly two models, both moving names; JSON mode only (schema validated here).
   m({
@@ -371,7 +377,7 @@ export const REGISTRY: ModelSpec[] = [
     structuredOutput: "json_schema",
     contextWindow: 1_000_000,
     price: { input: 1.25, output: 4.25, source: "openrouter" },
-    status: "needs-approval",
+    status: "candidate",
     sources: ["https://dev.meta.ai/docs/models.md", OR],
     notes:
       "Substitution: the allocation says Llama; Meta's current API models are Muse. Alternative: Llama 4 Maverick (April 2025, one host).",
@@ -387,7 +393,7 @@ export const REGISTRY: ModelSpec[] = [
     structuredOutput: "json_schema",
     contextWindow: 1_000_000,
     price: { input: 0.1, output: 0.5, source: "openrouter" },
-    status: "needs-approval",
+    status: "candidate",
     sources: ["https://dev.meta.ai/docs/models.md"],
     notes: "Avoids the preview Muse Wonder (country-limited).",
   }),
