@@ -32,7 +32,7 @@ const article = (
 describe("news", () => {
   it("the matchweek bar names the season", async () => {
     const { container } = inRouter(<ScoreTicker fixtures={mockFixtures} matchweek={1} season="Season 16" />);
-    expect(screen.getByTestId("ticker-season").textContent).toContain("Season 16");
+    expect(screen.getByTestId("ticker-season").textContent).toContain("S16"); // "Season 16" for screen readers
     expect(screen.getByRole("list", { name: "Season 16, Matchweek 1 fixtures" })).toBeTruthy();
     expect((await axe.run(container)).violations.map((v) => v.id)).toEqual([]);
   });
