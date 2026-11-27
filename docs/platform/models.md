@@ -85,7 +85,8 @@ bun run models qualify --mock flaky         # a 429, then malformed JSON, then g
 bun run models qualify --mock gullible      # follows the injected instruction: fails prompt-injection
 bun run models qualify --mock down|broken|slow
 # Paid, only after approval (#101): through the credential wrappers, with a total cap
-bun run models qualify --live --spend-cap-usd 5 --confirm-paid --models all
+with-anthropic-token with-openai-token with-openrouter-token \
+  bun run models qualify --live --spend-cap-usd 5 --confirm-paid --models all
 ```
 
 The mock providers test the harness itself: retries, repairs, timeouts, outages, injection and the spend cap. They don't stand in for real models. **No live qualification has been run**, and Cohere and MiniMax are still to be compared live.

@@ -5,7 +5,8 @@
  *   bun run models check                      # allocation and distinctness problems (exit 1 if any)
  *   bun run models project [--calls 5] [--in 6000] [--out 1500] [--seasonal 20] [--season-days 24]
  *   bun run models qualify --mock good|flaky|broken|down|gullible|slow [--models slug,…|all] [--reps 3]
- *   bun run models qualify --live --spend-cap-usd 5 --confirm-paid [--models slug,…] [--reps 3]
+ *   with-anthropic-token with-openai-token with-openrouter-token \
+ *     bun run models qualify --live --spend-cap-usd 5 --confirm-paid [--models slug,…] [--reps 3]
  *
  * Live qualification makes PAID calls to the providers. It refuses to run without --confirm-paid,
  * an explicit --spend-cap-usd (split evenly across the models), and each provider's key in the

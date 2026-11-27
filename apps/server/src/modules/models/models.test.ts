@@ -244,6 +244,11 @@ describe("routing (direct for OpenAI and Anthropic, pinned OpenRouter for the re
     expect(() => llmForModel(modelBySlug("zai/glm-5.3")!, {})).toThrow(/OPENROUTER_API_KEY is not set/);
     const claude = llmForModel(modelBySlug("anthropic/claude-opus-5-5")!, { ANTHROPIC_API_KEY: "x" });
     expect(claude).toMatchObject({ provider: "anthropic", model: "anthropic/claude-opus-5-5" });
+    // The credential wrapper's name for the key works too; no key at all is refused.
+    expect(llmForModel(modelBySlug("anthropic/claude-opus-5-5")!, { ANTHROPIC_KEY: "x" }).model).toBe(
+      "anthropic/claude-opus-5-5",
+    );
+    expect(() => llmForModel(modelBySlug("anthropic/claude-opus-5-5")!, {})).toThrow(/ANTHROPIC_API_KEY/);
   });
 });
 
@@ -253,5 +258,10 @@ describe("league functions run on Anthropic", () => {
     const base = { DATABASE_URL: "postgres://x:y@localhost:5432/db" };
     expect(loadConfig({ ...base }).EDITORIAL_MODEL).toBe("claude-opus-5-5");
     expect(() => loadConfig({ ...base, EDITORIAL_MODEL: "gpt-6.2-sol" })).toThrow(/league functions run on Anthropic/);
+    // The credential wrapper's ANTHROPIC_KEY switches the newsroom to Anthropic like ANTHROPIC_API_KEY does.
+    expect(loadConfig({ ...base, ANTHROPIC_KEY: "k" })).toMatchObject({
+      ANTHROPIC_API_KEY: "k",
+      LLM_PROVIDER: "anthropic",
+    });
   });
 });

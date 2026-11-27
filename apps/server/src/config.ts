@@ -53,6 +53,11 @@ const Env = z.object({
   /** A running job not finished within this lease is reclaimed by another worker (crash recovery). */
   WORKER_LEASE_MS: z.coerce.number().int().positive().default(300_000),
   ANTHROPIC_API_KEY: z.string().optional(),
+  /**
+   * The same key under the name the credential wrapper exports (`with-anthropic-token`). It's kept
+   * distinct from ANTHROPIC_API_KEY so it never reaches Claude Code itself; used when that's unset.
+   */
+  ANTHROPIC_KEY: z.string().optional(),
 });
 
 export type ServerConfig = z.infer<typeof Env>;
@@ -80,6 +85,7 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     );
     if (missing.length) throw new Error(`REPLAY_STORE=r2 needs ${missing.join(", ")}. See .env.example.`);
   }
+  data.ANTHROPIC_API_KEY ??= data.ANTHROPIC_KEY;
   data.LLM_PROVIDER ??= data.ANTHROPIC_API_KEY ? "anthropic" : "offline";
   if (!isAbsolute(data.REPLAY_DIR)) data.REPLAY_DIR = resolve(REPO_ROOT, data.REPLAY_DIR);
   if (data.DATABASE_CA_CERT_FILE && !isAbsolute(data.DATABASE_CA_CERT_FILE))
