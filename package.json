@@ -35,7 +35,8 @@
     "season:e2e": "bun scripts/season-e2e.ts",
     "finance:balance": "bun scripts/finance-balance.ts",
     "economy:harness": "bun scripts/economy-harness.ts",
-    "economy:integrated": "bun scripts/economy-integrated.ts"
+    "economy:integrated": "bun scripts/economy-integrated.ts",
+    "models": "bun scripts/models.ts"
   },
   "devDependencies": {
     "@biomejs/biome": "2.2.5",
