@@ -53,6 +53,8 @@ export const StoryLine = z.object({
     "result",
     "goals",
     "next",
+    "transfer",
+    "takeover",
   ]),
   /** record: official facts. interpretation: the manager's own words (AI-written, not fact-checked). */
   source: z.enum(["record", "interpretation"]),

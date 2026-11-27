@@ -23,6 +23,7 @@ import { formatCredits } from "../finance/rules.ts";
 import { clubPosition } from "../finance/settle.ts";
 import { teamsAsOf } from "../insolvency/takeover.ts";
 import { scorers, standingRows } from "../league/read.ts";
+import { completedDeals, unquote } from "../transfers/history.ts";
 import { raceFact, standingFacts } from "./facts.ts";
 import { championsAt, inCycle, MATCH_MINUTES, newsAt, seasonClock, seasonEnd } from "./timing.ts";
 
@@ -433,6 +434,52 @@ async function transfers(db: Db, s: SeasonRow): Promise<NewsStory | null> {
       ),
     ),
   ];
+  // The managers' recorded reasons, attributed by name: why each deal was made and accepted, and why
+  // the biggest offers were turned down (a club keeping its player is news too).
+  for (const d of await completedDeals(db, { seasonId: s.id })) {
+    facts.push(
+      fact(
+        `${lead}:why:${d.id}`,
+        `${d.buyer.manager ?? `${possessive(d.to.name)} manager`} gave this reason for signing ${d.player.name}: ${d.buyer.reason.replace(/\.$/, "")}`,
+        { manager: d.buyer.manager, reason: d.buyer.reason },
+        "transfer_bids",
+      ),
+    );
+    if (d.seller.reason)
+      facts.push(
+        fact(
+          `${lead}:sold:${d.id}`,
+          `${d.seller.manager ?? `${possessive(d.from.name)} manager`} agreed to sell: ${d.seller.reason.replace(/\.$/, "")}`,
+          { manager: d.seller.manager, reason: d.seller.reason },
+          "transfer_bids",
+        ),
+      );
+  }
+  const refused = await db<
+    {
+      id: string;
+      player: string;
+      seller: string;
+      buyer: string;
+      fee: string;
+      reason: string | null;
+      manager: string | null;
+    }[]
+  >`
+    select b.id, p.name as player, b.seller_team_id as seller, b.buyer_team_id as buyer, b.fee::text, b.seller_reason as reason,
+      (select name from manager_agents m where m.team_id = b.seller_team_id) as manager
+    from transfer_bids b join players p on p.id = b.player_id
+    where b.window_id = ${w.id} and b.status = 'rejected' and b.seller_reason is not null
+    order by b.fee desc, p.name limit 3`;
+  for (const r of refused)
+    facts.push(
+      fact(
+        `${lead}:kept:${r.id}`,
+        `${name(r.seller)} turned down ${formatCredits(Number(r.fee))} from ${name(r.buyer)} for ${r.player}. ${r.manager ?? `${possessive(name(r.seller))} manager`} gave this reason: ${unquote(r.reason!).replace(/\.$/, "")}`,
+        { player: r.player, fee: Number(r.fee), manager: r.manager },
+        "transfer_bids",
+      ),
+    );
   const prev = await previousSeason(db, s);
   const gap = prev ? (await seasonClock(db, prev.id)).gap : 240;
   return {

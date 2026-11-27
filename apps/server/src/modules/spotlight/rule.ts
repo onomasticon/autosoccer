@@ -60,6 +60,10 @@ export interface SpotlightContext {
   season: ReadonlyMap<string, { goals: number; starts: number }>;
   /** The club's next fixture in the current season, by team id. */
   next: ReadonlyMap<string, SpotlightNext>;
+  /** This season's signings (#80), by player id: where from, the fee, and the season. */
+  signings?: ReadonlyMap<string, { from: string; fee: string; season: string }>;
+  /** Clubs in their first season under new owners (#80), by team id. */
+  rescued?: ReadonlyMap<string, { from: string; withdrewFrom: string; season: string }>;
 }
 
 const WORDS = ["no", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten"];
@@ -174,6 +178,15 @@ export function detailFor(c: Candidate, ctx: SpotlightContext, name: string): st
     return c.goals.length === 2
       ? `The two goals came ${pair} match seconds apart.`
       : `Two of them came ${pair} match seconds apart.`;
+  // A transfer or a rescue with sporting significance (#80): a new signing scoring, or a rescued
+  // club winning, in the season it happened.
+  const signed = ctx.signings?.get(c.playerId);
+  if (signed && signed.season === c.match.season.slug)
+    return `A new signing: ${name} joined from ${signed.from} for ${signed.fee} before ${c.match.season.name}.`;
+  const team = c.side === "home" ? c.match.home : c.match.away;
+  const rescued = ctx.rescued?.get(team.id);
+  if (rescued && rescued.season === c.match.season.slug && c.result === 2)
+    return `It's ${possessive(team.name)} first season under new owners, after ${rescued.from} withdrew from ${rescued.withdrewFrom}.`;
   const all = ctx.allTime.get(c.playerId);
   const top = leaders(ctx.allTime);
   if (all && top.ids.has(c.playerId))

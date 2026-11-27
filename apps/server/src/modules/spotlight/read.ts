@@ -13,9 +13,11 @@ import {
   type Team,
 } from "@autosoccer/contracts";
 import type { Db } from "@autosoccer/db";
+import { formatCredits } from "../finance/rules.ts";
 import { teamCareers } from "../league/careers.ts";
 import { currentSeason, seasonSummaries, seasonTeams } from "../league/read.ts";
 import { type PlayerRow, type TeamRow, toTeam } from "../mappers.ts";
+import { completedDeals, takeoverStories } from "../transfers/history.ts";
 import { type MatchInput, ordinal, pickLead, pickMoment, SPOTLIGHT_RULE, type SpotlightContext } from "./rule.ts";
 
 interface MatchRowLite {
@@ -145,7 +147,22 @@ export async function spotlight(db: Db): Promise<SpotlightResponse> {
   const latest = await latestRound(db);
   const [allTime, next] = await Promise.all([playerRecords(db, null), nextFixtures(db, current?.id ?? null, teams)]);
   const season = latest ? await playerRecords(db, latest.season_id) : new Map();
-  const ctx: SpotlightContext = { players, allTime, season, next };
+  // This season's signings and rescued clubs, for the details that make them matter (#80).
+  const [cur] = latest ? await db<{ slug: string }[]>`select slug from seasons where id = ${latest.season_id}` : [];
+  const signings = new Map(
+    latest
+      ? (await completedDeals(db, { seasonId: latest.season_id })).map((d) => [
+          d.player.id,
+          { from: d.from.name, fee: formatCredits(d.fee), season: d.season.slug },
+        ])
+      : [],
+  );
+  const rescued = new Map<string, { from: string; withdrewFrom: string; season: string }>();
+  for (const t of teams.values())
+    for (const s of await takeoverStories(db, t.id))
+      if (s.returned.slug === cur?.slug)
+        rescued.set(t.id, { from: s.from, withdrewFrom: s.withdrew.season.name, season: s.returned.slug });
+  const ctx: SpotlightContext = { players, allTime, season, next, signings, rescued };
   const lead = latest
     ? pickLead(
         {
@@ -280,6 +297,10 @@ export async function playerProfile(db: Db, playerId: string): Promise<PlayerPro
     allTime: { goals: mine.goals, starts: mine.starts, rank },
     distinctions,
     recent,
+    transfers: (await completedDeals(db, { playerId: p.id })).map(({ settledAt: _s, ...d }) => ({
+      ...d,
+      season: { slug: d.season.slug, name: d.season.name },
+    })),
     // A retired player has no next match.
     next: p.retired_season_id ? null : (next.get(team.id) ?? null),
   };

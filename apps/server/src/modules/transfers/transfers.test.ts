@@ -1,4 +1,10 @@
-import { ClubFinancesResponse, PlayerProfileResponse, TransferWindowResponse } from "@autosoccer/contracts";
+import {
+  ClubFinancesResponse,
+  FixtureStory,
+  PlayerProfileResponse,
+  TeamDetailResponse,
+  TransferWindowResponse,
+} from "@autosoccer/contracts";
 import { createTestDatabase, type TestDatabase } from "@autosoccer/db/testing";
 import { MemoryReplayStore } from "@autosoccer/sim-adapter";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -9,6 +15,7 @@ import { OfflineLlm } from "../agents/llm.ts";
 import { offlinePostMatch, offlinePreMatch } from "../agents/offline.ts";
 import type { ManagerFacts, PostMatchFacts } from "../agents/prompts.ts";
 import { managerRoundHook, seedManagers } from "../agents/service.ts";
+import { newsStory } from "../editorial/news.ts";
 import { scorers } from "../league/read.ts";
 import { rolloverSeason } from "../league/rollover.ts";
 import { SEED_TEAMS } from "../league/seed-data.ts";
@@ -549,5 +556,46 @@ describe("the transfer window through the season lifecycle", () => {
         )[0]!.b,
       ),
     );
+  });
+
+  it("consequences are visible: both club pages, the player page, Matchday and the newsroom (#80)", async () => {
+    const get = async <T>(path: string, schema: { parse: (x: unknown) => T }) =>
+      schema.parse(await (await app().request(`/api/v1${path}`)).json());
+    // The buying club's page: the deal, both clubs, and its own manager's recorded reason.
+    const buyer = await get("/teams/northgate-comets", TeamDetailResponse);
+    const deal = buyer.deals!.find((d) => d.player.name === star)!;
+    expect(deal).toMatchObject({ season: { slug: "season-2" }, to: { name: names.northgate } });
+    expect(deal.from.name).toBe(names.seller);
+    expect(deal.buyer.reason.length).toBeGreaterThan(5);
+    expect(deal.buyer.manager).toBeTruthy();
+    // …and the selling club's page shows the same deal, with the seller's reason.
+    const seller = await get("/teams/harbour-city", TeamDetailResponse);
+    expect(seller.deals!.find((d) => d.id === deal.id)!.seller.reason).toBeTruthy();
+    // The player's page links the deal.
+    const [p] = await t.db<{ id: string }[]>`select id from players where name = ${star}`;
+    const profile = await get(`/players/${p!.id}`, PlayerProfileResponse);
+    expect(profile.transfers!.map((d) => d.id)).toContain(deal.id);
+    // Matchday, early in the season: the signing as a record line, the manager's reason as theirs.
+    const [f] = await t.db<{ id: string }[]>`
+      select f.id from fixtures f join teams t on t.id in (f.home_team_id, f.away_team_id)
+      where f.season_id = ${s2} and f.round = 1 and t.name = ${names.northgate}`;
+    const story = await get(`/fixtures/${f!.id}/story`, FixtureStory);
+    const lines = story.prematch.lines.filter((l) => l.kind === "transfer");
+    // Both clubs' signings appear; find Northgate's.
+    expect(
+      lines.some(
+        (l) => l.source === "record" && l.text.includes(`${star} joined ${names.northgate} from ${names.seller}`),
+      ),
+    ).toBe(true);
+    expect(
+      lines.some((l) => l.source === "interpretation" && l.text.includes(`on signing ${star}: ${deal.buyer.reason}`)),
+    ).toBe(true);
+    // The newsroom: the round-up attributes each manager's reasoning, including the refusal.
+    const news = (await newsStory(t.db, { topic: "transfers", seasonId: s2 }))!;
+    const text = news.facts.map((x) => x.statement).join("\n");
+    expect(text).toContain(`${deal.buyer.manager} gave this reason for signing ${star}`);
+    expect(text).toContain(`for ${chosen.kept!.name}.`);
+    expect(text).toMatch(/gave this reason: .*keep them/);
+    expect(text).not.toMatch(/["“”]/);
   });
 });

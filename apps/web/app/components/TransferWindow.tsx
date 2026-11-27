@@ -21,7 +21,7 @@ const PHASE_LABEL = {
 } as const;
 
 const time = (iso: string) =>
-  new Date(iso).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short", timeZone: "UTC" }) + " UTC";
+  `${new Date(iso).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short", timeZone: "UTC" })} UTC`;
 
 function Deal({ b }: { b: TransferBid }) {
   return (

@@ -389,4 +389,24 @@ describe("bankruptcy through the season lifecycle", () => {
     const detail = await get(`/articles/${bust.slug}`, ArticleDetailResponse);
     expect(detail.article).toMatchObject({ kind: "news", topic: "withdrawal", priority: NEWS_PRIORITY.withdrawal });
   });
+
+  it("the club page explains the takeover, and Matchday tells the rescued club's story (#80)", async () => {
+    const team = await get("/teams/harbour-city", TeamDetailResponse);
+    const [tk] = team.takeovers!;
+    expect(tk).toMatchObject({
+      from: before["harbour-city"]!.name,
+      to: team.team.name,
+      withdrew: { season: { slug: "season-1" }, round: 4 },
+      returned: { slug: "season-2" },
+    });
+    expect(tk!.capital).toBeGreaterThan(0);
+    expect(tk!.basis.wages).toBeGreaterThan(tk!.basis.available!);
+    expect(tk!.withdrew.reason).toContain("Couldn't pay round 4 wages");
+    const [f] = await t.db<{ id: string }[]>`
+      select id from fixtures where season_id = ${s2} and round = 1 and ${first}::uuid in (home_team_id, away_team_id)`;
+    const story = await get(`/fixtures/${f!.id}/story`, FixtureStory);
+    const line = story.prematch.lines.find((l) => l.kind === "takeover")!;
+    expect(line.source).toBe("record");
+    expect(line.text).toContain(`${team.team.name} are playing their first season under new owners`);
+  });
 });

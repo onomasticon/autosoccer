@@ -5,6 +5,7 @@
 import { z } from "zod";
 import { PlayerCareersResponse } from "./careers.ts";
 import { ErrorEnvelope, Id, MicroUsd, Slug } from "./common.ts";
+import { DealView, TakeoverView } from "./deals.ts";
 import {
   AgentRun,
   Article,
@@ -192,6 +193,10 @@ export const TeamDetailResponse = z.object({
   players: z.array(Player),
   /** Squad players currently injured (current season). */
   injuries: z.array(Injury).optional(),
+  /** The club's completed deals, newest first (in and out), with each manager's recorded reason. */
+  deals: z.array(DealView).optional(),
+  /** Why the club was taken over, if it ever was: the withdrawal, the numbers and the new owners' capital. */
+  takeovers: z.array(TakeoverView).optional(),
   manager: PublicManager.nullable(),
   standing: StandingRow.nullable(),
   fixtures: z.array(FixtureView),

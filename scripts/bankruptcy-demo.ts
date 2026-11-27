@@ -9,7 +9,7 @@
  *   DATABASE_URL=postgres://…/demo bun scripts/bankruptcy-demo.ts [--club northgate-comets] [--rounds 1]
  */
 import { createDb, migrate } from "@autosoccer/db";
-import { MemoryReplayStore } from "@autosoccer/sim-adapter";
+import { FileReplayStore } from "@autosoccer/sim-adapter";
 import { buildHandlers } from "../apps/server/src/jobs/handlers.ts";
 import { createWorker } from "../apps/server/src/jobs/worker.ts";
 import { OfflineLlm } from "../apps/server/src/modules/agents/llm.ts";
@@ -61,7 +61,12 @@ const llm = new OfflineLlm(MODEL, {
 const worker = createWorker({
   db,
   baseBackoffMs: 1,
-  handlers: buildHandlers({ db, store: new MemoryReplayStore(), llm, halfDurationSec: 30 }),
+  handlers: buildHandlers({
+    db,
+    store: new FileReplayStore(process.env.REPLAY_DIR ?? "data/replays"),
+    llm,
+    halfDurationSec: 30,
+  }),
 });
 const hook = managerRoundHook(db);
 const play = async (seasonId: string, upTo = 99) => {
