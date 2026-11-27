@@ -33,7 +33,9 @@
     "tactics:compare": "bun scripts/tactics-compare.ts",
     "ops": "bun scripts/ops.ts",
     "season:e2e": "bun scripts/season-e2e.ts",
-    "finance:balance": "bun scripts/finance-balance.ts"
+    "finance:balance": "bun scripts/finance-balance.ts",
+    "economy:harness": "bun scripts/economy-harness.ts",
+    "economy:integrated": "bun scripts/economy-integrated.ts"
   },
   "devDependencies": {
     "@biomejs/biome": "2.2.5",
