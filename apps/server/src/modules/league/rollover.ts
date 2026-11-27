@@ -19,6 +19,7 @@ import { openWindow } from "../transfers/window.ts";
 import { retireAndPromote } from "./ageing.ts";
 import { CADENCES, type Cadence, kickoffs } from "./cadence.ts";
 import { developSeason } from "./careers.ts";
+import { concludeIfFinal } from "./leagues.ts";
 import { ALL_TEAMS } from "./seed-data.ts";
 import { createSeason, registerSquads, seedTeams, syncSquads } from "./service.ts";
 
@@ -76,9 +77,9 @@ export function nextSeasonSeed(seed: number): number {
   return createHash("sha256").update(`autosoccer-season-after:${seed}`).digest().readUInt32BE(0);
 }
 
-/** "season-3" → 4; anything else → null. */
+/** "season-3" (or a league-prefixed "founders-season-3") → 3; anything else → null. */
 export function seasonNumber(slug: string): number | null {
-  const m = /^season-(\d+)$/.exec(slug);
+  const m = /^(?:[a-z0-9]+(?:-[a-z0-9]+)*-)?season-(\d+)$/.exec(slug);
   return m ? Number(m[1]) : null;
 }
 
@@ -87,12 +88,23 @@ export function seasonNumber(slug: string): number | null {
  * Returns the new season's slug, or null when there is nothing to do.
  */
 export async function rolloverSeason(db: Db, opts: RolloverOptions): Promise<string | null> {
-  const [open] = await db`select 1 from seasons where status in ('draft', 'scheduled', 'active') limit 1`;
+  // Only the original league rolls over automatically, and only while it is active: a concluded
+  // or archived league never gets another season, and new leagues are run by explicit commands.
+  const [league] = await db<{ id: string }[]>`
+    select id from leagues where rollover = 'legacy' and status = 'active' order by created_at limit 1`;
+  if (!league) return null;
+  const [open] = await db`
+    select 1 from seasons where league_id = ${league.id} and status in ('draft', 'scheduled', 'active') limit 1`;
   if (open) return null;
   const [last] = await db<LastSeason[]>`
     select id, slug, name, seed, status, budget_per_team_micro_usd, editorial_budget_micro_usd
-    from seasons order by created_at desc limit 1`; // the newest season, whatever its calendar says
+    from seasons where league_id = ${league.id} order by created_at desc limit 1`; // the newest season, whatever its calendar says
   if (!last || last.status !== "completed") return null;
+  // The announced final season has ended: the league concludes, and nothing rolls over.
+  if (await concludeIfFinal(db, league.id, last.id)) {
+    opts.log?.info("league concluded after its final season", { season: last.slug });
+    return null;
+  }
   const n = seasonNumber(last.slug);
   if (n === null) {
     opts.log?.warn("season rollover skipped: latest season slug is not season-N", { season: last.slug });
@@ -144,6 +156,7 @@ export async function rolloverSeason(db: Db, opts: RolloverOptions): Promise<str
     startsAt,
     cadence: calendar ?? { kind: "interval", minutes },
     playersPerTeam: LEAGUE_TEAM_SIZE,
+    leagueId: league.id,
   });
   // Player careers: this season's ratings, developed from last season's record (idempotent).
   const developed = await developSeason(db, seasonId, last.id);
@@ -182,7 +195,9 @@ export async function refreshUpcomingSeason(
   opts: Pick<RolloverOptions, "managerModel" | "log">,
 ): Promise<string | null> {
   const [s] = await db<{ id: string; slug: string; status: string; sim_version: string; players_per_team: number }[]>`
-    select id, slug, status, sim_version, players_per_team from seasons order by created_at desc limit 1`;
+    select s.id, s.slug, s.status, s.sim_version, s.players_per_team from seasons s
+    join leagues l on l.id = s.league_id where l.rollover = 'legacy' and l.status = 'active'
+    order by s.created_at desc limit 1`;
   if (!s || (s.status !== "scheduled" && s.status !== "active")) return null;
   const current = s.sim_version === SIM_VERSION || s.sim_version === SIM_COMMIT;
   if (current && s.players_per_team === LEAGUE_TEAM_SIZE) return null;
@@ -202,7 +217,8 @@ export async function refreshUpcomingSeason(
   await registerSquads(db, s.id);
   // Snapshots for any players the format change added (existing snapshots are kept).
   const [prev] = await db<{ id: string }[]>`
-    select id from seasons where id <> ${s.id} and status = 'completed' order by created_at desc limit 1`;
+    select id from seasons where id <> ${s.id} and status = 'completed'
+      and league_id = (select league_id from seasons where id = ${s.id}) order by created_at desc limit 1`;
   await developSeason(db, s.id, prev?.id ?? null);
   await seedManagers(db, s.id, opts.managerModel);
   opts.log?.info("upcoming season moved to the current format", {

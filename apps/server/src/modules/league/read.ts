@@ -17,6 +17,7 @@ import type { Db } from "@autosoccer/db";
 import { withdrawals } from "../insolvency/check.ts";
 import { teamsAsOf } from "../insolvency/takeover.ts";
 import { type FixtureRow, toFixtureView } from "../mappers.ts";
+import { leagueOrDefault } from "./leagues.ts";
 import { titleRace } from "./race.ts";
 import { seasonStandings } from "./service.ts";
 
@@ -92,9 +93,10 @@ export async function scorers(db: Db, seasonId: string | null, limit = 10): Prom
 }
 
 /** League records from completed seasons only (a record can't be set halfway through a season). */
-export async function leagueRecords(db: Db): Promise<RecordsResponse> {
+export async function leagueRecords(db: Db, leagueId?: string): Promise<RecordsResponse> {
   const seasons = await db<{ id: string; slug: string; name: string }[]>`
-    select id, slug, name from seasons where status = 'completed' order by starts_at nulls last, created_at`;
+    select id, slug, name from seasons where status = 'completed' and league_id = ${await leagueOrDefault(db, leagueId)}
+    order by starts_at nulls last, created_at`;
   const out: RecordsResponse = { mostPoints: [], perfectSeasons: [], mostGoalsInSeason: [], biggestWin: [] };
   const best = <T>(list: T[], key: (x: T) => number) => {
     const top = Math.max(...list.map(key));
@@ -146,9 +148,10 @@ export async function leagueRecords(db: Db): Promise<RecordsResponse> {
 }
 
 /** The roll of honour: every non-draft season, newest first, from the official record. */
-export async function seasonSummaries(db: Db): Promise<SeasonSummary[]> {
+export async function seasonSummaries(db: Db, leagueId?: string): Promise<SeasonSummary[]> {
   const seasons = await db<SeasonRow[]>`
-    select * from seasons where status <> 'draft' order by starts_at desc nulls last, created_at desc`;
+    select * from seasons where status <> 'draft' and league_id = ${await leagueOrDefault(db, leagueId)}
+    order by starts_at desc nulls last, created_at desc`;
   const out: SeasonSummary[] = [];
   for (const s of seasons) {
     const { rows, afterRound } = await standingRows(db, s.id);
@@ -187,10 +190,13 @@ export async function seasonSummaries(db: Db): Promise<SeasonSummary[]> {
   return out;
 }
 
-/** The season the site shows: the active one, else the most recently started/created. */
-export async function currentSeason(db: Db): Promise<SeasonRow | null> {
+/**
+ * The season the site shows: the default league's active one, else its most recently
+ * started/created (a league that is still being founded never takes over the homepage).
+ */
+export async function currentSeason(db: Db, leagueId?: string): Promise<SeasonRow | null> {
   const [row] = await db<SeasonRow[]>`
-    select * from seasons where status <> 'draft'
+    select * from seasons where status <> 'draft' and league_id = ${await leagueOrDefault(db, leagueId)}
     order by (status = 'active') desc, starts_at desc nulls last, created_at desc limit 1`;
   return row ?? null;
 }

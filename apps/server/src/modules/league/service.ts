@@ -87,6 +87,8 @@ export interface CreateSeasonInput {
   insolvencyRule?: string | null;
   /** Injury rule (injury/1 by default); null: nobody is ever injured. */
   injuryRule?: string | null;
+  /** The league the season belongs to (default: the default league; see league/leagues.ts). */
+  leagueId?: string;
 }
 
 /**
@@ -124,8 +126,8 @@ export async function createSeason(db: Db, input: CreateSeasonInput): Promise<{ 
       : null;
     const injuryRule = input.injuryRule === undefined ? INJURY_RULE : input.injuryRule;
     const [season] = await tx<{ id: string }[]>`
-      insert into seasons (slug, name, status, seed, sim_version, players_per_team, budget_per_team_micro_usd, editorial_budget_micro_usd, starts_at, finance_rule, transfer_rule, insolvency_rule, injury_rule)
-      values (${input.slug}, ${input.name}, 'scheduled', ${input.seed}, ${input.simVersion ?? SIM_VERSION}, ${input.playersPerTeam ?? 7},
+      insert into seasons (league_id, slug, name, status, seed, sim_version, players_per_team, budget_per_team_micro_usd, editorial_budget_micro_usd, starts_at, finance_rule, transfer_rule, insolvency_rule, injury_rule)
+      values (${input.leagueId ?? null}, ${input.slug}, ${input.name}, 'scheduled', ${input.seed}, ${input.simVersion ?? SIM_VERSION}, ${input.playersPerTeam ?? 7},
         ${input.budgetPerTeamMicroUsd}, ${input.editorialBudgetMicroUsd ?? DEFAULT_EDITORIAL_BUDGET_MICRO_USD}, ${startsAt},
         ${financeRule}, ${transferRule}, ${insolvencyRule}, ${injuryRule}) returning id`;
     for (const t of teams) await tx`insert into season_teams (season_id, team_id) values (${season!.id}, ${t.id})`;

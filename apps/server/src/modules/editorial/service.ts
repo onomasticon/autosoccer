@@ -342,6 +342,7 @@ async function previewTime(db: EditorialDeps["db"], fixtureId: string): Promise<
   else {
     const [p] = await db<{ id: string }[]>`
       select id from seasons where created_at < (select created_at from seasons where id = ${f.season_id})
+        and league_id = (select league_id from seasons where id = ${f.season_id})
       order by created_at desc limit 1`;
     const [w] = await db<{ at: Date }[]>`
       select closed_at as at from transfer_windows where season_id = ${f.season_id} and closed_at is not null`;

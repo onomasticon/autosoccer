@@ -53,7 +53,9 @@ export async function schedulerTick(db: Db, opts: TickOptions): Promise<TickResu
         opts.log?.error("transfer window tick failed; retrying next tick", { error: e.message }),
       );
       const seasons = await db<{ id: string; slug: string }[]>`
-        select id, slug from seasons where status in ('scheduled', 'active') order by starts_at nulls last, created_at`;
+        select s.id, s.slug from seasons s join leagues l on l.id = s.league_id
+        where s.status in ('scheduled', 'active') and l.status = 'active'
+        order by s.starts_at nulls last, s.created_at`;
       const hook = managerRoundHook(db);
       const out: TickResult["seasons"] = [];
       for (const s of seasons) {

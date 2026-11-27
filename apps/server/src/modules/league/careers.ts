@@ -222,7 +222,8 @@ export async function teamCareers(db: Db, team: Team, alsoPlayerId?: string): Pr
     select * from players where team_id = ${team.id}
       and (retired_season_id is null or id = ${alsoPlayerId ?? null}::uuid) order by shirt_number`;
   const [cur] = await db<{ slug: string }[]>`
-    select slug from seasons where status <> 'draft' order by created_at desc limit 1`;
+    select s.slug from seasons s join season_teams st on st.season_id = s.id
+    where st.team_id = ${team.id} and s.status <> 'draft' order by s.created_at desc limit 1`;
   const seasonNo = seasonNumber(cur?.slug ?? "");
   const [curId] = await db<{ id: string }[]>`select id from seasons where slug = ${cur?.slug ?? ""}`;
   const hurt = new Map(

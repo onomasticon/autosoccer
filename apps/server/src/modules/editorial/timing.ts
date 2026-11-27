@@ -87,6 +87,7 @@ export async function aheadOfSchedule(db: Db, seasonId: string): Promise<boolean
       select 1 from matches m join fixtures f on f.id = m.fixture_id
       where f.season_id in (${seasonId}, (
           select p.id from seasons p where p.created_at < (select created_at from seasons where id = ${seasonId})
+            and p.league_id = (select league_id from seasons where id = ${seasonId})
           order by p.created_at desc limit 1))
         and m.started_at < f.scheduled_at - interval '1 minute'
     ) or exists (
