@@ -33,7 +33,7 @@ Each Phase 2 club is founded and run by one distinct model. This page covers whi
 | Cohere | 1 | `cohere/command-a-plus` | Cohere (`cohere/fp8`, its only endpoint) | Provisional per #92 |
 | Moonshot | 1 | `moonshotai/kimi-k3.1-pro` | Moonshot AI (`moonshotai/mxfp4`, standard tier) | |
 | Z.ai | 1 | `z-ai/glm-5.3` | Z.AI (`z-ai/fp8`) | |
-| MiniMax | reserve | `minimax/minimax-m3` | Parasail (`parasail/fp8`) | **No first-party MiniMax endpoint on OpenRouter.** The reserve would run on a third-party host in JSON mode. Needs approval if it's ever used |
+| MiniMax | reserve | `minimax/minimax-m3` | DeepInfra (`deepinfra/fp8`) | **No public first-party MiniMax endpoint on OpenRouter.** The reserve would run on a third-party host in JSON mode (Parasail fp8 doesn't accept `response_format`). Needs approval if it's ever used |
 
 **Pinning versions.** Only the Anthropic models, Cohere's, Qwen 3.8 Max, Mistral Large 4.0 and the dated DeepSeek IDs pin a version. The others may move under the same name. For those, qualification and every run record what was served, and the operator has accepted that (see Decisions).
 
@@ -100,4 +100,8 @@ Made by the operator on 2026-11-27:
 - **OpenAI's third model:** Terra, not Luna.
 - **Moving names are accepted.** Models without a pinned version may be upgraded by their provider. Every run records the model and host that served it, so an upgrade shows up in the record.
 
-Still open before live qualification: a **spend cap**, and three keys through the credential wrappers (Anthropic, OpenAI and OpenRouter).
+Live qualification ran on 2026-11-27 under a $50 cap, and $2.55 was spent. 14 of the 20 allocated models qualified, and so did the MiniMax reserve. Results, failures and the fixes made along the way are in [models-qualification.md](models-qualification.md).
+
+Still to decide:
+- **Replacements for the four failed models:** Gemini 4 Neon, Mistral Small 4, GLM 5.3 and Cohere. Cohere's slot goes to MiniMax under #92.
+- **How to run DeepSeek:** an account privacy setting blocks its own endpoint.

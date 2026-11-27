@@ -58,7 +58,9 @@ export class TransportError extends Error {
 export interface ChatBody {
   model: string;
   messages: Array<{ role: "system" | "user" | "assistant"; content: string }>;
-  max_tokens: number;
+  /** Output cap. OpenAI's current models reject it and take max_completion_tokens instead. */
+  max_tokens?: number;
+  max_completion_tokens?: number;
   temperature?: number;
   /** OpenRouter routing: one pinned host, no fallback to other hosts. */
   provider?: { order: string[]; allow_fallbacks: false; require_parameters: boolean };
@@ -97,7 +99,7 @@ export function openAiCompatible(opts: {
       } catch (e) {
         throw new TransportError(0, (e as Error).name === "AbortError" ? "timeout" : (e as Error).message);
       }
-      if (!res.ok) throw new TransportError(res.status, `HTTP ${res.status}: ${(await res.text()).slice(0, 200)}`);
+      if (!res.ok) throw new TransportError(res.status, `HTTP ${res.status}: ${(await res.text()).slice(0, 600)}`);
       const j = (await res.json()) as {
         provider?: string;
         choices?: Array<{ message?: { content?: string | null; refusal?: string | null }; finish_reason?: string }>;
@@ -146,7 +148,10 @@ export class GatewayLlm implements LlmClient {
   }
 
   async complete<T>(req: LlmRequest<T>): Promise<LlmResponse<T>> {
-    const schema = z.toJSONSchema(req.schema as z.ZodType, { io: "output", unrepresentable: "any" });
+    const schema = stripKeywords(
+      z.toJSONSchema(req.schema as z.ZodType, { io: "output", unrepresentable: "any" }),
+      new Set(this.spec.schemaUnsupported ?? []),
+    );
     const structured = this.spec.structuredOutput;
     const system =
       structured === "json_schema"
@@ -173,7 +178,9 @@ export class GatewayLlm implements LlmClient {
             }
           : {}),
         messages,
-        max_tokens: req.maxTokens ?? 4000,
+        ...(this.spec.provider === "openai"
+          ? { max_completion_tokens: req.maxTokens ?? 4000 }
+          : { max_tokens: req.maxTokens ?? 4000 }),
         ...(this.opts.temperature !== undefined ? { temperature: this.opts.temperature } : {}),
         ...(structured === "json_schema"
           ? { response_format: { type: "json_schema", json_schema: { name: "answer", strict: false, schema } } }
@@ -206,7 +213,7 @@ export class GatewayLlm implements LlmClient {
       }
       this.lastRepairs++;
       messages.push(
-        { role: "assistant", content: reply.content.slice(0, 8000) },
+        { role: "assistant", content: reply.content.slice(0, 8000) || "(an empty answer)" },
         {
           role: "user",
           content: `That answer was rejected: ${problem.error}. Reply again with only the corrected JSON object.`,
@@ -284,4 +291,20 @@ export function llmForModel(
   if (!apiKey) throw new Error(`${spec.slug}: ${key} is not set`);
   const baseUrl = spec.route === "openrouter" ? OPENROUTER.baseUrl : PROVIDERS[spec.provider].baseUrl;
   return new GatewayLlm(spec, openAiCompatible({ baseUrl, apiKey, fetch: opts.fetch }), opts);
+}
+
+/** A copy of a JSON Schema without the given keywords, at every depth. */
+export function stripKeywords(schema: unknown, drop: ReadonlySet<string>): unknown {
+  if (!drop.size || schema === null || typeof schema !== "object") return schema;
+  if (Array.isArray(schema)) return schema.map((x) => stripKeywords(x, drop));
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(schema as Record<string, unknown>)) {
+    // Inside "properties" the keys are field names, never keywords.
+    if (drop.has(k) && k !== "properties") continue;
+    out[k] =
+      k === "properties"
+        ? Object.fromEntries(Object.entries(v as Record<string, unknown>).map(([n, s]) => [n, stripKeywords(s, drop)]))
+        : stripKeywords(v, drop);
+  }
+  return out;
 }
