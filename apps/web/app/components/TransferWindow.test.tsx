@@ -20,7 +20,7 @@ const bid = (over: Record<string, unknown>) => ({
   wage: 117_000,
   status: "completed",
   buyerReason: "Jae Moon scored most of Harbour's goals last season.",
-  sellerReason: "3,250,000 cr is too good to refuse, and we have cover up front.",
+  sellerReason: "Ȼ3,250,000 is too good to refuse, and we have cover up front.",
   outcome: null,
   createdAt: "2026-11-26T10:00:00Z",
   settledAt: "2026-11-26T11:45:00Z",
@@ -71,11 +71,11 @@ describe("TransferWindow", () => {
     expect(within(deal).getByRole("link", { name: "Jae Moon" }).getAttribute("href")).toMatch(
       /^\/players\/.+\/jae-moon$/,
     );
-    expect(within(deal).getByText("3.25m cr")).toBeTruthy();
+    expect(within(deal).getByText("Ȼ3.25m")).toBeTruthy();
     expect(within(deal).getByText(/too good to refuse/)).toBeTruthy();
     const other = screen.getByTestId("transfer-bid");
     expect(other.textContent).toContain("Outbid");
-    expect(other.textContent).toContain("2.75m cr");
+    expect(other.textContent).toContain("Ȼ2.75m");
     const r = await axe.run(screen.getByTestId("transfer-window"));
     expect(r.violations.map((v) => v.id)).toEqual([]);
   });

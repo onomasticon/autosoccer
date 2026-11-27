@@ -1,6 +1,6 @@
 /**
  * transfer/1: the league's transfer window, in one versioned table. Fan-facing explanation:
- * docs/platform/transfers.md. Fees are whole credits (cr), the same fictional money as finance/1.
+ * docs/platform/transfers.md. Fees are whole credits (Ȼ), the same fictional money as finance/1.
  */
 import { wageFor } from "../finance/rules.ts";
 
@@ -38,8 +38,8 @@ export type WindowPhase = (typeof TRANSFER.window.phases)[number] | "closed";
 export const minSquad = (playersPerTeam: number) => playersPerTeam + TRANSFER.squad.reservesAtLeast;
 
 /**
- * Guide fee for a player: 24 rounds of wages at their rating for the new season, plus 100k cr per
- * league goal last season (up to 5), rounded to 50k cr. Clubs may bid more or less.
+ * Guide fee for a player: 24 rounds of wages at their rating for the new season, plus Ȼ100k per
+ * league goal last season (up to 5), rounded to Ȼ50k. Clubs may bid more or less.
  */
 export function guideFee(overall: number, goalsLastSeason = 0): number {
   const g = TRANSFER.guide;

@@ -1,5 +1,5 @@
 /**
- * Club finances ("club-finances/1"): a club's fictional treasury in whole credits (cr). Separate from
+ * Club finances ("club-finances/1"): a club's fictional treasury in whole credits (Ȼ). Separate from
  * the real AI compute budget (#24). Every entry comes from the ledger the league settles under a
  * versioned rule (finance/1); see docs/platform/finances.md.
  */

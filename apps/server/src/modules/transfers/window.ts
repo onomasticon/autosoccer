@@ -325,7 +325,7 @@ async function apply(
         else if (p.teamId === teamId) dropped.push(`${b.player}: already your player`);
         else if (b.fee < TRANSFER.minFee) dropped.push(`${b.player}: below the minimum bid`);
         else if (b.fee > club.cash)
-          dropped.push(`${b.player}: more than your cash (${club.cash.toLocaleString("en-GB")} cr)`);
+          dropped.push(`${b.player}: more than your cash (Ȼ${club.cash.toLocaleString("en-GB")})`);
         else if (room <= 0) dropped.push(`${b.player}: your squad would exceed ${TRANSFER.squad.max}`);
         else {
           const r = await tx`

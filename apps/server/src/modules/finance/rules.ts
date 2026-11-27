@@ -1,5 +1,5 @@
 /**
- * The league's fictional economy, in whole credits (cr). Every number a club earns or pays comes
+ * The league's fictional economy, in whole credits (Ȼ). Every number a club earns or pays comes
  * from a versioned table, so balancing is a matter of adding a version. Each season records the
  * version it plays under (seasons.finance_rule) and is always settled by it.
  * Fan-facing explanation: docs/platform/finances.md.
@@ -79,7 +79,7 @@ export const FINANCE_3 = {
   contractYears: { young: 3, prime: 2, veteran: 1 },
 };
 
-/** finance/3's prize table for a league of `clubs`, rounded to 50k cr. */
+/** finance/3's prize table for a league of `clubs`, rounded to Ȼ50k. */
 export function finance3Prizes(clubs: number, f = FINANCE_3): number[] {
   return Array.from({ length: clubs }, (_, i) => {
     const x = clubs > 1 ? (clubs - 1 - i) / (clubs - 1) : 1;
@@ -131,7 +131,7 @@ export function rulesFor(version: string | null | undefined, rounds: number): Fi
   };
 }
 
-/** One player's wage for one round, from their overall rating that season. Rounded to 1,000 cr. */
+/** One player's wage for one round, from their overall rating that season. Rounded to Ȼ1,000. */
 export function wageFor(overall: number, r: FinanceRules = RULES): number {
   return Math.max(r.wage.min, Math.round((r.wage.base + r.wage.perPoint * (overall - r.wage.floor)) / 1000) * 1000);
 }
@@ -144,11 +144,11 @@ export function resultIncome(goalsFor: number, goalsAgainst: number, r: FinanceR
   return goalsFor > goalsAgainst ? r.result.win : goalsFor === goalsAgainst ? r.result.draw : r.result.loss;
 }
 
-/** "1.25m cr", "450k cr", "−300k cr". */
+/** "Ȼ1.25m", "Ȼ450k", "−Ȼ300k". */
 export function formatCredits(n: number): string {
   const sign = n < 0 ? "−" : "";
   const a = Math.abs(n);
-  if (a >= 1_000_000) return `${sign}${(a / 1_000_000).toFixed(2).replace(/\.?0+$/, "")}m cr`;
-  if (a >= 1_000) return `${sign}${Math.round(a / 1_000)}k cr`;
-  return `${sign}${a} cr`;
+  if (a >= 1_000_000) return `${sign}Ȼ${(a / 1_000_000).toFixed(2).replace(/\.?0+$/, "")}m`;
+  if (a >= 1_000) return `${sign}Ȼ${Math.round(a / 1_000)}k`;
+  return `${sign}Ȼ${a}`;
 }

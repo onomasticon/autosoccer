@@ -156,7 +156,7 @@ Starters (slot order): ${f.current.starters.join(", ")}${financeFacts(f)}`;
 function financeFacts(f: ManagerFacts): string {
   const m = f.finances;
   if (!m) return "";
-  const cr = (n: number) => `${n.toLocaleString("en-GB")} cr`;
+  const cr = (n: number) => `Ȼ${n.toLocaleString("en-GB")}`;
   return `
 
 ## Club finances (fictional credits)

@@ -17,11 +17,11 @@ The club's own manager keeps sporting control throughout.
 
 | | finance/2 (10 clubs) | finance/3 candidate (20 clubs) |
 | --- | --- | --- |
-| Distribution per season | 6m cr | 4.5m cr |
-| Results | 600k cr / 250k cr per win / draw, per six rounds | 4.8m cr / 1.9m cr season amounts (126k cr / 50k cr a match over 38 rounds) |
-| Prizes | 10 places (4m cr down to 200k cr), the last one repeating | Every place: 4m cr down to 300k cr, along a curve |
+| Distribution per season | Ȼ6m | Ȼ4.5m |
+| Results | Ȼ600k / Ȼ250k per win / draw, per six rounds | Ȼ4.8m / Ȼ1.9m season amounts (Ȼ126k / Ȼ50k a match over 38 rounds) |
+| Prizes | 10 places (Ȼ4m down to Ȼ200k), the last one repeating | Every place: Ȼ4m down to Ȼ300k, along a curve |
 | Wages | Rating-based, recomputed every season | **Contracted**: priced from the rating when signed or renewed, then fixed for the contract (3 seasons under 27, 2 to 30, 1 from 31) |
-| Running costs | none | **1m cr a season** per club (staff, travel, ground), paid in equal shares each round |
+| Running costs | none | **Ȼ1m a season** per club (staff, travel, ground), paid in equal shares each round |
 | Market-priced wages | – | Available (`wageMarket`) but **off**: it stops inflation but concentrates money (Gini 0.49–0.56) |
 
 ## insolvency/2: the league lender (`insolvency/recovery.ts`)
@@ -43,14 +43,14 @@ These are pure rule functions, shared by the harness and, once integrated, by se
 
 ## Results in the harness
 
-20 clubs × 100 seasons, seeds 1–5, with held-out seeds 101–105. Reports: [baseline](economy-balance.md), [held-out](economy-balance-heldout.md). The candidate is shown before calibration (v0: no contracts, no running costs) and after it (contracts plus 1m cr of running costs).
+20 clubs × 100 seasons, seeds 1–5, with held-out seeds 101–105. Reports: [baseline](economy-balance.md), [held-out](economy-balance-heldout.md). The candidate is shown before calibration (v0: no contracts, no running costs) and after it (contracts plus Ȼ1m of running costs).
 
 | | legacy | candidate v0 | **candidate (calibrated)** |
 | --- | --- | --- | --- |
 | Hard-invariant failures (6 scenarios; baseline and held-out) | 0 | 0 | **0** |
 | Financial forfeits, baseline / stress (held-out) | 51 / 130 (44 / 113) | 0 / 0 | **0 / 0 (0 / 0)** |
-| Free rescue capital, baseline | 605m cr | 0 cr | **0 cr** |
-| League cash after 100 seasons, baseline (held-out) | 869m cr (939m cr) | 2,725m cr | **955m cr (1,035m cr)** |
+| Free rescue capital, baseline | Ȼ605m | Ȼ0 | **Ȼ0** |
+| League cash after 100 seasons, baseline (held-out) | Ȼ869m (Ȼ939m) | Ȼ2,725m | **Ȼ955m (Ȼ1,035m)** |
 | Final Gini, baseline | 0.34 | 0.14 | 0.33 |
 | Administrations, baseline / stress, per 10,000 club-seasons | – | 0 / 31 | 173 / 1,475, median 1 season to recover |
 | Completed deals, baseline, 500 seasons (held-out) | 83 (82) | 11 | 230 (291) |
@@ -59,14 +59,14 @@ These are pure rule functions, shared by the harness and, once integrated, by se
 **What it shows:**
 
 - **The recovery mechanics work.** Every fixture is played. Distressed clubs borrow, sell, are administered and recover, usually within a season. Nobody gets free money, and the ledger reconciles throughout.
-- **Calibration found a narrow working band.** Contracts plus a flat 1m cr of running costs bring league money back to legacy's level. Several alternatives were tried on the same seeds:
-  - **Contracts alone, with no running costs,** still inflate (about 3bn cr). Flat costs between 0 and 1m cr weren't tested on their own.
-  - **1.1–1.2m cr** breaks the debt bound under stress: clubs collapse into permanent debt (1.1m: 531 failures; 1.2m: Gini 0.78 under stress).
-  - **1.5m cr** breaks it everywhere.
+- **Calibration found a narrow working band.** Contracts plus a flat Ȼ1m of running costs bring league money back to legacy's level. Several alternatives were tried on the same seeds:
+  - **Contracts alone, with no running costs,** still inflate (about Ȼ3bn). Flat costs between 0 and Ȼ1m weren't tested on their own.
+  - **1.1–Ȼ1.2m** breaks the debt bound under stress: clubs collapse into permanent debt (1.1m: 531 failures; 1.2m: Gini 0.78 under stress).
+  - **Ȼ1.5m** breaks it everywhere.
   - **Running costs as a share of income** (2–20%) and **market-priced wages** (alpha 0.5–1) are no better. Under stress the shares break the debt bound, and the market-priced wages concentrate money.
 - **Acceptance gates for the calibrated candidate** ([economy-harness.md](economy-harness.md#initial-acceptance-gates-proposed-tune-with-evidence)):
   - **Pass:** 1 (invariants), 2 (no forfeits), 3 (no free money), 4 (Gini ≤ 0.45 and the richest quarter ≤ 60% in baseline), 5 (open competition) and 7 (recovery within a season).
-  - **Borderline, gate 8 (no runaway inflation):** baseline is just inside the limit at 955m cr against 960m, held-out is 8% over, and the ageing-wave scenario is 16% over.
+  - **Borderline, gate 8 (no runaway inflation):** baseline is just inside the limit at Ȼ955m against 960m, held-out is 8% over, and the ageing-wave scenario is 16% over.
   - **Fail, gate 6 (liquidity):** 230–291 deals against roughly 2,500 needed. That's still 3× legacy, but it's a transfer-market design problem (bidding policies and reservation prices). Finance can't fix it.
 - **The band is narrow.** That's because income and costs are both fixed amounts. A self-correcting money supply needs a working transfer market, where money moves between clubs. Liquidity is therefore the next lever, before finance/3 is adopted.
 - **The harness found and fixed a real bug.** Forced sales could sell a club's second keeper, because the list of sellable players was computed once (`candidate-lean`, seed 3, season 35). Sales now re-check after each one, and the case is a regression test.

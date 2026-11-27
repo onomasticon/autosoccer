@@ -1,6 +1,6 @@
 /**
  * The economy harness's world (#98): clubs, players, a ledger and the rules that move money,
- * entirely in memory, so 100+ seasons run in seconds. Money is whole credits (cr), the league's
+ * entirely in memory, so 100+ seasons run in seconds. Money is whole credits (Ȼ), the league's
  * fictional currency, never real USD.
  */
 import type { PlayerAttributes, Position } from "@autosoccer/contracts";

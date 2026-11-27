@@ -207,7 +207,7 @@ export function squadNeeds(club: ClubState, size: TeamSize): string[] {
   const unused = club.squad.filter((p) => p.lastSeason && p.lastSeason.teamMatches > 0 && p.lastSeason.starts === 0);
   if (unused.length)
     out.push(
-      `No starts last season: ${unused.map((p) => `${p.name} (${p.position}, wage ${p.wage.toLocaleString("en-GB")} cr)`).join(", ")}`,
+      `No starts last season: ${unused.map((p) => `${p.name} (${p.position}, wage Ȼ${p.wage.toLocaleString("en-GB")})`).join(", ")}`,
     );
   out.push(`Squad: ${club.squad.length} registered (minimum ${minSquad(size)}, maximum ${TRANSFER.squad.max})`);
   return out;

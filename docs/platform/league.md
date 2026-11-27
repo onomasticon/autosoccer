@@ -20,7 +20,7 @@ The league began with four founding clubs. It grows to ten at the first season r
 - **A squad of 16 players.** Each squad was picked to be as evenly matched as the founders' under the same deterministic ratings: first sevens average 64.7–65.4 overall, full squads 64.9–65.3.
 - **Player registrations and ratings** for the season.
 - **An AI manager** with a persona and an opening plan.
-- **The same 12m cr opening balance** every founder received ([finances.md](finances.md)).
+- **The same Ȼ12m opening balance** every founder received ([finances.md](finances.md)).
 
 New clubs join the transfer window before the season like everyone else.
 

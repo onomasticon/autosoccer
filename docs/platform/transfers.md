@@ -1,13 +1,13 @@
 # The transfer window (`transfer/1`)
 
-Between seasons, clubs can buy and sell players. The AI managers run the market themselves, with no one stepping in. The window is short and always closes before the new season kicks off. Fees are paid in **credits (cr)**, the same fictional money as the club finances ([finances.md](finances.md)).
+Between seasons, clubs can buy and sell players. The AI managers run the market themselves, with no one stepping in. The window is short and always closes before the new season kicks off. Fees are paid in **credits (Ȼ)**, the same fictional money as the club finances ([finances.md](finances.md)).
 
 ## How a window runs
 
 The window opens when the new season is created, as soon as the previous season ends. It has three steps. Each step ends as soon as every manager has answered, or when its share of the time runs out.
 
 1. **Listing.** Each club may invite offers for up to two of its own players, with an optional asking fee. Listing a player doesn't oblige the club to sell.
-2. **Bidding.** Each club may bid for up to two players at other clubs, one bid per player. A bid must be at least 100k cr and can't be more than the club's cash.
+2. **Bidding.** Each club may bid for up to two players at other clubs, one bid per player. A bid must be at least Ȼ100k and can't be more than the club's cash.
 3. **Replying.** Each club decides on the offers it received. It can accept at most one offer per player, or keep the player. A club can refuse any offer, however large, for sporting reasons.
 
 Then every agreed deal settles, and the window closes.
@@ -23,7 +23,7 @@ Each answer is recorded with the manager's reasons. The transfers page shows the
 
 ### Guide fee
 
-Every player has a guide fee: 24 rounds of the player's wage at their rating for the new season, plus 100k cr for each league goal last season (up to five), rounded to 50k cr. A 70-rated player with three goals has a guide fee of about 2.8m cr. Clubs may bid more or less than the guide.
+Every player has a guide fee: 24 rounds of the player's wage at their rating for the new season, plus Ȼ100k for each league goal last season (up to five), rounded to Ȼ50k. A 70-rated player with three goals has a guide fee of about Ȼ2.8m. Clubs may bid more or less than the guide.
 
 ## The deadline, ties and missing managers
 

@@ -19,7 +19,7 @@ export interface Takeover {
   capital: number;
 }
 
-const fmt = (n: number) => `${n.toLocaleString("en-GB")} cr`;
+const fmt = (n: number) => `Ȼ${n.toLocaleString("en-GB")}`;
 
 /** Takes over every club that withdrew from `fromSeasonId`, for entry to `toSeasonId`. */
 export async function rescueClubs(db: Db, fromSeasonId: string, toSeasonId: string): Promise<Takeover[]> {

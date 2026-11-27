@@ -1,7 +1,7 @@
 /**
  * Transfer window ("transfer-window/1"): the market between two seasons (transfer/1). Listings,
  * every bid with its fee, status and both clubs' stated reasons, and the deals that settled. Fees
- * are fictional credits (cr) from the club treasury (club-finances/1).
+ * are fictional credits (Ȼ) from the club treasury (club-finances/1).
  */
 import { z } from "zod";
 import { Id, Position, Slug, Timestamp } from "./common.ts";

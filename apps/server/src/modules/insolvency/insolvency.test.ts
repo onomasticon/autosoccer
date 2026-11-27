@@ -166,7 +166,7 @@ describe("bankruptcy through the season lifecycle", () => {
       [first, 4],
       [second, 5],
     ]);
-    expect(w[0]!.reason).toMatch(/^Couldn't pay round 4 wages: [\d,]+ cr due with 100,000 cr available\.$/);
+    expect(w[0]!.reason).toMatch(/^Couldn't pay round 4 wages: Ȼ[\d,]+ due with Ȼ100,000 available\.$/);
     // Retried checks, for a round already released or still to come, change nothing.
     for (const r of [4, 5, 6]) expect(await checkSolvency(t.db, s1, r)).toEqual([]);
     expect(await resolveForfeits(t.db, s1, 6)).toBe(0);

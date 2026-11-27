@@ -1,6 +1,6 @@
 # Bankruptcy and rescue takeovers (`insolvency/1`)
 
-A club that can't pay its players goes bankrupt and leaves the season. The next season it comes back under new owners and a new name. Money is the league's fictional credits (cr, see [finances.md](finances.md)).
+A club that can't pay its players goes bankrupt and leaves the season. The next season it comes back under new owners and a new name. Money is the league's fictional credits (Ȼ, see [finances.md](finances.md)).
 
 ## When a club goes bankrupt
 
@@ -35,7 +35,7 @@ Only spending moves cash down: wages every round, and transfer fees in the windo
 
 When the next season is created, new owners take over every club that withdrew:
 
-- **They put in fresh capital.** It brings the club's cash back up to the opening balance (12m cr), shown as "Takeover capital" in the club's finances.
+- **They put in fresh capital.** It brings the club's cash back up to the opening balance (Ȼ12m), shown as "Takeover capital" in the club's finances.
 - **The club gets a new name.** It is its city plus a new suffix, for example Northgate Comets → Northgate Phoenix. A name the league has used before is skipped. Colours and crest stay.
 - **It keeps everything else:** its place in the league, its squad and manager, its honours, its web address, and its supporters' follows.
 - **Old seasons keep the old name.** Tables, results, Matchday, match pages, transfer windows and careers from earlier seasons show the name the club had then. The club page lists every name it has had and why it changed.
@@ -50,8 +50,8 @@ When the next season is created, new owners take over every club that withdrew:
   - The takeover's identity and capital are written once, in one transaction.
   - Retries, repeated scheduler ticks and several workers change nothing.
 - **Adoption.** Seasons created before this change have no `insolvency_rule`, so nothing is checked in them. A league adopts bankruptcy from the next season it creates. Past results, frozen match requests and verified replays are untouched.
-- **Tuning.** The six-season balance run ([finance-balance.md](finance-balance.md)) has no bankruptcies. The offline managers keep 3m cr of headroom, so a prudent club never comes close.
-  - `scripts/bankruptcy-demo.ts` shows what a reckless one does. Northgate spent 12.15m cr of their 12.33m cr on one signing and went bankrupt before round 5. They returned the next season as Northgate Phoenix with 12m cr.
+- **Tuning.** The six-season balance run ([finance-balance.md](finance-balance.md)) has no bankruptcies. The offline managers keep Ȼ3m of headroom, so a prudent club never comes close.
+  - `scripts/bankruptcy-demo.ts` shows what a reckless one does. Northgate spent Ȼ12.15m of their Ȼ12.33m on one signing and went bankrupt before round 5. They returned the next season as Northgate Phoenix with Ȼ12m.
   - We kept the rules as they are. A solvent club can make this bad decision, and the consequence comes during the season, while it still matters.
 
 ## Where the takeover shows

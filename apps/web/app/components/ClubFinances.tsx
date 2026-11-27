@@ -1,13 +1,13 @@
 import type { ClubFinancesResponse } from "@autosoccer/contracts";
 import { moneyStory } from "./Consequences";
 
-/** "1.25m cr", "450k cr", "−300k cr" (same rule as the server's formatCredits). */
+/** "Ȼ1.25m", "Ȼ450k", "−Ȼ300k" (same rule as the server's formatCredits). */
 export function credits(n: number): string {
   const sign = n < 0 ? "−" : "";
   const a = Math.abs(n);
-  if (a >= 1_000_000) return `${sign}${(a / 1_000_000).toFixed(2).replace(/\.?0+$/, "")}m cr`;
-  if (a >= 1_000) return `${sign}${Math.round(a / 1_000)}k cr`;
-  return `${sign}${a} cr`;
+  if (a >= 1_000_000) return `${sign}Ȼ${(a / 1_000_000).toFixed(2).replace(/\.?0+$/, "")}m`;
+  if (a >= 1_000) return `${sign}Ȼ${Math.round(a / 1_000)}k`;
+  return `${sign}Ȼ${a}`;
 }
 
 const SOURCES = [

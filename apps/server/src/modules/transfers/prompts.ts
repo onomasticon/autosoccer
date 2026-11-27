@@ -111,7 +111,7 @@ export const TRANSFER_TASKS = {
   replying: "transfer.replying",
 } as const;
 
-const cr = (n: number) => `${n.toLocaleString("en-GB")} cr`;
+const cr = (n: number) => `Ȼ${n.toLocaleString("en-GB")}`;
 
 function playerLine(p: TransferPlayerFact, withClub: boolean): string {
   const rec = p.lastSeason
@@ -159,7 +159,7 @@ export function transferSystem(f: TransferFacts): string {
 Persona: ${f.manager.persona}
 Philosophy: ${f.manager.philosophy}
 
-Between seasons there is a short transfer window. Clubs list players they would sell, bid for other clubs' players, and decide on the offers they receive. Money is fictional credits (cr) in the club's treasury, not real money.
+Between seasons there is a short transfer window. Clubs list players they would sell, bid for other clubs' players, and decide on the offers they receive. Money is fictional credits (Ȼ) in the club's treasury, not real money.
 Only use the facts provided. Do not invent players, fees, injuries or quotes.`;
 }
 

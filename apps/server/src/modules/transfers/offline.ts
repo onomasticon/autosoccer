@@ -17,7 +17,7 @@ const SLOTS: Record<number, string[]> = {
 };
 /** Keep this much headroom after a signing (two rounds of a typical wage bill). */
 const BUFFER = 3_000_000;
-const cr = (n: number) => `${n.toLocaleString("en-GB")} cr`;
+const cr = (n: number) => `Ȼ${n.toLocaleString("en-GB")}`;
 const round50k = (n: number) => Math.round(n / 50_000) * 50_000;
 
 /** 0, 1 or 2: how hard this manager pushes in the market (stable per manager). */

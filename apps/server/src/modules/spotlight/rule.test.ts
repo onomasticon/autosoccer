@@ -156,11 +156,11 @@ describe("spotlight/1", () => {
       { round: 1, season, matches: one },
       ctx({
         ...quiet,
-        signings: new Map([[P.rov1.id, { from: "Harbour City", fee: "2.9m cr", season: season.slug }]]),
+        signings: new Map([[P.rov1.id, { from: "Harbour City", fee: "Ȼ2.9m", season: season.slug }]]),
       }),
       teams,
     )!;
-    expect(signed.detail).toMatch(/^A new signing: .+ joined from Harbour City for 2\.9m cr before Season 15\.$/);
+    expect(signed.detail).toMatch(/^A new signing: .+ joined from Harbour City for Ȼ2\.9m before Season 15\.$/);
     const rescued = pickLead(
       { round: 1, season, matches: one },
       ctx({
@@ -177,7 +177,7 @@ describe("spotlight/1", () => {
       { round: 1, season, matches: one },
       ctx({
         ...quiet,
-        signings: new Map([[P.rov1.id, { from: "Harbour City", fee: "2.9m cr", season: "season-14" }]]),
+        signings: new Map([[P.rov1.id, { from: "Harbour City", fee: "Ȼ2.9m", season: "season-14" }]]),
       }),
       teams,
     )!;
