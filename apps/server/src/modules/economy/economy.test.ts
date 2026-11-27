@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { rulesFor, wageFor } from "../finance/rules.ts";
-import { doubleRoundRobin, found, nextSeason, runLeague } from "./engine.ts";
+import { doubleRoundRobin, found, marketMultiplier, nextSeason, runLeague } from "./engine.ts";
 import { checkInvariants } from "./invariants.ts";
 import { gini, spearman } from "./metrics.ts";
 import { csv, markdown, summarise } from "./report.ts";
-import { LEGACY, SCENARIOS } from "./rulesets.ts";
+import { LEGACY, RULESETS, SCENARIOS } from "./rulesets.ts";
 
 const base = { clubs: 20, seasons: 4, ruleset: LEGACY, scenario: SCENARIOS.baseline! };
 
@@ -132,5 +132,36 @@ describe("economy harness: runs", () => {
     expect(out.length).toBeGreaterThan(0);
     const table = r.seasons[0]!.table;
     expect(table.slice(-out.length).sort()).toEqual([...out].sort());
+  });
+});
+
+describe("contracts and running costs (finance/3 candidate)", () => {
+  const contracts = RULESETS["c-ops05-a1"]!;
+
+  it("keeps a wage fixed for the contract and reprices it at the market on renewal", () => {
+    const w = found({ ...base, clubs: 6, seed: 9, ruleset: contracts });
+    nextSeason(w, 1);
+    const p = [...w.players.values()].find((x) => x.club && x.contractUntil >= 2)!;
+    const wage = p.wage;
+    expect(wage).toBeGreaterThan(0);
+    // The club's money changes the market, but a running contract doesn't move.
+    for (const c of w.clubs.values()) c.cash *= 4;
+    nextSeason(w, 2);
+    if (w.players.has(p.id) && p.contractUntil >= 2 && p.club) expect(p.wage).toBe(wage);
+    expect(marketMultiplier(w)).toBeGreaterThan(1);
+    // An expired contract is renewed at the (now higher) market rate.
+    const renewed = [...w.players.values()].filter((x) => x.club && x.contractUntil >= 3 && x.wage > 0);
+    expect(renewed.length).toBeGreaterThan(0);
+  });
+
+  it("charges running costs every round, through the ledger", () => {
+    const r = runLeague({ ...base, clubs: 6, seasons: 1, seed: 3, ruleset: contracts });
+    expect(r.seasons[0]!.flows.operating).toBe(-6 * Math.round(500_000 / 10) * 10);
+    expect(r.failures).toEqual([]);
+  });
+
+  it("leaves the legacy ruleset untouched (no contracts, no running costs)", () => {
+    const r = runLeague({ ...base, seasons: 2, seed: 4 });
+    expect(r.seasons.every((s) => s.flows.operating === undefined)).toBe(true);
   });
 });

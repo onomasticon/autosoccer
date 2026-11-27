@@ -1,6 +1,6 @@
 # Financial recovery instead of forfeits: `finance/3` and `insolvency/2` (#97, candidate)
 
-**Status: candidate rules, not adopted.** No live season uses them. The original league keeps finance/2, transfer/1 and insolvency/1, and its walkovers and takeovers stay exactly as they were, pinned per season. These rules are for the Phase 2 league and only come into force once the harness gates pass and the operator approves them (#101).
+**Status: candidate rules, calibrated but not adopted** (gates 6 and 8 are still open; see Results). No live season uses them. The original league keeps finance/2, transfer/1 and insolvency/1, and its walkovers and takeovers stay exactly as they were, pinned per season. These rules are for the Phase 2 league and only come into force once the harness gates pass and the operator approves them (#101).
 
 ## The principle
 
@@ -20,7 +20,9 @@ The club's own manager keeps sporting control throughout.
 | Distribution per season | 6m cr | 4.5m cr |
 | Results | 600k cr / 250k cr per win / draw, per six rounds | 4.8m cr / 1.9m cr season amounts (126k cr / 50k cr a match over 38 rounds) |
 | Prizes | 10 places (4m cr down to 200k cr), the last one repeating | Every place: 4m cr down to 300k cr, along a curve |
-| Wages | Rating-based, scaled to season length | Unchanged for now. Contracted wages come with #96 |
+| Wages | Rating-based, recomputed every season | **Contracted**: priced from the rating when signed or renewed, then fixed for the contract (3 seasons under 27, 2 to 30, 1 from 31) |
+| Running costs | none | **1m cr a season** per club (staff, travel, ground), paid in equal shares each round |
+| Market-priced wages | – | Available (`wageMarket`) but **off**: it stops inflation but concentrates money (Gini 0.49–0.56) |
 
 ## insolvency/2: the league lender (`insolvency/recovery.ts`)
 
@@ -41,32 +43,37 @@ These are pure rule functions, shared by the harness and, once integrated, by se
 
 ## Results in the harness
 
-20 clubs × 100 seasons, seeds 1–5, with held-out seeds 101–105. Reports: [baseline](economy-balance.md), [held-out](economy-balance-heldout.md).
+20 clubs × 100 seasons, seeds 1–5, with held-out seeds 101–105. Reports: [baseline](economy-balance.md), [held-out](economy-balance-heldout.md). The candidate is shown before calibration (v0: no contracts, no running costs) and after it (contracts plus 1m cr of running costs).
 
-| | legacy | candidate |
-| --- | --- | --- |
-| Hard-invariant failures (all scenarios, baseline and held-out seeds) | 0 | 0 |
-| Financial forfeits, baseline (held-out) | 51 (44) | **0 (0)** |
-| Financial forfeits, simultaneous defaults (held-out) | 130 (113) | **0 (0)** |
-| Free rescue capital, baseline | 605m cr | **0 cr** |
-| Simultaneous defaults: emergency loans / forced sales / administrations / recoveries | – | 30 / 36 / 31 / 31, median 1 season to recover |
-| Final Gini, baseline | 0.34 | 0.14 |
-| League cash after 100 seasons, baseline | 869m cr | **2,725m cr** |
-| Completed deals, baseline (500 seasons) | 83 | 11 |
+| | legacy | candidate v0 | **candidate (calibrated)** |
+| --- | --- | --- | --- |
+| Hard-invariant failures (6 scenarios; baseline and held-out) | 0 | 0 | **0** |
+| Financial forfeits, baseline / stress (held-out) | 51 / 130 (44 / 113) | 0 / 0 | **0 / 0 (0 / 0)** |
+| Free rescue capital, baseline | 605m cr | 0 cr | **0 cr** |
+| League cash after 100 seasons, baseline (held-out) | 869m cr (939m cr) | 2,725m cr | **955m cr (1,035m cr)** |
+| Final Gini, baseline | 0.34 | 0.14 | 0.33 |
+| Administrations, baseline / stress, per 10,000 club-seasons | – | 0 / 31 | 173 / 1,475, median 1 season to recover |
+| Completed deals, baseline, 500 seasons (held-out) | 83 (82) | 11 | 230 (291) |
+| Distinct champions per run / mobility | 19 / 0.39 | 19 / 0.43 | 18 / 0.50 |
 
 **What it shows:**
 
 - **The recovery mechanics work.** Every fixture is played. Distressed clubs borrow, sell, are administered and recover, usually within a season. Nobody gets free money, and the ledger reconciles throughout.
-- **finance/3 isn't calibrated yet: it inflates.** League cash ends at about 2.7bn cr, around 136m cr a club, so it fails gate 8 (end cash per club within 0.25–4× the opening balance). With 14-player squads the wage bill is lower than the income finance/3 pays.
-  - Cutting the distribution to 4.0m cr (`candidate-lean`) still inflates (84m cr a club) and starts pushing clubs into distress.
-  - Raising it, or flattening the prize curve, inflates more.
-  - The missing piece is a sink that grows with ambition: negotiated, market-priced contract wages (#96) and operating costs. Lowering the league's income isn't enough.
+- **Calibration found a narrow working band.** Contracts plus a flat 1m cr of running costs bring league money back to legacy's level. Several alternatives were tried on the same seeds:
+  - **Contracts alone, with no running costs,** still inflate (about 3bn cr). Flat costs between 0 and 1m cr weren't tested on their own.
+  - **1.1–1.2m cr** breaks the debt bound under stress: clubs collapse into permanent debt (1.1m: 531 failures; 1.2m: Gini 0.78 under stress).
+  - **1.5m cr** breaks it everywhere.
+  - **Running costs as a share of income** (2–20%) and **market-priced wages** (alpha 0.5–1) are no better. Under stress the shares break the debt bound, and the market-priced wages concentrate money.
+- **Acceptance gates for the calibrated candidate** ([economy-harness.md](economy-harness.md#initial-acceptance-gates-proposed-tune-with-evidence)):
+  - **Pass:** 1 (invariants), 2 (no forfeits), 3 (no free money), 4 (Gini ≤ 0.45 and the richest quarter ≤ 60% in baseline), 5 (open competition) and 7 (recovery within a season).
+  - **Borderline, gate 8 (no runaway inflation):** baseline is just inside the limit at 955m cr against 960m, held-out is 8% over, and the ageing-wave scenario is 16% over.
+  - **Fail, gate 6 (liquidity):** 230–291 deals against roughly 2,500 needed. That's still 3× legacy, but it's a transfer-market design problem (bidding policies and reservation prices). Finance can't fix it.
+- **The band is narrow.** That's because income and costs are both fixed amounts. A self-correcting money supply needs a working transfer market, where money moves between clubs. Liquidity is therefore the next lever, before finance/3 is adopted.
 - **The harness found and fixed a real bug.** Forced sales could sell a club's second keeper, because the list of sellable players was computed once (`candidate-lean`, seed 3, season 35). Sales now re-check after each one, and the case is a regression test.
-- **Liquidity is still poor** under every ruleset. The market's reservation prices need work alongside #96.
 
 ## Not yet (next increments)
 
 - **Persistence.** Database tables for loans, liens, auctions and administration, settled exactly once at round and window boundaries.
 - **Mid-season defaults.** Settlement must respect registration windows (a player sold at a mid-season auction joins at the next boundary) while fixtures stay playable.
-- **Calibration.** finance/3 against #96's contract wages and operating costs, until every acceptance gate passes on baseline and held-out seeds.
+- **Liquidity.** Bidding and reservation-price rules (with #96's market), until gates 6 and 8 pass on baseline and held-out seeds. Then adopt finance/3.
 - **Fan-facing pages** for loans, defaults, auctions and recoveries (#100).

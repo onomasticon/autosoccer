@@ -92,7 +92,8 @@ export type LedgerKind =
   | "repayment"
   | "interest"
   | "auction"
-  | "support";
+  | "support"
+  | "operating";
 
 export interface LedgerEntry {
   key: string;
@@ -156,6 +157,13 @@ export interface Ruleset {
   poolPerClub: number;
   /** The ruleset promises every fixture is played (no financial walkovers). */
   noForfeits: boolean;
+  /** Running costs per club per season, paid in equal shares each round. */
+  operatingPerSeason?: number;
+  /** Plus this share of the club's earned income last season (finance/3 operatingShare). */
+  operatingShare?: number;
+  /** Contract wages priced by the market at signing/renewal (contract rulesets only). */
+  wageMarket?: { alpha: number; min: number; max: number };
+  contractYears?: { young: number; prime: number; veteran: number };
 }
 
 /** Synthetic match model: goals ~ Poisson(exp(base + k × strength difference)). */

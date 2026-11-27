@@ -59,6 +59,24 @@ export const FINANCE_3 = {
   prizeTop: 4_000_000,
   prizeBottom: 300_000,
   curve: 2,
+  /** Running costs every club pays each season (staff, travel, ground), in equal shares per round. */
+  operatingPerSeason: 1_000_000,
+  /**
+   * Running costs that grow with the club: this share of what it earned last season (distribution,
+   * results and prizes), charged across the next season. A rich club pays more, a struggling one less,
+   * so the sink follows the money instead of being a flat cost that's too light at the top and too
+   * heavy at the bottom.
+   */
+  operatingShare: 0,
+  /**
+   * Contracted wages, priced at signing or renewal: the rating-based wage times a market multiplier
+   * that follows the money in the league, (median club cash ÷ opening balance)^alpha, clamped to
+   * [min, max]. When clubs are flush, players ask for more; existing contracts keep their wage.
+   * alpha 0 turns the market off (wages never move with money).
+   */
+  wageMarket: { alpha: 0, min: 1, max: 1 },
+  /** Contract length (seasons) by age at signing: 3 under 27, 2 to 30, 1 from 31. */
+  contractYears: { young: 3, prime: 2, veteran: 1 },
 };
 
 /** finance/3's prize table for a league of `clubs`, rounded to 50k cr. */
