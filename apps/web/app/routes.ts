@@ -5,6 +5,8 @@ export default [
   route("fixtures", "routes/fixtures.tsx"),
   route("table", "routes/table.tsx"),
   route("history", "routes/history.tsx"),
+  route("leagues", "routes/leagues.tsx"),
+  route("leagues/:slug", "routes/league.tsx"),
   route("teams", "routes/teams.tsx"),
   route("teams/:slug", "routes/team.tsx"),
   route("players/:id/:name?", "routes/player.tsx"),

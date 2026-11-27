@@ -1,4 +1,5 @@
 import {
+  CharterResponse,
   FixturesResponse,
   LeagueDetailResponse,
   LeagueListResponse,
@@ -13,6 +14,7 @@ import {
 } from "@autosoccer/contracts";
 import type { Db } from "@autosoccer/db";
 import { Hono } from "hono";
+import { charterOf } from "../founding/service.ts";
 import { contractJson, notFound } from "../http.ts";
 import { currentInjuries } from "../injuries/injuries.ts";
 import { type PlayerRow, type RevisionRow, type TeamRow, toTeam } from "../mappers.ts";
@@ -37,6 +39,12 @@ export function leagueRoutes({ db }: { db: Db }) {
   const r = new Hono();
 
   r.get("/seasons", async (c) => contractJson(c, SeasonListResponse, { items: await seasonSummaries(db) }));
+
+  r.get("/teams/:team/charter", async (c) => {
+    const charter = await charterOf(db, c.req.param("team"));
+    if (!charter) return notFound(c, "Charter");
+    return contractJson(c, CharterResponse, charter);
+  });
 
   r.get("/leagues", async (c) => contractJson(c, LeagueListResponse, { items: await publicLeagues(db) }));
 
