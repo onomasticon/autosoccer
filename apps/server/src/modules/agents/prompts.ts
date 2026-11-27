@@ -72,6 +72,8 @@ export interface ManagerFacts {
     attributes?: PlayerAttributes;
     /** Starts and goals in the club's last few matches this season (official record). */
     form?: { matches: number; starts: number; goals: number };
+    /** Injured (injury/1): out of this match, back after `untilRound`. */
+    injured?: { untilRound: number };
   }>;
   current: { tactics: TacticalConfigV1 | null; starters: number[] };
   table: Array<{ position: number; team: string; played: number; points: number; goalDifference: number }>;
@@ -120,7 +122,8 @@ function squadLine(p: ManagerFacts["squad"][number]): string {
   const form = p.form?.matches
     ? ` · last ${p.form.matches}: ${p.form.starts} start${p.form.starts === 1 ? "" : "s"}, ${p.form.goals} goal${p.form.goals === 1 ? "" : "s"}`
     : "";
-  return `${head} · overall ${p.overall}${form} · ${r}`;
+  const hurt = p.injured ? ` · INJURED, unavailable until after round ${p.injured.untilRound}` : "";
+  return `${head}${hurt} · overall ${p.overall}${form} · ${r}`;
 }
 
 const fmtMatch = (m: MatchSummaryFact) =>
@@ -160,7 +163,8 @@ function financeFacts(f: ManagerFacts): string {
 Cash: ${cr(m.balance)}
 Wages: ${cr(m.payrollPerRound)} a round; ${m.roundsToPay} round${m.roundsToPay === 1 ? "" : "s"} still to pay this season (${cr(m.remainingPayroll)})
 Headroom after those wages: ${cr(m.headroom)} (before any prize money or result income, which depend on results)
-A club that can't pay a round's wages before it kicks off is bankrupt: withdrawn for the rest of the season, its fixtures awarded to its opponents.`;
+A club that can't pay a round's wages before it kicks off is bankrupt: withdrawn for the rest of the season, its fixtures awarded to its opponents.
+Injured players can't play: if you name one, the best fit squad player starts instead; if nobody fit is left, a weaker emergency player is called up.`;
 }
 
 export function preMatchPrompt(f: ManagerFacts): string {

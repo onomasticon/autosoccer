@@ -8,6 +8,7 @@ import type { Db } from "@autosoccer/db";
 import type { ReplayStore } from "@autosoccer/sim-adapter";
 import { Hono } from "hono";
 import { contractJson, isUuid, notFound } from "../http.ts";
+import { absencesFor } from "../injuries/injuries.ts";
 import { teamsAsOf } from "../insolvency/takeover.ts";
 import { ratedPlayer, seasonRatings } from "../league/careers.ts";
 import {
@@ -70,6 +71,7 @@ export function matchRoutes({ db, store }: { db: Db; store: ReplayStore }) {
         home: request.home.starters.map((s) => players.get(s.playerId)!).filter(Boolean),
         away: request.away.starters.map((s) => players.get(s.playerId)!).filter(Boolean),
       },
+      absences: await absencesFor(db, f!.id),
       replay: replay ? toReplay(replay) : null,
       revisions: {
         home: (m.home_revision_id && revs.get(m.home_revision_id)) || null,

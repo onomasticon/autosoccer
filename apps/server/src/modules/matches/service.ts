@@ -20,6 +20,7 @@ import {
 import { enqueue } from "../../jobs/queue.ts";
 import { PermanentJobError } from "../../jobs/worker.ts";
 import type { Logger } from "../../log.ts";
+import { emergencyPlayer, injuredFor, replacements } from "../injuries/injuries.ts";
 import { ratedPlayer, seasonRatings } from "../league/careers.ts";
 import { type PlayerRow, toPlayer } from "../mappers.ts";
 import { DEFAULT_DEPLOYMENT, defaultLineup } from "./lineup.ts";
@@ -65,6 +66,7 @@ export async function buildMatchRequest(deps: MatchDeps, fixtureId: string): Pro
   const [f] = await db<
     {
       season_id: string;
+      round: number;
       home_team_id: string;
       away_team_id: string;
       seed: number;
@@ -72,7 +74,7 @@ export async function buildMatchRequest(deps: MatchDeps, fixtureId: string): Pro
       players_per_team: number;
     }[]
   >`
-    select f.season_id, f.home_team_id, f.away_team_id, f.seed, s.sim_version, s.players_per_team
+    select f.season_id, f.round, f.home_team_id, f.away_team_id, f.seed, s.sim_version, s.players_per_team
     from fixtures f join seasons s on s.id = f.season_id where f.id = ${fixtureId}`;
   if (!f) throw new PermanentJobError(`fixture ${fixtureId} not found`);
   const size: TeamSize = toTeamSize(f.players_per_team);
@@ -90,7 +92,43 @@ export async function buildMatchRequest(deps: MatchDeps, fixtureId: string): Pro
         (p) => [p.id, ratedPlayer(p, snapshot)],
       ),
     );
-    const starters = sel.lineup.starters.map((id) => {
+    // injury/1: injured starters are replaced by fit squad players, or by an emergency call-up when
+    // nobody is left (or there's no fit keeper). Recorded once per fixture and player.
+    const injured = await injuredFor(db, f.season_id, teamId, f.round);
+    let lineupIds = sel.lineup.starters;
+    if (injured.size) {
+      const squad = [...players.values()].map((p) => ({
+        id: p.id,
+        position: p.position,
+        overall: p.overall,
+        shirtNumber: p.shirtNumber,
+      }));
+      const changes = replacements(lineupIds, squad, new Set(injured.keys()), size);
+      const swap = new Map<string, string>();
+      for (const c of changes) {
+        let by = c.replacedBy;
+        let emergency = false;
+        if (!by) {
+          const e = await emergencyPlayer(
+            db,
+            teamId,
+            f.season_id,
+            c.position,
+            new Set([...lineupIds, ...swap.values()]),
+          );
+          const [row] = await db<PlayerRow[]>`select * from players where id = ${e.id}`;
+          players.set(e.id, ratedPlayer(row!, snapshot));
+          by = e.id;
+          emergency = true;
+        }
+        swap.set(c.playerId, by);
+        await db`
+          insert into lineup_changes (fixture_id, team_id, player_id, replaced_by, reason, emergency)
+          values (${fixtureId}, ${teamId}, ${c.playerId}, ${by}, 'injured', ${emergency}) on conflict do nothing`;
+      }
+      lineupIds = lineupIds.map((id) => swap.get(id) ?? id);
+    }
+    const starters = lineupIds.map((id) => {
       const p = players.get(id);
       if (!p) throw new PermanentJobError(`lineup player ${id} is not in ${team!.name}'s squad`);
       return {

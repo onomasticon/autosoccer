@@ -42,6 +42,10 @@ export const PlayerCareer = z.object({
   age: z.number().int().nullable().optional(),
   /** The last season a retired player played; null while they play on. */
   retired: z.object({ slug: z.string(), name: z.string() }).nullable().optional(),
+  /** Injured now (injury/1): out until after this round of the current season. */
+  injury: z.object({ untilRound: z.number().int() }).nullable().optional(),
+  /** An emergency call-up: the season they were called up for. */
+  emergency: z.object({ slug: z.string(), name: z.string() }).nullable().optional(),
   /** The season an academy graduate was promoted after; null for everyone else. */
   graduate: z.object({ slug: z.string(), name: z.string() }).nullable().optional(),
   /** Oldest season first; only seasons the club played. */

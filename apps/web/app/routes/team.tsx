@@ -275,6 +275,14 @@ export default function Team({ loaderData }: Route.ComponentProps) {
                       </span>
                       <span className="flex-1 font-medium">
                         {p.name}
+                        {careers.find((c) => c.playerId === p.id)?.injury && (
+                          <span
+                            className="ml-2 rounded bg-coral/20 px-1.5 py-0.5 text-[11px] font-bold uppercase text-ink"
+                            data-testid="injured-badge"
+                          >
+                            Injured · back after R{careers.find((c) => c.playerId === p.id)!.injury!.untilRound}
+                          </span>
+                        )}
                         {typeof careers.find((c) => c.playerId === p.id)?.age === "number" && (
                           <span className="ml-2 text-xs font-normal text-muted-text">
                             {careers.find((c) => c.playerId === p.id)!.age}

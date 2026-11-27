@@ -373,6 +373,20 @@ export default function MatchCentre({ loaderData }: Route.ComponentProps) {
               <Lineup players={lineups.home} title={fixture.home.shortName} />
               <Lineup players={lineups.away} title={fixture.away.shortName} />
             </div>
+            {loaderData.absences && loaderData.absences.length > 0 && (
+              <ul className="mt-3 space-y-1 text-sm" data-testid="absences">
+                {loaderData.absences.map((a) => (
+                  <li key={a.player.id}>
+                    <span className="mr-1.5 rounded bg-coral/20 px-1.5 py-0.5 text-xs font-bold uppercase text-ink">
+                      Injured
+                    </span>
+                    {a.player.name} missed the match (
+                    {a.teamId === fixture.home.id ? fixture.home.name : fixture.away.name}
+                    ). {a.replacedBy.name} started {a.emergency ? "as an emergency call-up" : "instead"}.
+                  </li>
+                ))}
+              </ul>
+            )}
           </section>
           <section aria-labelledby="tactics">
             <SectionHeader id="tactics" title="Tactics" />

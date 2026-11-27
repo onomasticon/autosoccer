@@ -20,6 +20,7 @@ function matchReport(c: EditorialContext): ArticleDraft {
   const standings = byKind(facts, "standing").filter((f) =>
     [m.home.name, m.away.name].some((n) => f.statement.startsWith(n)),
   );
+  const injuries = facts.filter((f) => /:(absent|injury):/.test(f.id));
   const draw = m.home.score === m.away.score;
   const [w, l] = m.home.score >= m.away.score ? [m.home, m.away] : [m.away, m.home];
   const headline = draw
@@ -33,8 +34,11 @@ function matchReport(c: EditorialContext): ArticleDraft {
     `${score.statement.replace(/^Final score \(round \d+\): /, "")}.`,
     goalLines,
     `${stat("possession").statement}. ${stat("shots").statement}. ${stat("shotsOnTarget").statement}.`,
+    injuries.map((s) => `${s.statement}.`).join(" "),
     standings.map((s) => `${s.statement}.`).join(" "),
-  ].join("\n\n");
+  ]
+    .filter(Boolean)
+    .join("\n\n");
   return {
     headline,
     standfirst,
@@ -45,6 +49,7 @@ function matchReport(c: EditorialContext): ArticleDraft {
       cite(stat("possession")),
       cite(stat("shots")),
       cite(stat("shotsOnTarget")),
+      ...injuries.map((s) => cite(s)),
       ...standings.map((s) => cite(s)),
     ],
   };
