@@ -29,6 +29,7 @@ import {
   type Scenario,
 } from "./model.ts";
 import { decideBids, decideReply } from "./policies.ts";
+import { closeSeason, ensurePayroll, offseason, serviceLoans } from "./recovery.ts";
 
 export interface RunConfig {
   clubs: number;
@@ -64,7 +65,16 @@ export interface Deal {
 export interface Event {
   season: number;
   round: number | null;
-  kind: "withdrawal" | "takeover" | "default" | "forced_sale" | "administration" | "recovery" | "unviable";
+  kind:
+    | "withdrawal"
+    | "takeover"
+    | "default"
+    | "forced_sale"
+    | "administration"
+    | "recovery"
+    | "unviable"
+    | "emergency"
+    | "borrow";
   club: string;
   amount?: number;
   detail?: string;
@@ -89,6 +99,7 @@ export interface World {
   retiredThisSeason: number;
   joinedThisSeason: number;
   nextPlayer: number;
+  nextLoan: number;
 }
 
 export interface RunResult {
@@ -129,7 +140,14 @@ export function squadPositions(n: number): Position[] {
   return out;
 }
 
-function credit(w: World, club: string, kind: LedgerKind, amount: number, key: string, round: number | null = null) {
+export function credit(
+  w: World,
+  club: string,
+  kind: LedgerKind,
+  amount: number,
+  key: string,
+  round: number | null = null,
+) {
   if (amount === 0) return;
   if (w.keys.has(key)) throw new Error(`duplicate settlement ${key}`);
   w.keys.add(key);
@@ -215,6 +233,7 @@ export function found(config: RunConfig): World {
     retiredThisSeason: 0,
     joinedThisSeason: 0,
     nextPlayer: 0,
+    nextLoan: 0,
   };
   const policies = config.scenario.policy ? [config.scenario.policy] : (config.policies ?? POLICIES);
   for (let i = 0; i < config.clubs; i++) {
@@ -303,7 +322,8 @@ function market(w: World) {
   const bids: Array<{ buyer: string; player: HPlayer; fee: number; order: number }> = [];
   let order = 0;
   for (const c of w.clubs.values()) {
-    if (c.administration) continue;
+    // Administration: transfer embargo. Emergency financing outstanding: no discretionary signings.
+    if (c.administration || c.loans.some((l) => l.kind === "emergency")) continue;
     if (!available(w)) {
       w.market.unavailable++;
       continue;
@@ -332,8 +352,10 @@ function market(w: World) {
     const buyerSquad = squadOf(w, buyer.id);
     const sellerSquad = from ? squadOf(w, from) : [];
     const keepers = sellerSquad.filter((x) => x.position === "GK").length;
+    const pledged = from !== null && w.clubs.get(from)!.loans.some((l) => l.collateral.includes(p.id));
     const fails =
       p.retired ||
+      pledged ||
       buyer.cash < b.fee ||
       buyerSquad.length + 1 > r.squad.max ||
       (from !== null && sellerSquad.length - 1 < r.squad.min) ||
@@ -389,7 +411,7 @@ function playSeason(w: World) {
           c.withdrawnFrom = round;
           w.events.push({ season: w.season, round, kind: "withdrawal", club: c.id, amount: payroll - c.cash - due });
         } else {
-          throw new Error(`ruleset ${r.name} has no recovery handler`);
+          ensurePayroll(w, c, round, payroll, due);
         }
       }
     }
@@ -399,6 +421,7 @@ function playSeason(w: World) {
       const payroll = squadOf(w, c.id).reduce((s, p) => s + p.wage, 0);
       credit(w, c.id, "payroll", -payroll, `payroll:${w.season}:${round}:${c.id}`, round);
     }
+    if (r.lender) serviceLoans(w, round);
     for (const f of calendar.filter((x) => x.round === round)) {
       const home = w.clubs.get(f.home)!;
       const away = w.clubs.get(f.away)!;
@@ -455,6 +478,7 @@ function playSeason(w: World) {
   for (const [i, id] of eligible.entries())
     credit(w, id, "prize", fr.prize[Math.min(i + 1, fr.prize.length) - 1] ?? 0, `prize:${w.season}:${id}`);
   w.history.set(w.season, digest(seasonFixtures));
+  if (r.lender) closeSeason(w);
 }
 
 const income = (gf: number, ga: number, fr: ReturnType<Ruleset["finance"]>) =>
@@ -508,6 +532,7 @@ export function nextSeason(w: World, s: number, prev?: SeasonStats): SeasonStats
   if (s > 1) {
     age(w);
     takeovers(w);
+    if (w.config.ruleset.lender) offseason(w);
     market(w);
   }
   playSeason(w);

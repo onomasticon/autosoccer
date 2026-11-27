@@ -57,7 +57,9 @@ const command = `bun run economy:harness ${process.argv.slice(2).join(" ")}`.tri
 mkdirSync(out, { recursive: true });
 writeFileSync(
   `${out}/runs.json`,
-  JSON.stringify(groups.map((g) => ({ ...g, runs: g.runs.map((r) => ({ ...r, deals: r.deals.length })) }))),
+  JSON.stringify(
+    groups.map((g) => ({ ...g, runs: g.runs.map((r) => ({ ...r, deals: r.deals.length, events: r.events.length })) })),
+  ),
 );
 writeFileSync(`${out}/seasons.csv`, csv(groups));
 writeFileSync(`${out}/summary.json`, JSON.stringify(summaries, null, 2));

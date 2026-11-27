@@ -28,6 +28,10 @@ export interface SeasonStats {
   takeoverCapital: number;
   defaults: number;
   forcedSales: number;
+  emergencies: number;
+  administrations: number;
+  recoveries: number;
+  borrowing: number;
   /** Clubs in distress at the end of the season (cash below three rounds of wages, or in administration). */
   distressed: number;
   debt: number;
@@ -106,6 +110,10 @@ export function seasonStats(w: World, ledgerFrom: number, prev?: SeasonStats): S
     takeoverCapital: events.filter((e) => e.kind === "takeover").reduce((s, e) => s + (e.amount ?? 0), 0),
     defaults: events.filter((e) => e.kind === "default").length,
     forcedSales: events.filter((e) => e.kind === "forced_sale").length,
+    emergencies: events.filter((e) => e.kind === "emergency").length,
+    administrations: events.filter((e) => e.kind === "administration").length,
+    recoveries: events.filter((e) => e.kind === "recovery").length,
+    borrowing: events.filter((e) => e.kind === "borrow").reduce((s, e) => s + (e.amount ?? 0), 0),
     distressed: clubs.filter((c) => c.administration || c.cash < squadOf(w, c.id).reduce((s, p) => s + p.wage, 0) * 3)
       .length,
     debt: clubs.reduce((s, c) => s + c.loans.reduce((t, l) => t + l.balance, 0), 0),
