@@ -62,11 +62,14 @@ export function ScoreTicker({ fixtures, matchweek, season, next, loading }: Scor
         <p className="parallelogram relative z-10 flex shrink-0 items-center bg-yellow py-2 pl-6 pr-7 font-wide text-lg font-black uppercase italic leading-none text-ink shadow-[0_4px_14px_rgb(255_203_69/0.35)] sm:text-xl">
           {season && (
             <span data-testid="ticker-season">
-              <span className="hidden sm:inline">{season}</span>
-              <span className="sm:hidden" aria-hidden>
-                S{seasonNo ?? ""}
-              </span>
-              <span className="sr-only sm:hidden">{season}</span>
+              {seasonNo ? (
+                <>
+                  <span aria-hidden>S{seasonNo}</span>
+                  <span className="sr-only">{season}</span>
+                </>
+              ) : (
+                season
+              )}
               <span className="mx-2 opacity-50" aria-hidden>
                 ·
               </span>
