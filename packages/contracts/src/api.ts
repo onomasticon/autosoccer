@@ -169,9 +169,29 @@ export const FixturesResponse = z.object({
   rounds: z.array(z.object({ round: z.number().int().positive(), fixtures: z.array(FixtureView) })),
 });
 export const TeamListResponse = z.object({ items: z.array(Team) });
+/** A player ruled out by injury (injury/1). */
+export const Injury = z.object({
+  playerId: Id,
+  injuredRound: z.number().int(),
+  /** The last round they miss; they're available again after it. */
+  untilRound: z.number().int(),
+});
+export type Injury = z.infer<typeof Injury>;
+/** A starter who missed a match, and who played instead (a squad player or an emergency call-up). */
+export const Absence = z.object({
+  teamId: Id,
+  player: z.object({ id: Id, name: z.string() }),
+  replacedBy: z.object({ id: Id, name: z.string() }),
+  reason: z.literal("injured"),
+  emergency: z.boolean(),
+});
+export type Absence = z.infer<typeof Absence>;
+
 export const TeamDetailResponse = z.object({
   team: Team,
   players: z.array(Player),
+  /** Squad players currently injured (current season). */
+  injuries: z.array(Injury).optional(),
   manager: PublicManager.nullable(),
   standing: StandingRow.nullable(),
   fixtures: z.array(FixtureView),
@@ -222,6 +242,8 @@ export const MatchDetailResponse = z.object({
   events: z.array(OfficialEvent),
   stats: z.object({ home: TeamMatchStats, away: TeamMatchStats }).nullable(),
   lineups: z.object({ home: z.array(Player), away: z.array(Player) }),
+  /** Injured starters who missed the match and who played instead. */
+  absences: z.array(Absence).optional(),
   replay: ReplayArtifact.nullable(),
   revisions: z.object({
     home: TacticalRevision.pick({ id: true, version: true, deployment: true, rationale: true }).nullable(),

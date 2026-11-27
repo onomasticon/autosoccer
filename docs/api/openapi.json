@@ -4312,6 +4312,36 @@
               "additionalProperties": false
             }
           },
+          "injuries": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "playerId": {
+                  "description": "UUID primary key",
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                },
+                "injuredRound": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "untilRound": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                }
+              },
+              "required": [
+                "playerId",
+                "injuredRound",
+                "untilRound"
+              ],
+              "additionalProperties": false
+            }
+          },
           "manager": {
             "anyOf": [
               {
@@ -6517,6 +6547,73 @@
             ],
             "additionalProperties": false
           },
+          "absences": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "teamId": {
+                  "description": "UUID primary key",
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                },
+                "player": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "description": "UUID primary key",
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    },
+                    "name": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name"
+                  ],
+                  "additionalProperties": false
+                },
+                "replacedBy": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "description": "UUID primary key",
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    },
+                    "name": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name"
+                  ],
+                  "additionalProperties": false
+                },
+                "reason": {
+                  "type": "string",
+                  "const": "injured"
+                },
+                "emergency": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "teamId",
+                "player",
+                "replacedBy",
+                "reason",
+                "emergency"
+              ],
+              "additionalProperties": false
+            }
+          },
           "replay": {
             "anyOf": [
               {
@@ -8117,6 +8214,50 @@
                 ]
               },
               "retired": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "slug": {
+                        "type": "string"
+                      },
+                      "name": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "slug",
+                      "name"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "injury": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "untilRound": {
+                        "type": "integer",
+                        "minimum": -9007199254740991,
+                        "maximum": 9007199254740991
+                      }
+                    },
+                    "required": [
+                      "untilRound"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "emergency": {
                 "anyOf": [
                   {
                     "type": "object",
@@ -17147,6 +17288,50 @@
                   ]
                 },
                 "retired": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "slug": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "slug",
+                        "name"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "injury": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "untilRound": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        }
+                      },
+                      "required": [
+                        "untilRound"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "emergency": {
                   "anyOf": [
                     {
                       "type": "object",

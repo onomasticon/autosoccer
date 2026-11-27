@@ -13,6 +13,7 @@ import {
   type TeamMatchStats,
 } from "@autosoccer/contracts";
 import type { Db } from "@autosoccer/db";
+import { absencesFor } from "../injuries/injuries.ts";
 import { seasonRace, standingRows } from "../league/read.ts";
 
 const clock = (e: { period: string; clockSec: number }) =>
@@ -119,6 +120,40 @@ export async function raceFact(db: Db, seasonId: string, round: number): Promise
 
 const ordinal = (n: number) => `${n}${n === 1 ? "st" : n === 2 ? "nd" : n === 3 ? "rd" : "th"}`;
 
+/**
+ * injury/1 facts for a match: starters who missed it injured and who played instead (a squad
+ * player or an emergency call-up), and players hurt in it, with how long they're out.
+ */
+async function injuryFacts(db: Db, m: MatchRow): Promise<Fact[]> {
+  const club = new Map([
+    [m.home_team_id, m.home_name],
+    [m.away_team_id, m.away_name],
+  ]);
+  const out: Fact[] = [];
+  for (const a of await absencesFor(db, m.fixture_id))
+    out.push({
+      id: `match:${m.id}:absent:${a.player.id}`,
+      kind: "lineup",
+      statement: a.emergency
+        ? `${a.player.name} missed the match injured, and ${club.get(a.teamId)} had nobody fit to replace them: ${a.replacedBy.name} started as an emergency call-up`
+        : `${a.player.name} missed the match injured; ${a.replacedBy.name} started for ${club.get(a.teamId)} instead`,
+      value: { teamId: a.teamId, player: a.player.name, replacedBy: a.replacedBy.name, emergency: a.emergency },
+      source: { table: "lineup_changes", id: m.fixture_id },
+    });
+  const hurt = await db<{ player_id: string; name: string; team_id: string; rounds: number }[]>`
+    select i.player_id, p.name, i.team_id, (i.out_until_round - i.out_from_round + 1)::int as rounds
+    from player_injuries i join players p on p.id = i.player_id where i.match_id = ${m.id} order by p.name`;
+  for (const h of hurt)
+    out.push({
+      id: `match:${m.id}:injury:${h.player_id}`,
+      kind: "lineup",
+      statement: `${h.name} of ${club.get(h.team_id)} was injured in the match and will miss the next ${h.rounds === 1 ? "round" : `${h.rounds} rounds`}`,
+      value: { player: h.name, rounds: h.rounds },
+      source: { table: "player_injuries", id: m.id },
+    });
+  return out;
+}
+
 /** Facts for one official match (plus the table after its round). */
 export async function matchFacts(db: Db, matchId: string): Promise<EditorialFacts> {
   const m = await loadMatch(db, matchId);
@@ -200,6 +235,7 @@ export async function matchFacts(db: Db, matchId: string): Promise<EditorialFact
     });
   }
   facts.push(...(await continuityFacts(db, m)));
+  facts.push(...(await injuryFacts(db, m)));
   facts.push(...(await standingFacts(db, m.season_id, m.round)));
   facts.push(...(await historyFacts(db, m.season_id)));
   return {

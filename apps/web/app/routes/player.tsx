@@ -82,11 +82,15 @@ export default function PlayerPage({ loaderData }: Route.ComponentProps) {
                 </div>
               ))}
             </dl>
-            {(career.retired || career.graduate) && (
+            {(career.retired || career.graduate || career.emergency || career.injury) && (
               <p className="mt-3 text-sm text-muted-text" data-testid="career-note">
-                {career.retired
-                  ? `Retired after ${career.retired.name}. Their record stays in the league's history.`
-                  : `Promoted from the ${team.name} academy after ${career.graduate!.name}.`}
+                {career.emergency
+                  ? `An emergency call-up: registered with ${team.name} for ${career.emergency.name} only, when injuries left the club short.`
+                  : career.retired
+                    ? `Retired after ${career.retired.name}. Their record stays in the league's history.`
+                    : career.injury
+                      ? `Injured: out until after round ${career.injury.untilRound}.`
+                      : `Promoted from the ${team.name} academy after ${career.graduate!.name}.`}
               </p>
             )}
           </div>

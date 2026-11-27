@@ -3,6 +3,7 @@ import type { Db } from "@autosoccer/db";
 import { SIM_VERSION } from "@autosoccer/sim-adapter";
 import { FINANCE_RULE } from "../finance/rules.ts";
 import { settleFinances } from "../finance/settle.ts";
+import { INJURY_RULE, settleInjuries } from "../injuries/injuries.ts";
 import { checkSolvency, resolveForfeits, withdrawals, withdrawnBy } from "../insolvency/check.ts";
 import { INSOLVENCY_RULE } from "../insolvency/rules.ts";
 import { enqueueFixture } from "../matches/service.ts";
@@ -84,6 +85,8 @@ export interface CreateSeasonInput {
   transferRule?: string | null;
   /** Insolvency rule (insolvency/1 by default when the season has finances); null: no solvency checks. */
   insolvencyRule?: string | null;
+  /** Injury rule (injury/1 by default); null: nobody is ever injured. */
+  injuryRule?: string | null;
 }
 
 /**
@@ -119,11 +122,12 @@ export async function createSeason(db: Db, input: CreateSeasonInput): Promise<{ 
         ? INSOLVENCY_RULE
         : input.insolvencyRule
       : null;
+    const injuryRule = input.injuryRule === undefined ? INJURY_RULE : input.injuryRule;
     const [season] = await tx<{ id: string }[]>`
-      insert into seasons (slug, name, status, seed, sim_version, players_per_team, budget_per_team_micro_usd, editorial_budget_micro_usd, starts_at, finance_rule, transfer_rule, insolvency_rule)
+      insert into seasons (slug, name, status, seed, sim_version, players_per_team, budget_per_team_micro_usd, editorial_budget_micro_usd, starts_at, finance_rule, transfer_rule, insolvency_rule, injury_rule)
       values (${input.slug}, ${input.name}, 'scheduled', ${input.seed}, ${input.simVersion ?? SIM_VERSION}, ${input.playersPerTeam ?? 7},
         ${input.budgetPerTeamMicroUsd}, ${input.editorialBudgetMicroUsd ?? DEFAULT_EDITORIAL_BUDGET_MICRO_USD}, ${startsAt},
-        ${financeRule}, ${transferRule}, ${insolvencyRule}) returning id`;
+        ${financeRule}, ${transferRule}, ${insolvencyRule}, ${injuryRule}) returning id`;
     for (const t of teams) await tx`insert into season_teams (season_id, team_id) values (${season!.id}, ${t.id})`;
     await registerSquads(tx as unknown as Db, season!.id);
     const order = seededOrder(teams, input.seed);
@@ -182,6 +186,8 @@ export async function advanceSeason(db: Db, seasonId: string, opts: AdvanceOptio
   // decisions. Round 1 waits for the transfer window to close: its deals move cash.
   const [window] = await db`select 1 from transfer_windows where season_id = ${seasonId} and phase <> 'closed'`;
   if (!window) await checkSolvency(db, seasonId, round);
+  // Injuries from results so far (injury/1; idempotent), before the round's managers pick their sides.
+  await settleInjuries(db, seasonId);
   const roundFixtures = () => db<{ id: string; status: string }[]>`
     select f.id, f.status from fixtures f where f.season_id = ${seasonId} and f.round = ${round} order by f.id`;
   let fixtures = await roundFixtures();

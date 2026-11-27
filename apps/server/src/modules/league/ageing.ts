@@ -250,6 +250,7 @@ export async function retireAndPromote(db: Db, lastSeasonId: string, seasonNo: n
         id: string;
         name: string;
         team_id: string;
+        team_slug: string;
         position: Position;
         shirt_number: number;
         born_season: number;
@@ -257,8 +258,9 @@ export async function retireAndPromote(db: Db, lastSeasonId: string, seasonNo: n
         base_attributes: PlayerAttributes | null;
       }[]
     >`
-      select p.id, p.name, p.team_id, p.position, p.shirt_number, p.born_season, r.overall, p.base_attributes
+      select p.id, p.name, p.team_id, t.slug as team_slug, p.position, p.shirt_number, p.born_season, r.overall, p.base_attributes
       from players p join season_teams st on st.team_id = p.team_id and st.season_id = ${lastSeasonId}
+      join teams t on t.id = p.team_id
       left join player_ratings r on r.player_id = p.id and r.season_id = ${lastSeasonId}
       where (p.retired_season_id is null or p.retired_season_id = ${lastSeasonId}) and p.born_season is not null
       order by p.team_id, p.shirt_number`;
@@ -272,11 +274,12 @@ export async function retireAndPromote(db: Db, lastSeasonId: string, seasonNo: n
           p.base_attributes ?? playerAttributes({ name: p.name, shirtNumber: p.shirt_number, position: p.position }),
           p.position,
         );
-      if (!retires(age, overall, `${p.id}:${seasonNo}`)) continue;
+      // Seeded by name (unique in the league) and season, so any database retires the same players.
+      if (!retires(age, overall, `${p.name}:${seasonNo}`)) continue;
       await tx`update players set retired_season_id = ${lastSeasonId} where id = ${p.id}`;
       // The graduate takes the retiree's shirt number.
       const shirt = p.shirt_number;
-      const name = await graduateName(tx as unknown as Db, `${p.team_id}:${seasonNo}:${shirt}`);
+      const name = await graduateName(tx as unknown as Db, `${p.team_slug}:${seasonNo}:${shirt}`);
       const { min, max } = AGEING.graduateAge;
       const gAge = min + Math.floor(unit(`gradage:${name}`) * (max - min + 1 - 1e-9));
       const [g] = await tx<{ id: string }[]>`

@@ -8,6 +8,7 @@ import {
 } from "@autosoccer/contracts";
 import type { Db } from "@autosoccer/db";
 import { clubPosition } from "../finance/settle.ts";
+import { injuredFor } from "../injuries/injuries.ts";
 import { ratedPlayer, seasonRatings } from "../league/careers.ts";
 import { seasonTeamSize, standingRows } from "../league/read.ts";
 import type { PlayerRow } from "../mappers.ts";
@@ -156,6 +157,7 @@ export async function managerFacts(
   const upTo = opts.includeRound ? fixture.round : fixture.round - 1;
   const form = await squadForm(db, fixture.season_id, teamId, upTo);
   const { rows } = await standingRows(db, fixture.season_id);
+  const injured = await injuredFor(db, fixture.season_id, teamId, fixture.round);
   return {
     manager: { name: manager.name, persona: manager.persona, philosophy: manager.philosophy, memory: manager.memory },
     team: { name: team!.name },
@@ -168,6 +170,7 @@ export async function managerFacts(
       overall: p.overall,
       attributes: p.attributes,
       form: form.get(p.id) ?? { matches: 0, starts: 0, goals: 0 },
+      ...(injured.has(p.id) && !opts.includeRound ? { injured: { untilRound: injured.get(p.id)! } } : {}),
     })),
     current: { tactics: parsed?.success ? parsed.data : null, starters: lineup.starters.map((id) => shirt.get(id)!) },
     table: rows.map((r) => ({

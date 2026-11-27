@@ -12,6 +12,7 @@ import {
 import type { Db } from "@autosoccer/db";
 import { Hono } from "hono";
 import { contractJson, notFound } from "../http.ts";
+import { currentInjuries } from "../injuries/injuries.ts";
 import { type PlayerRow, type RevisionRow, type TeamRow, toTeam } from "../mappers.ts";
 import { ratedPlayer, seasonRatings, teamCareers } from "./careers.ts";
 import {
@@ -189,7 +190,9 @@ export function leagueRoutes({ db }: { db: Db }) {
           createdAt: rev.created_at.toISOString(),
         };
     }
+    const injuries = cur ? (await currentInjuries(db, cur.id, t.id)).map(({ teamId: _t, ...i }) => i) : [];
     return contractJson(c, TeamDetailResponse, {
+      injuries,
       team: toTeam(t),
       players,
       manager: mgr ?? null,

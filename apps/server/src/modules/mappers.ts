@@ -46,6 +46,8 @@ export interface PlayerRow {
   development_rate?: number | null;
   retired_season_id?: string | null;
   academy_season_id?: string | null;
+  /** An emergency call-up's season (injury/1). */
+  emergency_season_id?: string | null;
   /** An academy graduate's own starting ratings (founders use the deterministic baseline). */
   base_attributes?: Player["attributes"] | null;
 }

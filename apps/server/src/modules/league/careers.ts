@@ -24,6 +24,7 @@ import {
   type Team,
 } from "@autosoccer/contracts";
 import type { Db } from "@autosoccer/db";
+import { currentInjuries } from "../injuries/injuries.ts";
 import { type PlayerRow, type TeamRow, toPlayer, toTeam } from "../mappers.ts";
 import { ageDeltas, ageIn } from "./ageing.ts";
 import { overallRating, playerAttributes } from "./attributes.ts";
@@ -223,11 +224,15 @@ export async function teamCareers(db: Db, team: Team, alsoPlayerId?: string): Pr
   const [cur] = await db<{ slug: string }[]>`
     select slug from seasons where status <> 'draft' order by created_at desc limit 1`;
   const seasonNo = seasonNumber(cur?.slug ?? "");
+  const [curId] = await db<{ id: string }[]>`select id from seasons where slug = ${cur?.slug ?? ""}`;
+  const hurt = new Map(
+    curId ? (await currentInjuries(db, curId.id, team.id)).map((i) => [i.playerId, i.untilRound]) : [],
+  );
   const named = new Map(
     (
       await db<{ id: string; slug: string; name: string }[]>`
         select id, slug, name from seasons
-        where id = any(${players.flatMap((p) => [p.retired_season_id ?? null, p.academy_season_id ?? null]).filter((x): x is string => !!x)}::uuid[])`
+        where id = any(${players.flatMap((p) => [p.retired_season_id ?? null, p.academy_season_id ?? null, p.emergency_season_id ?? null]).filter((x): x is string => !!x)}::uuid[])`
     ).map((s) => [s.id, { slug: s.slug, name: s.name }]),
   );
   const teamSeasons = await db<{ id: string; slug: string; name: string }[]>`
@@ -295,7 +300,9 @@ export async function teamCareers(db: Db, team: Team, alsoPlayerId?: string): Pr
         shirtNumber: p.shirt_number,
         position: p.position,
         age: p.retired_season_id ? null : ageIn(p.born_season, seasonNo),
-        retired: p.retired_season_id ? (named.get(p.retired_season_id) ?? null) : null,
+        retired: p.retired_season_id && !p.emergency_season_id ? (named.get(p.retired_season_id) ?? null) : null,
+        emergency: p.emergency_season_id ? (named.get(p.emergency_season_id) ?? null) : null,
+        injury: hurt.has(p.id) ? { untilRound: hurt.get(p.id)! } : null,
         graduate: academy ? (named.get(academy) ?? null) : null,
         seasons: (seasonsOf.get(p.id) ?? teamSeasons.map((s) => ({ ...s, team }))).map((s) => {
           const r = snap.get(`${p.id}:${s.id}`);
