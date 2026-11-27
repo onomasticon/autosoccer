@@ -47,21 +47,21 @@ describe("ClubFinances", () => {
   it("shows cash, wages still due and headroom, then earnings and spending by source", async () => {
     render(<ClubFinances finances={active} />);
     const el = screen.getByTestId("club-finances");
-    expect(within(el).getByText("14.35m cr")).toBeTruthy();
-    expect(within(el).getByText("−6.5m cr")).toBeTruthy();
-    expect(within(el).getByText("7.85m cr")).toBeTruthy();
-    expect(within(el).getByRole("row", { name: /Wages −7.8m cr/ })).toBeTruthy();
-    expect(within(el).getByRole("row", { name: /Net 2.4m cr/ })).toBeTruthy();
+    expect(within(el).getByText("Ȼ14.35m")).toBeTruthy();
+    expect(within(el).getByText("−Ȼ6.5m")).toBeTruthy();
+    expect(within(el).getByText("Ȼ7.85m")).toBeTruthy();
+    expect(within(el).getByRole("row", { name: /Wages −Ȼ7.8m/ })).toBeTruthy();
+    expect(within(el).getByRole("row", { name: /Net Ȼ2.4m/ })).toBeTruthy();
     const r = await axe.run(el);
     expect(r.violations.map((v) => v.id)).toEqual([]);
   });
 
   it("before the club's first finance season, explains when money starts", () => {
     render(<ClubFinances finances={{ ...active, active: false, seasons: [], entries: [] }} />);
-    expect(screen.getByTestId("club-finances").textContent).toContain("opening balance of 12m cr");
+    expect(screen.getByTestId("club-finances").textContent).toContain("opening balance of Ȼ12m");
   });
 
   it("formats credits compactly", () => {
-    expect([credits(999), credits(45_000), credits(-1_000_000)]).toEqual(["999 cr", "45k cr", "−1m cr"]);
+    expect([credits(999), credits(45_000), credits(-1_000_000)]).toEqual(["Ȼ999", "Ȼ45k", "−Ȼ1m"]);
   });
 });

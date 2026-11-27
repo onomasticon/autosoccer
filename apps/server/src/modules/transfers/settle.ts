@@ -61,7 +61,7 @@ export async function settleWindow(db: Db, w: WindowRow, faults?: SettleFaults) 
         const available = Number(cash?.b ?? 0);
         if (available < fee)
           throw new DealFailed(
-            `the buying club couldn't pay: ${available.toLocaleString("en-GB")} cr in cash for a ${fee.toLocaleString("en-GB")} cr fee`,
+            `the buying club couldn't pay: Ȼ${available.toLocaleString("en-GB")} in cash for a Ȼ${fee.toLocaleString("en-GB")} fee`,
           );
         const squad = async (team: string) =>
           tx<{ id: string; position: Position; shirt_number: number }[]>`

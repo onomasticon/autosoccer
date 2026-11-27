@@ -26,9 +26,9 @@ describe("finance/1 rules", () => {
     expect([1, 2, 3, 4, 9].map((p) => prizeFor(p))).toEqual([4_000_000, 2_500_000, 1_500_000, 800_000, 800_000]);
     expect([resultIncome(2, 1), resultIncome(1, 1), resultIncome(0, 3)]).toEqual([600_000, 250_000, 0]);
     expect([formatCredits(1_250_000), formatCredits(2_000_000), formatCredits(-450_000)]).toEqual([
-      "1.25m cr",
-      "2m cr",
-      "−450k cr",
+      "Ȼ1.25m",
+      "Ȼ2m",
+      "−Ȼ450k",
     ]);
   });
 });

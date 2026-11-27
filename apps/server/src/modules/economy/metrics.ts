@@ -1,5 +1,5 @@
 /**
- * What the harness measures each season. Units: whole credits (cr), clubs, players, deals.
+ * What the harness measures each season. Units: whole credits (Ȼ), clubs, players, deals.
  */
 import { squadOf, type World } from "./engine.ts";
 import type { LedgerKind, PolicyName } from "./model.ts";

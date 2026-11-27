@@ -28,7 +28,7 @@ export const LEGACY: Ruleset = {
 /**
  * The Phase 2 candidate (#97): finance/3 (sized for 20 clubs) and insolvency/2 (the league lender,
  * compulsory auctions and administration instead of forfeits), with 14-player squads, contracted
- * wages (1–4 seasons) and 1m cr of running costs a season (the calibrated sink; see recovery.md).
+ * wages (1–4 seasons) and Ȼ1m of running costs a season (the calibrated sink; see recovery.md).
  */
 export const CANDIDATE: Ruleset = {
   ...LEGACY,
@@ -105,7 +105,7 @@ export const SCENARIOS: Record<string, Scenario> = {
   baseline: { name: "baseline", description: "Equal opening balance, a mix of policies, every manager available." },
   "low-liquidity": {
     name: "low-liquidity",
-    description: "A thin market: one bid per club and a 1m cr minimum fee.",
+    description: "A thin market: one bid per club and a Ȼ1m minimum fee.",
     maxBids: 1,
     minFee: 1_000_000,
   },

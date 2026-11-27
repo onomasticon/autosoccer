@@ -1,6 +1,6 @@
 /**
  * insolvency/1: when a club goes bankrupt, what happens to its season, and how it is rescued.
- * Fan-facing explanation: docs/platform/bankruptcy.md. Money is whole credits (cr), as in finance/1.
+ * Fan-facing explanation: docs/platform/bankruptcy.md. Money is whole credits (Ȼ), as in finance/1.
  */
 import { RULES } from "../finance/rules.ts";
 

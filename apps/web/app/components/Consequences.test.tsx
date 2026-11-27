@@ -50,8 +50,8 @@ describe("consequences (#80)", () => {
     const { container } = inRouter(<TakeoverCard takeovers={[t]} />);
     const text = screen.getByTestId("takeover-card").textContent!;
     expect(text).toContain("Northgate Comets → Northgate Phoenix");
-    expect(text).toContain("1.59m cr of wages due with 904k cr available");
-    expect(text).toContain("new owners put in 11.1m cr");
+    expect(text).toContain("Ȼ1.59m of wages due with Ȼ904k available");
+    expect(text).toContain("new owners put in Ȼ11.1m");
     expect((await axe.run(container)).violations.map((v) => v.id)).toEqual([]);
   });
 
@@ -73,7 +73,7 @@ describe("consequences (#80)", () => {
         net: -2_000_000,
       }),
     ).toBe(
-      "Season 2: earned 7.2m cr (league distribution 6m cr, results 1.2m cr); spent 9.2m cr (wages 8.7m cr, transfer fees 500k cr); down 2m cr.",
+      "Season 2: earned Ȼ7.2m (league distribution Ȼ6m, results Ȼ1.2m); spent Ȼ9.2m (wages Ȼ8.7m, transfer fees Ȼ500k); down Ȼ2m.",
     );
   });
 });

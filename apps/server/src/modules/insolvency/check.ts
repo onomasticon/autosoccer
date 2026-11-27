@@ -81,7 +81,7 @@ export async function checkSolvency(db: Db, seasonId: string, round: number): Pr
       const due = (opened ? 0 : RULES.opening) + (paid ? 0 : RULES.distribution);
       const wages = (await payrollFor(t, seasonId, c.id)).perRound;
       if (balance + due - wages >= 0) continue;
-      const reason = `Couldn't pay round ${round} wages: ${wages.toLocaleString("en-GB")} cr due with ${(balance + due).toLocaleString("en-GB")} cr available.`;
+      const reason = `Couldn't pay round ${round} wages: Ȼ${wages.toLocaleString("en-GB")} due with Ȼ${(balance + due).toLocaleString("en-GB")} available.`;
       const r = await tx`
         insert into club_withdrawals (season_id, team_id, effective_round, rule, reason, basis)
         values (${seasonId}, ${c.id}, ${round}, ${rule}, ${reason},

@@ -5,7 +5,7 @@
  * season), so old walkovers stay exactly as they were.
  *
  * Deterministic pure rules, shared by the economy harness (#98) and, once integrated, by settlement.
- * Money is whole credits (cr), never real USD. The numbers are a starting point for calibration in
+ * Money is whole credits (Ȼ), never real USD. The numbers are a starting point for calibration in
  * the harness, not final values.
  *
  * The league lender is the league itself: one deterministic counterparty with three facilities.

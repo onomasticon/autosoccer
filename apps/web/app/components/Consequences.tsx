@@ -131,7 +131,7 @@ export function PlayerTransfers({ transfers }: { transfers: DealView[] }) {
   );
 }
 
-/** "Season 2: earned 9.6m cr (distribution 6m, results 1.2m, prize 2.4m); spent 9.2m cr (wages 8.7m, transfers 500k)." */
+/** "Season 2: earned Ȼ9.6m (distribution 6m, results 1.2m, prize 2.4m); spent Ȼ9.2m (wages 8.7m, transfers 500k)." */
 export function moneyStory(s: {
   season: { name: string };
   bySource: Record<"distribution" | "results" | "prize" | "payroll" | "transfers" | "takeover", number>;

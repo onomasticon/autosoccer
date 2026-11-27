@@ -51,7 +51,7 @@ Every seller keeps its two best players unless offered 2× the guide fee. A sell
 
 ### What it measures
 
-All amounts are whole credits (cr). Distributions across seeds are reported as the median, with the 10th–90th percentile range.
+All amounts are whole credits (Ȼ). Distributions across seeds are reported as the median, with the 10th–90th percentile range.
 
 - **Concentration.** The Gini coefficient of cash, the richest quarter's share, and cash by final position.
 - **Strategy and position.** Profitability by strategy and by final position.
@@ -107,7 +107,7 @@ A candidate ruleset for the Phase 2 league must, at 20 clubs × 100 seasons on b
 These are with the recalibrated surrogate ([economy-surrogate.md](economy-surrogate.md)). Candidate rules are compared in [recovery.md](recovery.md).
 
 - **No invariants fail.** The forfeit mechanism doesn't violate legacy's own promises, because legacy makes none about forfeits.
-- **Clubs forfeit regularly at 20 clubs.** In baseline, 51 forfeits and takeovers in 10,000 club-seasons (5 runs × 100 seasons × 20 clubs), with 605m cr of free rescue capital. With low opening cash this rises to 130. On held-out seeds the figures are 44 and 113. finance/2 was sized for ten clubs, and with twenty the bottom half bleeds slowly. This is the case for #97.
+- **Clubs forfeit regularly at 20 clubs.** In baseline, 51 forfeits and takeovers in 10,000 club-seasons (5 runs × 100 seasons × 20 clubs), with Ȼ605m of free rescue capital. With low opening cash this rises to 130. On held-out seeds the figures are 44 and 113. finance/2 was sized for ten clubs, and with twenty the bottom half bleeds slowly. This is the case for #97.
 - **The market is almost illiquid.** About 1.6% of bids are accepted, 83 deals in 500 seasons, which matches the lifecycle run (2 of 41 bids completed).
 - **Talent drifts down.** The average overall rating falls from 66.6 to 63 over 100 seasons. Academy graduates start 7 points below their baseline, and decline outpaces growth. Replacement supply (#96) needs calibrating.
 - **Competition is open.** There are 19 distinct champions per run, the longest streak is 4 titles (3–7), and median mobility is 0.39.
