@@ -12,9 +12,10 @@
  * environment (run it through the credential wrappers). Results go to out/models/qualification.json.
  */
 import { mkdirSync, writeFileSync } from "node:fs";
-import { openAiCompatible } from "../apps/server/src/modules/models/gateway.ts";
+import type { LlmClient } from "../apps/server/src/modules/agents/llm.ts";
+import { llmForModel } from "../apps/server/src/modules/models/gateway.ts";
 import { type MockKind, mockTransport, qualify } from "../apps/server/src/modules/models/qualify.ts";
-import { checkRegistry, PROVIDERS, projectSpend, REGISTRY } from "../apps/server/src/modules/models/registry.ts";
+import { checkRegistry, projectSpend, REGISTRY } from "../apps/server/src/modules/models/registry.ts";
 
 const [cmd = "list"] = process.argv
   .slice(2)
@@ -29,7 +30,7 @@ const pick = () => {
 if (cmd === "list") {
   for (const m of REGISTRY)
     console.log(
-      `${m.status.padEnd(14)} ${m.slug.padEnd(30)} ${m.apiModelId.padEnd(24)} ${m.route.padEnd(10)} pin:${m.pinning.padEnd(8)} ${m.structuredOutput.padEnd(11)} $${m.price.input}/$${m.price.output} (${m.price.source})${m.notes ? `  — ${m.notes}` : ""}`,
+      `${m.status.padEnd(14)} ${m.slug.padEnd(30)} ${m.apiModelId.padEnd(24)} ${(m.route === "openrouter" ? `OR→${m.host?.name}` : "direct").padEnd(22)} pin:${m.pinning.padEnd(8)} ${m.structuredOutput.padEnd(11)} $${m.price.input}/$${m.price.output} (${m.price.source})${m.notes ? `  — ${m.notes}` : ""}`,
     );
 } else if (cmd === "check") {
   const problems = checkRegistry();
@@ -59,17 +60,16 @@ if (cmd === "list") {
   const cap = Math.round((Number(arg("spend-cap-usd", "1")) * 1e6) / Math.max(1, models.length));
   const results = [];
   for (const spec of models) {
-    let transport: ReturnType<typeof mockTransport> | ReturnType<typeof openAiCompatible>;
+    let client: LlmClient | ReturnType<typeof mockTransport>;
     if (live) {
-      const p = PROVIDERS[spec.route === "openrouter" ? "meta" : spec.provider];
-      const key = process.env[p.keyEnv];
-      if (!key) {
-        console.error(`${spec.slug}: ${p.keyEnv} is not set; skipped`);
+      try {
+        client = llmForModel(spec); // direct for OpenAI/Anthropic; OpenRouter with the pinned host otherwise
+      } catch (e) {
+        console.error(`${(e as Error).message}; skipped`);
         continue;
       }
-      transport = openAiCompatible({ baseUrl: p.baseUrl, apiKey: key });
-    } else transport = mockTransport(arg("mock", "good") as MockKind);
-    const q = await qualify(spec, transport, { reps: Number(arg("reps", "3")), spendCapMicroUsd: cap, live });
+    } else client = mockTransport(arg("mock", "good") as MockKind);
+    const q = await qualify(spec, client, { reps: Number(arg("reps", "3")), spendCapMicroUsd: cap, live });
     results.push(q);
     console.log(
       `${q.qualified ? "PASS" : "FAIL"} ${spec.slug.padEnd(30)} ${(q.passRate * 100).toFixed(0)}%  $${(q.spentMicroUsd / 1e6).toFixed(4)}  ${live ? "live" : `mock:${arg("mock", "good")}`}${q.reasons.length ? `  ${q.reasons.join("; ")}` : ""}`,

@@ -26,7 +26,14 @@ const Env = z.object({
   /** "anthropic" calls Claude; "offline" uses the deterministic rule-based stand-in. Default: anthropic if a key is set. */
   LLM_PROVIDER: z.enum(["anthropic", "offline"]).optional(),
   MANAGER_MODEL: z.string().default("claude-opus-5-5"),
-  EDITORIAL_MODEL: z.string().default("claude-opus-5-5"),
+  /**
+   * League functions (the newsroom: match reports, previews, league news) always run on Anthropic,
+   * called direct. Only the clubs' managers use other providers (models/registry.ts).
+   */
+  EDITORIAL_MODEL: z
+    .string()
+    .regex(/^claude-[a-z0-9-]+$/, "league functions run on Anthropic: EDITORIAL_MODEL must be a Claude model id")
+    .default("claude-opus-5-5"),
   /** Run the round scheduler inside the worker process (leader-elected across workers). */
   SCHEDULER_ENABLED: z.enum(["true", "false"]).default("true"),
   SCHEDULER_INTERVAL_MS: z.coerce.number().int().positive().default(5000),

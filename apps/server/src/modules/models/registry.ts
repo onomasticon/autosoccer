@@ -10,8 +10,10 @@
  *  - candidate: documented, callable in principle, awaiting live qualification;
  *  - needs-approval: a substitution or a doubtful choice that the operator must approve first;
  *  - reserve: not allocated unless a candidate fails qualification.
- * Endpoint base URLs are the providers' documented OpenAI-compatible endpoints from memory, not
- * re-verified on that date (`endpointVerified: false`); qualification is what confirms them.
+ * Routing: OpenAI and Anthropic models are called directly on their own APIs. Every other model goes
+ * through OpenRouter, pinned to one endpoint (`host`, checked against OpenRouter's endpoint list on
+ * 2026-11-27: the lab's own endpoint wherever OpenRouter offers one) with fallbacks disabled, and an
+ * answer served by any other host is rejected. One OpenRouter key covers them all.
  */
 
 export type Provider =
@@ -35,8 +37,13 @@ export interface ModelSpec {
   /** The exact model id sent to the API. */
   apiModelId: string;
   openRouterId: string | null;
-  /** How it's reached: the provider's own API, or OpenRouter when the provider has no direct route. */
+  /**
+   * How it's reached: OpenAI and Anthropic models go direct to their own APIs; every other model goes
+   * through OpenRouter, pinned to one host (`host`) with fallbacks off, so the same weights answer every call.
+   */
   route: "direct" | "openrouter";
+  /** OpenRouter endpoint the model is pinned to (route "openrouter" only): provider.order tag and display name. */
+  host?: { tag: string; name: string };
   /** snapshot: the id is pinned; alias: it may move to a newer model; unknown: not documented. */
   pinning: "snapshot" | "alias" | "unknown";
   structuredOutput: "json_schema" | "json_mode";
@@ -49,6 +56,9 @@ export interface ModelSpec {
   sources: string[];
   notes?: string;
 }
+
+/** The single gateway for every model that isn't OpenAI's or Anthropic's. */
+export const OPENROUTER = { baseUrl: "https://openrouter.ai/api/v1", keyEnv: "OPENROUTER_API_KEY" } as const;
 
 export const PROVIDERS: Record<Provider, { name: string; baseUrl: string; keyEnv: string; endpointVerified: boolean }> =
   {
@@ -229,6 +239,8 @@ export const REGISTRY: ModelSpec[] = [
     provider: "google",
     apiModelId: "gemini-4-argon",
     openRouterId: "google/gemini-4-argon",
+    route: "openrouter",
+    host: { tag: "google-ai-studio", name: "Google AI Studio" },
     pinning: "unknown",
     structuredOutput: "json_schema",
     contextWindow: 1_000_000,
@@ -242,6 +254,8 @@ export const REGISTRY: ModelSpec[] = [
     provider: "google",
     apiModelId: "gemini-4-neon",
     openRouterId: "google/gemini-4-neon",
+    route: "openrouter",
+    host: { tag: "google-ai-studio", name: "Google AI Studio" },
     pinning: "unknown",
     structuredOutput: "json_schema",
     contextWindow: 1_000_000,
@@ -256,6 +270,8 @@ export const REGISTRY: ModelSpec[] = [
     provider: "mistral",
     apiModelId: "mistral-large-4-0",
     openRouterId: "mistralai/mistral-large-4-0",
+    route: "openrouter",
+    host: { tag: "mistral/zdr", name: "Mistral" },
     pinning: "snapshot",
     structuredOutput: "json_schema",
     contextWindow: 1_000_000,
@@ -269,6 +285,8 @@ export const REGISTRY: ModelSpec[] = [
     provider: "mistral",
     apiModelId: "mistral-small-2603",
     openRouterId: "mistralai/mistral-small-2603",
+    route: "openrouter",
+    host: { tag: "mistral/zdr", name: "Mistral" },
     pinning: "unknown",
     structuredOutput: "json_schema",
     contextWindow: 262_000,
@@ -283,32 +301,40 @@ export const REGISTRY: ModelSpec[] = [
     provider: "deepseek",
     apiModelId: "deepseek-v4-pro",
     openRouterId: "deepseek/deepseek-v4-pro-0813",
+    route: "openrouter",
+    host: { tag: "deepseek", name: "DeepSeek" },
     pinning: "alias",
     structuredOutput: "json_mode",
     contextWindow: 1_000_000,
     price: { input: 1.32, output: 3.96, source: "first-party", note: "peak price; off-peak $0.66/$1.98" },
     status: "candidate",
     sources: ["https://api-docs.deepseek.com/quick_start/pricing"],
-    notes: "Currently serves V4-Pro-0813; record the served version from each response.",
+    notes:
+      "Currently serves V4-Pro-0813; record the served version from each response. DeepSeek's own endpoint has no JSON-schema mode on OpenRouter: JSON mode, validated here.",
   }),
   m({
     slug: "deepseek/deepseek-flash",
     provider: "deepseek",
     apiModelId: "deepseek-flash",
     openRouterId: "deepseek/deepseek-v4.1-flash-1017",
+    route: "openrouter",
+    host: { tag: "deepseek", name: "DeepSeek" },
     pinning: "alias",
     structuredOutput: "json_mode",
     contextWindow: 1_000_000,
     price: { input: 0.3, output: 1.2, source: "first-party", note: "peak price; off-peak $0.15/$0.60" },
     status: "candidate",
     sources: ["https://api-docs.deepseek.com/quick_start/pricing"],
-    notes: "Currently serves V4.1-Flash-1017.",
+    notes:
+      "Currently serves V4.1-Flash-1017. DeepSeek's own endpoint has no JSON-schema mode on OpenRouter: JSON mode, validated here.",
   }),
   m({
     slug: "alibaba/qwen4-max",
     provider: "alibaba",
     apiModelId: "qwen4-max",
     openRouterId: "qwen/qwen4-max",
+    route: "openrouter",
+    host: { tag: "alibaba", name: "Alibaba" },
     pinning: "unknown",
     structuredOutput: "json_schema",
     contextWindow: 1_000_000,
@@ -324,6 +350,8 @@ export const REGISTRY: ModelSpec[] = [
     provider: "alibaba",
     apiModelId: "qwen3.8-max-0902",
     openRouterId: "qwen/qwen3.8-max-0902",
+    route: "openrouter",
+    host: { tag: "alibaba", name: "Alibaba" },
     pinning: "snapshot",
     structuredOutput: "json_schema",
     contextWindow: 1_000_000,
@@ -335,9 +363,10 @@ export const REGISTRY: ModelSpec[] = [
   m({
     slug: "meta/muse-spark-1.3",
     provider: "meta",
-    apiModelId: "meta/muse-spark-1.3",
+    apiModelId: "muse-spark-1.3",
     openRouterId: "meta/muse-spark-1.3",
     route: "openrouter",
+    host: { tag: "meta", name: "Meta" },
     pinning: "snapshot",
     structuredOutput: "json_schema",
     contextWindow: 1_000_000,
@@ -350,22 +379,25 @@ export const REGISTRY: ModelSpec[] = [
   m({
     slug: "meta/muse-ember-1.0",
     provider: "meta",
-    apiModelId: "meta/muse-ember-1.0",
-    openRouterId: "meta/muse-ember-1.0",
+    apiModelId: "muse-ember-1.0",
+    openRouterId: "meta/muse-ember",
     route: "openrouter",
+    host: { tag: "meta", name: "Meta" },
     pinning: "snapshot",
     structuredOutput: "json_schema",
     contextWindow: 1_000_000,
-    price: { input: 1.25, output: 4.25, source: "openrouter", note: "price not verified; assumed equal to Spark" },
+    price: { input: 0.1, output: 0.5, source: "openrouter" },
     status: "needs-approval",
     sources: ["https://dev.meta.ai/docs/models.md"],
-    notes: "Avoids the preview Muse Wonder (country-limited). Id and price not confirmed on OpenRouter.",
+    notes: "Avoids the preview Muse Wonder (country-limited).",
   }),
   m({
     slug: "xai/grok-4.7",
     provider: "xai",
     apiModelId: "grok-4.7",
     openRouterId: "x-ai/grok-4.7",
+    route: "openrouter",
+    host: { tag: "xai", name: "xAI" },
     pinning: "unknown",
     structuredOutput: "json_schema",
     contextWindow: 500_000,
@@ -379,6 +411,8 @@ export const REGISTRY: ModelSpec[] = [
     provider: "cohere",
     apiModelId: "command-a-plus-05-2026",
     openRouterId: "cohere/command-a-plus",
+    route: "openrouter",
+    host: { tag: "cohere/fp8", name: "Cohere" },
     pinning: "snapshot",
     structuredOutput: "json_schema",
     contextWindow: 128_000,
@@ -392,15 +426,12 @@ export const REGISTRY: ModelSpec[] = [
     provider: "moonshot",
     apiModelId: "kimi-k3.1-pro",
     openRouterId: "moonshotai/kimi-k3.1-pro",
+    route: "openrouter",
+    host: { tag: "moonshotai/mxfp4", name: "Moonshot AI" },
     pinning: "unknown",
     structuredOutput: "json_schema",
     contextWindow: 1_000_000,
-    price: {
-      input: 4,
-      output: 20,
-      source: "openrouter",
-      note: "OpenRouter lists $2/$10 and $4/$20 endpoints; higher used",
-    },
+    price: { input: 2, output: 10, source: "openrouter", note: "Moonshot AI's own standard endpoint (not highspeed)" },
     status: "candidate",
     sources: ["https://platform.kimi.ai/docs/pricing/chat", OR],
   }),
@@ -409,6 +440,8 @@ export const REGISTRY: ModelSpec[] = [
     provider: "zai",
     apiModelId: "glm-5.3",
     openRouterId: "z-ai/glm-5.3",
+    route: "openrouter",
+    host: { tag: "z-ai/fp8", name: "Z.AI" },
     pinning: "unknown",
     structuredOutput: "json_schema",
     contextWindow: 1_000_000,
@@ -422,21 +455,28 @@ export const REGISTRY: ModelSpec[] = [
     provider: "minimax",
     apiModelId: "MiniMax-M3",
     openRouterId: "minimax/minimax-m3",
+    route: "openrouter",
+    host: { tag: "parasail/fp8", name: "Parasail" },
     pinning: "unknown",
-    structuredOutput: "json_schema",
+    structuredOutput: "json_mode",
     contextWindow: 1_000_000,
     price: {
-      input: 0.6,
-      output: 2.4,
-      source: "first-party",
-      note: "list price; a '50% discount' to $0.30/$1.20 is advertised",
+      input: 0.3,
+      output: 1.2,
+      source: "openrouter",
+      note: "Parasail fp8; MiniMax has no first-party endpoint on OpenRouter",
     },
     status: "reserve",
+    notes:
+      "No first-party MiniMax endpoint on OpenRouter: pinned to Parasail (fp8). Needs approval if the reserve is ever used.",
     sources: ["https://platform.minimax.io/docs/guides/pricing"],
   }),
 ];
 
 export const modelBySlug = (slug: string) => REGISTRY.find((x) => x.slug === slug) ?? null;
+
+/** The model id sent on the wire: OpenRouter's id when routed through it, else the provider's own. */
+export const requestModel = (spec: ModelSpec) => (spec.route === "openrouter" ? spec.openRouterId! : spec.apiModelId);
 
 /** Micro-USD for a call: tokens × $/MTok is micro-USD exactly. */
 export const costOf = (spec: ModelSpec, inputTokens: number, outputTokens: number) =>
@@ -461,6 +501,12 @@ export function checkRegistry(reg: ModelSpec[] = REGISTRY): string[] {
     ids.add(key);
   }
   if (active.length !== 20) out.push(`${active.length} allocated models for 20 clubs`);
+  for (const x of reg) {
+    const direct = x.provider === "openai" || x.provider === "anthropic";
+    if (direct && x.route !== "direct") out.push(`${x.slug} must go direct`);
+    if (!direct && x.route !== "openrouter") out.push(`${x.slug} must route through OpenRouter`);
+    if (x.route === "openrouter" && (!x.host || !x.openRouterId)) out.push(`${x.slug} has no pinned OpenRouter host`);
+  }
   return out;
 }
 

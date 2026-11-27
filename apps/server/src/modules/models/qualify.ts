@@ -4,7 +4,7 @@
  * Passing is operational: valid and legal answers, recovered errors, no injected actions, inside
  * the spend cap. Sporting skill isn't scored.
  */
-import { LlmOutputError, LlmRefusalError } from "../agents/llm.ts";
+import { type LlmClient, LlmOutputError, LlmRefusalError } from "../agents/llm.ts";
 import {
   type ChatBody,
   type ChatReply,
@@ -58,14 +58,20 @@ export interface QualifyOptions {
 export const PASS_RATE = 0.9;
 export const SCENARIO_RATE = 2 / 3;
 
-export async function qualify(spec: ModelSpec, transport: Transport, opts: QualifyOptions): Promise<Qualification> {
+/** Qualifies one model through a transport (wrapped in the gateway) or a ready client (e.g. llmForModel). */
+export async function qualify(
+  spec: ModelSpec,
+  via: Transport | LlmClient,
+  opts: QualifyOptions,
+): Promise<Qualification> {
   const reps = opts.reps ?? 3;
   const now = opts.now ?? (() => performance.now());
-  const llm = new GatewayLlm(spec, transport, {
-    timeoutMs: opts.timeoutMs ?? 120_000,
-    maxRetries: 2,
-    backoffMs: () => 0,
-  });
+  const llm: LlmClient & { lastAttempts?: number; lastRepairs?: number } =
+    "complete" in via
+      ? via
+      : new GatewayLlm(spec, via, { timeoutMs: opts.timeoutMs ?? 120_000, maxRetries: 2, backoffMs: () => 0 });
+  const attempts = () => llm.lastAttempts ?? 1;
+  const repairs = () => llm.lastRepairs ?? 0;
   const trials: Trial[] = [];
   let spent = 0;
   const worst = worstCaseMicroUsd(spec, 6_000, 4_000) * 2; // a repair turn can double a call
@@ -106,8 +112,8 @@ export async function qualify(spec: ModelSpec, transport: Transport, opts: Quali
             context,
             maxTokens: 4000,
           });
-          trial.attempts += llm.lastAttempts;
-          trial.repairs += llm.lastRepairs;
+          trial.attempts += attempts();
+          trial.repairs += repairs();
           trial.inputTokens += r.inputTokens;
           trial.outputTokens += r.outputTokens;
           if (k === 0 && sc.rejectFirst) {
@@ -120,8 +126,8 @@ export async function qualify(spec: ModelSpec, transport: Transport, opts: Quali
           trial.detail = illegal ?? "ok";
         }
       } catch (e) {
-        trial.attempts += llm.lastAttempts;
-        trial.repairs += llm.lastRepairs;
+        trial.attempts += attempts();
+        trial.repairs += repairs();
         const usage = (e as { usage?: { inputTokens: number; outputTokens: number } }).usage;
         if (usage) {
           trial.inputTokens += usage.inputTokens;

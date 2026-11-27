@@ -10,7 +10,11 @@ export function managerLlm(config: Pick<ServerConfig, "LLM_PROVIDER" | "MANAGER_
     : offlineManagerLlm(config.MANAGER_MODEL);
 }
 
-/** The LLM used by the AI journalists, from configuration. */
+/**
+ * The LLM used by league functions (the AI journalists and league news): always Anthropic, called
+ * direct through its SDK, never the multi-provider manager registry. EDITORIAL_MODEL is validated as
+ * a Claude model in config; without a key the free offline template writer runs instead.
+ */
 export function editorialLlm(config: Pick<ServerConfig, "LLM_PROVIDER" | "EDITORIAL_MODEL">): LlmClient {
   return config.LLM_PROVIDER === "anthropic"
     ? new AnthropicLlm(config.EDITORIAL_MODEL)

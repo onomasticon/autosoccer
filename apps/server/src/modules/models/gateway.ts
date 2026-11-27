@@ -17,8 +17,15 @@
  * No calls are made from page rendering or simulator ticks: the gateway is only reachable from jobs.
  */
 import { z } from "zod";
-import { type LlmClient, LlmOutputError, LlmRefusalError, type LlmRequest, type LlmResponse } from "../agents/llm.ts";
-import type { ModelSpec } from "./registry.ts";
+import {
+  AnthropicLlm,
+  type LlmClient,
+  LlmOutputError,
+  LlmRefusalError,
+  type LlmRequest,
+  type LlmResponse,
+} from "../agents/llm.ts";
+import { type ModelSpec, OPENROUTER, PROVIDERS, requestModel } from "./registry.ts";
 
 export class ModelUnavailableError extends Error {
   constructor(
@@ -52,6 +59,8 @@ export interface ChatBody {
   messages: Array<{ role: "system" | "user" | "assistant"; content: string }>;
   max_tokens: number;
   temperature?: number;
+  /** OpenRouter routing: one pinned host, no fallback to other hosts. */
+  provider?: { order: string[]; allow_fallbacks: false; require_parameters: boolean };
   response_format?:
     | { type: "json_object" }
     | { type: "json_schema"; json_schema: { name: string; strict: boolean; schema: unknown } };
@@ -62,6 +71,8 @@ export interface ChatReply {
   finishReason: string | null;
   inputTokens: number;
   outputTokens: number;
+  /** The host that actually served the call, when the gateway reports it (OpenRouter does). */
+  servedBy?: string;
 }
 
 /** OpenAI-compatible `POST {baseUrl}/chat/completions`, with an injectable fetch for tests. */
@@ -87,6 +98,7 @@ export function openAiCompatible(opts: {
       }
       if (!res.ok) throw new TransportError(res.status, `HTTP ${res.status}: ${(await res.text()).slice(0, 200)}`);
       const j = (await res.json()) as {
+        provider?: string;
         choices?: Array<{ message?: { content?: string | null; refusal?: string | null }; finish_reason?: string }>;
         usage?: { prompt_tokens?: number; completion_tokens?: number };
       };
@@ -97,6 +109,7 @@ export function openAiCompatible(opts: {
         finishReason: choice?.finish_reason ?? null,
         inputTokens: j.usage?.prompt_tokens ?? 0,
         outputTokens: j.usage?.completion_tokens ?? 0,
+        ...(j.provider ? { servedBy: j.provider } : {}),
       };
     },
   };
@@ -148,7 +161,16 @@ export class GatewayLlm implements LlmClient {
     this.lastRepairs = 0;
     for (let repairs = 0; ; repairs++) {
       const reply = await this.call({
-        model: this.spec.apiModelId,
+        model: requestModel(this.spec),
+        ...(this.spec.route === "openrouter" && this.spec.host
+          ? {
+              provider: {
+                order: [this.spec.host.tag],
+                allow_fallbacks: false,
+                require_parameters: structured === "json_schema",
+              },
+            }
+          : {}),
         messages,
         max_tokens: req.maxTokens ?? 4000,
         ...(this.opts.temperature !== undefined ? { temperature: this.opts.temperature } : {}),
@@ -160,6 +182,13 @@ export class GatewayLlm implements LlmClient {
       });
       input += reply.inputTokens;
       output += reply.outputTokens;
+      // Same weights, same host, every call: an answer from any other host is refused, not used.
+      if (this.spec.host && reply.servedBy && reply.servedBy !== this.spec.host.name)
+        throw new ModelUnavailableError(
+          this.model,
+          `served by ${reply.servedBy}, not the pinned host ${this.spec.host.name}`,
+          this.lastAttempts,
+        );
       const problem = this.check(reply, req.schema);
       if (problem.ok)
         return {
@@ -226,4 +255,29 @@ export class GatewayLlm implements LlmClient {
     }
     throw new ModelUnavailableError(this.model, last?.message ?? "unknown error", this.lastAttempts);
   }
+}
+
+/**
+ * The client a manager model is called through. Anthropic: its SDK, direct (structured output, the
+ * production client). OpenAI: direct, OpenAI-compatible. Everyone else: OpenRouter, pinned host.
+ * Keys come from the environment (run through the credential wrappers); a missing key is an error.
+ */
+export function llmForModel(
+  spec: ModelSpec,
+  env: Record<string, string | undefined> = process.env,
+  opts: GatewayOptions & { fetch?: typeof fetch } = {},
+): LlmClient {
+  if (spec.route === "direct" && spec.provider === "anthropic") {
+    const inner = new AnthropicLlm(spec.apiModelId);
+    return {
+      provider: "anthropic",
+      model: spec.slug,
+      complete: async (req) => ({ ...(await inner.complete(req)), model: spec.slug }),
+    };
+  }
+  const key = spec.route === "openrouter" ? OPENROUTER.keyEnv : PROVIDERS[spec.provider].keyEnv;
+  const apiKey = env[key];
+  if (!apiKey) throw new Error(`${spec.slug}: ${key} is not set`);
+  const baseUrl = spec.route === "openrouter" ? OPENROUTER.baseUrl : PROVIDERS[spec.provider].baseUrl;
+  return new GatewayLlm(spec, openAiCompatible({ baseUrl, apiKey, fetch: opts.fetch }), opts);
 }
