@@ -31,7 +31,7 @@ export async function seedTeams(db: Db, teams: readonly SeedTeam[] = SEED_TEAMS)
         on conflict (team_id) where from_season_id is null do nothing`;
       for (const p of t.players) {
         await tx`insert into players (team_id, name, shirt_number, position)
-          values (${row!.id}, ${p.name}, ${p.number}, ${p.position}) on conflict (team_id, shirt_number) do nothing`;
+          values (${row!.id}, ${p.name}, ${p.number}, ${p.position}) on conflict (team_id, shirt_number) where retired_season_id is null do nothing`;
       }
     }
   });
@@ -52,7 +52,7 @@ export async function syncSquads(db: Db, teams: readonly SeedTeam[] = ALL_TEAMS)
       const r = await db`insert into players (team_id, name, shirt_number, position)
         select ${row.id}, ${p.name}, ${p.number}, ${p.position}
         where not exists (select 1 from players where name = ${p.name})
-        on conflict (team_id, shirt_number) do nothing`;
+        on conflict (team_id, shirt_number) where retired_season_id is null do nothing`;
       added += r.count;
     }
   }
@@ -94,7 +94,7 @@ export async function registerSquads(db: Db, seasonId: string): Promise<number> 
   const r = await db`
     insert into player_registrations (season_id, player_id, team_id)
     select st.season_id, p.id, p.team_id from season_teams st join players p on p.team_id = st.team_id
-    where st.season_id = ${seasonId}
+    where st.season_id = ${seasonId} and p.retired_season_id is null
     on conflict (season_id, player_id) do nothing`;
   return r.count;
 }

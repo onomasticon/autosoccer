@@ -56,6 +56,8 @@ const NEWS_BRIEF: Record<NewsTopic, string> = {
     "Write the transfer window round-up: the deals completed (biggest first) with their fees, and how busy the market was.",
   finances:
     "Write the story of the money each club takes into the season: who has the most, the wage bills, and who has the least room for error.",
+  retirements:
+    "Write the story of the players who have retired: who, at what age, their record in the league, and the academy graduates who replace them.",
 };
 const NEWS_RULES =
   "Report it as news from inside the league. Never use software words such as update, patch, release, feature, version, rule id, database or simulator setting. Don't invent quotes, owners' names, reasons or numbers that aren't in the facts.";

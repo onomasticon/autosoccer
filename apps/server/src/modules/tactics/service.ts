@@ -19,7 +19,9 @@ export interface CreateRevisionInput extends RevisionInput {
  * are never selected for a match. Versions are allocated under a per-team advisory lock.
  */
 export async function createRevision(db: Db, input: CreateRevisionInput): Promise<TacticalRevision> {
-  const squad = (await db<PlayerRow[]>`select * from players where team_id = ${input.teamId}`).map(toPlayer);
+  const squad = (
+    await db<PlayerRow[]>`select * from players where retired_season_id is null and team_id = ${input.teamId}`
+  ).map(toPlayer);
   const size = await seasonTeamSize(db, input.seasonId);
   const v = validateRevision(squad, input, size);
   const lineup: Lineup = v.lineup ?? { starters: padStarters(input.starters, size), reserves: [] };

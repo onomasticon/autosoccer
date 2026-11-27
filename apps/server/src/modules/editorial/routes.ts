@@ -35,7 +35,7 @@ interface ArticleRow {
   season_id: string;
   slug: string;
   kind: "match_report" | "preview" | "analysis" | "column" | "news";
-  topic: "champions" | "transfers" | "finances" | "withdrawal" | "takeover" | "league" | null;
+  topic: "champions" | "transfers" | "finances" | "withdrawal" | "takeover" | "league" | "retirements" | null;
   priority: number;
   status: "draft" | "published" | "rejected";
   editorial_agent_id: string;

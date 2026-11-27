@@ -111,9 +111,11 @@ async function storyFor(db: Db, l: Loaded, team: Team): Promise<ManagerStory> {
   const run = (purpose: RunRow["purpose"], fixtureId: string) =>
     runs.find((r) => r.purpose === purpose && r.fixture_id === fixtureId);
   const players = new Map(
-    (await db<PlayerLite[]>`select id, name, shirt_number, position from players where team_id = ${team.id}`).map(
-      (p) => [p.id, { id: p.id, name: p.name, shirtNumber: p.shirt_number, position: p.position }],
-    ),
+    (
+      await db<
+        PlayerLite[]
+      >`select id, name, shirt_number, position from players where retired_season_id is null and team_id = ${team.id}`
+    ).map((p) => [p.id, { id: p.id, name: p.name, shirtNumber: p.shirt_number, position: p.position }]),
   );
 
   const mine = l.fixtures.filter((f) => f.homeTeamId === team.id || f.awayTeamId === team.id);

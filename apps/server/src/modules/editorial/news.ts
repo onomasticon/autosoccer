@@ -11,6 +11,7 @@
  *  - withdrawal: a club declared bankrupt mid-season, and what happens to its fixtures.
  *  - transfers:  the transfer window round-up, every completed deal with its fee.
  *  - finances:   what each club takes into the season: cash and the wage bill.
+ *  - retirements: players who retired after last season, and the academy graduates replacing them.
  *
  * enqueueNews sweeps for these on every scheduler tick (idempotent job keys), looking only at the
  * newest two seasons, so a deploy never back-fills a league's whole history.
@@ -53,6 +54,7 @@ export const NEWS_PRIORITY: Record<NewsTopic, number> = {
   takeover: 80,
   transfers: 70,
   finances: 55,
+  retirements: 60,
 };
 
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
@@ -499,6 +501,72 @@ async function finances(db: Db, s: SeasonRow): Promise<NewsStory | null> {
   };
 }
 
+const POSITION: Record<string, string> = { GK: "goalkeeper", DF: "defender", MF: "midfielder", FW: "forward" };
+
+async function retirements(db: Db, s: SeasonRow): Promise<NewsStory | null> {
+  const prev = await previousSeason(db, s);
+  if (!prev) return null;
+  const seasonNo = Number(/(\d+)$/.exec(s.slug)?.[1] ?? Number.NaN);
+  const gone = await db<{ id: string; name: string; team_id: string; born_season: number | null; position: string }[]>`
+    select id, name, team_id, born_season, position from players where retired_season_id = ${prev.id} order by team_id, name`;
+  if (!gone.length) return null;
+  const grads = await db<
+    { id: string; name: string; team_id: string; born_season: number | null; position: string; shirt_number: number }[]
+  >`
+    select id, name, team_id, born_season, position, shirt_number from players where academy_season_id = ${prev.id}
+    order by team_id, shirt_number`;
+  const teams = await teamsAsOf(db, prev.id);
+  const now = await teamsAsOf(db, s.id);
+  const record = async (playerId: string) =>
+    (
+      await db<{ seasons: number; goals: number }[]>`
+        select (select count(*)::int from player_registrations r where r.player_id = ${playerId}) as seasons,
+          (select count(*)::int from matches m cross join lateral jsonb_array_elements(m.events) e
+           where m.status = 'completed' and e->>'type' = 'goal' and e->>'scorerId' = ${playerId}
+             and coalesce((e->>'ownGoal')::boolean, false) = false) as goals`
+    )[0]!;
+  const lead = `news:retirements:${s.id}`;
+  const facts: Fact[] = [
+    fact(
+      lead,
+      `${plural(gone.length, "player")} ${gone.length === 1 ? "has" : "have"} retired after ${prev.name}, and ${plural(grads.length, "academy graduate")} ${grads.length === 1 ? "steps" : "step"} up to replace them`,
+      { retired: gone.length, graduates: grads.length },
+      "players",
+    ),
+  ];
+  for (const p of gone) {
+    const r = await record(p.id);
+    // The age they retire at: the age they would have been this season.
+    const age = Number.isFinite(seasonNo) && p.born_season != null ? seasonNo - p.born_season : null;
+    facts.push(
+      fact(
+        `${lead}:retired:${p.id}`,
+        `${p.name}, ${possessive(teams.get(p.team_id)?.name ?? "a club")} ${POSITION[p.position] ?? "player"}, retires${age !== null ? ` at ${age}` : ""} after ${plural(r.seasons, "season")} in the league, with ${plural(r.goals, "league goal")}`,
+        { player: p.name, age, seasons: r.seasons, goals: r.goals },
+        "players",
+      ),
+    );
+  }
+  for (const g of grads)
+    facts.push(
+      fact(
+        `${lead}:graduate:${g.id}`,
+        `${now.get(g.team_id)?.name ?? "A club"} promote ${g.name}${Number.isFinite(seasonNo) && g.born_season != null ? `, ${seasonNo - g.born_season},` : ""} a ${POSITION[g.position] ?? "player"} from their academy, who takes the number ${g.shirt_number} shirt`,
+        { player: g.name, shirt: g.shirt_number },
+        "players",
+      ),
+    );
+  const clock = await seasonClock(db, prev.id);
+  return {
+    facts,
+    lead,
+    priority: NEWS_PRIORITY.retirements,
+    publishAt: inCycle(await seasonEnd(db, prev.id), 85, clock.gap, s.created_at),
+    teamIds: [...new Set(gone.map((p) => p.team_id))],
+    round: 1,
+  };
+}
+
 /** The facts and placement of one news story, or null when there's nothing to report. */
 export async function newsStory(db: Db, subject: NewsSubject): Promise<NewsStory | null> {
   const s = await seasonRow(db, subject.seasonId);
@@ -516,6 +584,8 @@ export async function newsStory(db: Db, subject: NewsSubject): Promise<NewsStory
       return transfers(db, s);
     case "finances":
       return finances(db, s);
+    case "retirements":
+      return retirements(db, s);
   }
 }
 
@@ -531,7 +601,7 @@ export async function enqueueNews(db: Db): Promise<number> {
   const subjects: NewsSubject[] = [];
   for (const [i, s] of seasons.entries()) {
     if (s.status === "completed") subjects.push({ topic: "champions", seasonId: s.id });
-    if (i === 0) subjects.push({ topic: "league", seasonId: s.id });
+    if (i === 0) subjects.push({ topic: "league", seasonId: s.id }, { topic: "retirements", seasonId: s.id });
     if (s.window_closed) subjects.push({ topic: "transfers", seasonId: s.id }, { topic: "finances", seasonId: s.id });
     for (const w of await db<{ team_id: string }[]>`select team_id from club_withdrawals where season_id = ${s.id}`)
       subjects.push({ topic: "withdrawal", seasonId: s.id, teamId: w.team_id });

@@ -58,6 +58,7 @@ export function PlayerCareer({ career }: { career: Career }) {
             <tr key={s.season.slug} className="border-t border-line">
               <th scope="row" className="py-1 text-left font-medium">
                 {s.season.name}
+                {typeof s.age === "number" && <span className="block font-normal text-muted-text">Age {s.age}</span>}
                 {s.source === "baseline" && <span className="ml-1 text-muted-text">(baseline)</span>}
                 {moved && s.team && <span className="block font-normal text-muted-text">{s.team.name}</span>}
               </th>

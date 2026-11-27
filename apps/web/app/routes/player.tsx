@@ -53,7 +53,14 @@ export default function PlayerPage({ loaderData }: Route.ComponentProps) {
             {career.shirtNumber}
           </span>
           <div className="min-w-0 flex-1">
-            <p className="text-xs font-bold uppercase tracking-[0.14em] text-violet">{POSITION[career.position]}</p>
+            <p className="text-xs font-bold uppercase tracking-[0.14em] text-violet">
+              {POSITION[career.position]}
+              {career.retired && (
+                <span className="ml-2 rounded bg-ink px-1.5 py-0.5 text-white" data-testid="retired-badge">
+                  Retired
+                </span>
+              )}
+            </p>
             <h1 className="font-display text-5xl font-extrabold uppercase italic leading-none">{career.name}</h1>
             <p className="mt-2 flex flex-wrap items-center gap-2 font-semibold">
               <TeamBadge team={team} size="sm" decorative />
@@ -67,6 +74,7 @@ export default function PlayerPage({ loaderData }: Route.ComponentProps) {
                 ["League goals", allTime.goals],
                 ["Starts", allTime.starts],
                 ["Seasons", career.seasons.filter((s) => s.teamMatches > 0).length],
+                ...(typeof career.age === "number" ? [["Age", career.age] as const] : []),
               ].map(([k, v]) => (
                 <div key={k}>
                   <dt className="text-muted-text">{k}</dt>
@@ -74,6 +82,13 @@ export default function PlayerPage({ loaderData }: Route.ComponentProps) {
                 </div>
               ))}
             </dl>
+            {(career.retired || career.graduate) && (
+              <p className="mt-3 text-sm text-muted-text" data-testid="career-note">
+                {career.retired
+                  ? `Retired after ${career.retired.name}. Their record stays in the league's history.`
+                  : `Promoted from the ${team.name} academy after ${career.graduate!.name}.`}
+              </p>
+            )}
           </div>
         </div>
         {distinctions.length > 0 && (

@@ -143,9 +143,11 @@ export async function managerFacts(
   const [team] = await db<{ name: string }[]>`select name from teams where id = ${teamId}`;
   const [opp] = await db<{ name: string }[]>`select name from teams where id = ${oppId}`;
   const snapshot = await seasonRatings(db, fixture.season_id);
-  const squad = (await db<PlayerRow[]>`select * from players where team_id = ${teamId} order by shirt_number`).map(
-    (p) => ratedPlayer(p, snapshot),
-  );
+  const squad = (
+    await db<
+      PlayerRow[]
+    >`select * from players where retired_season_id is null and team_id = ${teamId} order by shirt_number`
+  ).map((p) => ratedPlayer(p, snapshot));
   const rev = await latestValidRevision(db, teamId, fixture.season_id);
   const size = await seasonTeamSize(db, fixture.season_id);
   const lineup: Lineup = rev?.lineup ?? defaultLineup(squad, size);
@@ -199,7 +201,7 @@ export async function postMatchFacts(
     (
       await db<
         { id: string; name: string }[]
-      >`select id, name from players where team_id in (${fixture.home_team_id}, ${fixture.away_team_id})`
+      >`select id, name from players where retired_season_id is null and team_id in (${fixture.home_team_id}, ${fixture.away_team_id})`
     ).map((p) => [p.id, p.name]),
   );
   const goals = m.events

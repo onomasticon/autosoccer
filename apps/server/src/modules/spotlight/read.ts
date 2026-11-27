@@ -197,7 +197,7 @@ export async function playerProfile(db: Db, playerId: string): Promise<PlayerPro
   const teams = await allTeams(db);
   const team = teams.get(p.team_id);
   if (!team) return null;
-  const careers = await teamCareers(db, team);
+  const careers = await teamCareers(db, team, p.id);
   const career = careers.players.find((c) => c.playerId === p.id);
   if (!career) return null;
   const current = await currentSeason(db);
@@ -280,7 +280,8 @@ export async function playerProfile(db: Db, playerId: string): Promise<PlayerPro
     allTime: { goals: mine.goals, starts: mine.starts, rank },
     distinctions,
     recent,
-    next: next.get(team.id) ?? null,
+    // A retired player has no next match.
+    next: p.retired_season_id ? null : (next.get(team.id) ?? null),
   };
 }
 

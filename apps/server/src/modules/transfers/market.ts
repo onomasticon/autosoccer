@@ -96,7 +96,7 @@ export async function loadMarket(db: Db, window: WindowRow): Promise<Market> {
   const FINANCE = await seasonRules(db, window.season_id);
   const rows = await db<PlayerRow[]>`
     select p.* from players p join season_teams st on st.team_id = p.team_id
-    where st.season_id = ${window.season_id} order by p.team_id, p.shirt_number`;
+    where st.season_id = ${window.season_id} and p.retired_season_id is null order by p.team_id, p.shirt_number`;
   const players = new Map<string, MarketPlayer>();
   for (const row of rows) {
     const p = ratedPlayer(row, snapshot);

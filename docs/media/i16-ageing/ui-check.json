@@ -1,0 +1,74 @@
+[
+  {
+    "page": "/teams/harbour-city",
+    "viewport": "desktop",
+    "status": 200,
+    "axeViolations": [],
+    "firstTab": "Skip to content",
+    "mobileMenu": "n/a",
+    "consoleErrors": []
+  },
+  {
+    "page": "/teams/harbour-city",
+    "viewport": "mobile",
+    "status": 200,
+    "axeViolations": [],
+    "firstTab": "Skip to content",
+    "mobileMenu": "ok",
+    "consoleErrors": []
+  },
+  {
+    "page": "/players/2cf26679-1c37-4f7c-83f5-cbe43a9561bc",
+    "viewport": "desktop",
+    "status": 200,
+    "axeViolations": [],
+    "firstTab": "Skip to content",
+    "mobileMenu": "n/a",
+    "consoleErrors": []
+  },
+  {
+    "page": "/players/2cf26679-1c37-4f7c-83f5-cbe43a9561bc",
+    "viewport": "mobile",
+    "status": 200,
+    "axeViolations": [],
+    "firstTab": "Skip to content",
+    "mobileMenu": "ok",
+    "consoleErrors": []
+  },
+  {
+    "page": "/players/9b33dcbe-062f-4f0c-90c5-63c68222fb7a",
+    "viewport": "desktop",
+    "status": 200,
+    "axeViolations": [],
+    "firstTab": "Skip to content",
+    "mobileMenu": "n/a",
+    "consoleErrors": []
+  },
+  {
+    "page": "/players/9b33dcbe-062f-4f0c-90c5-63c68222fb7a",
+    "viewport": "mobile",
+    "status": 200,
+    "axeViolations": [],
+    "firstTab": "Skip to content",
+    "mobileMenu": "ok",
+    "consoleErrors": []
+  },
+  {
+    "page": "/news/6-players-retire-academy-graduates-step-up-16d59a",
+    "viewport": "desktop",
+    "status": 200,
+    "axeViolations": [],
+    "firstTab": "Skip to content",
+    "mobileMenu": "n/a",
+    "consoleErrors": []
+  },
+  {
+    "page": "/news/6-players-retire-academy-graduates-step-up-16d59a",
+    "viewport": "mobile",
+    "status": 200,
+    "axeViolations": [],
+    "firstTab": "Skip to content",
+    "mobileMenu": "ok",
+    "consoleErrors": []
+  }
+]

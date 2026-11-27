@@ -162,6 +162,7 @@ function news(c: EditorialContext): ArticleDraft {
     withdrawal: `${String(v.team ?? "A club")} declared bankrupt`,
     transfers: Number(v.deals ?? 0) ? "Transfer window closes: the deals done" : "A quiet transfer window",
     finances: "The money every club takes into the season",
+    retirements: `${Number(v.retired ?? 0) === 1 ? "A player retires" : `${Number(v.retired ?? 0)} players retire`}; academy graduates step up`,
   };
   const standfirst: Record<string, string> = {
     champions: "The title is decided: how the season finished, from the official table.",
@@ -170,6 +171,7 @@ function news(c: EditorialContext): ArticleDraft {
     withdrawal: "What happens to the club, its fixtures and the table.",
     transfers: "Every completed deal of the window, with its fee.",
     finances: "Cash and wage bills, club by club, before the first match.",
+    retirements: "Who has played their last match, and who replaces them.",
   };
   const topic = c.topic ?? "league";
   const paras = [`${lead.statement}.`];

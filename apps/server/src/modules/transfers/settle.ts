@@ -65,7 +65,7 @@ export async function settleWindow(db: Db, w: WindowRow, faults?: SettleFaults) 
           );
         const squad = async (team: string) =>
           tx<{ id: string; position: Position; shirt_number: number }[]>`
-            select id, position, shirt_number from players where team_id = ${team}`;
+            select id, position, shirt_number from players where retired_season_id is null and team_id = ${team}`;
         const sellerSquad = await squad(bid.seller_team_id);
         const buyerSquad = await squad(bid.buyer_team_id);
         const sellerProblem = squadProblem(sellerSquad, size, { out: [{ id: p.id, position: p.position }] });
@@ -143,9 +143,9 @@ async function repairLineup(
   const rev = await latestValidRevision(db, teamId, seasonId);
   if (!rev) return;
   const snapshot = await seasonRatings(db, seasonId);
-  const squad = (await db<PlayerRow[]>`select * from players where team_id = ${teamId}`).map((p) =>
-    ratedPlayer(p, snapshot),
-  );
+  const squad = (
+    await db<PlayerRow[]>`select * from players where retired_season_id is null and team_id = ${teamId}`
+  ).map((p) => ratedPlayer(p, snapshot));
   const ids = new Set(squad.map((p) => p.id));
   const byId = new Map(squad.map((p) => [p.id, p]));
   const slots = SLOT_POSITIONS[size];

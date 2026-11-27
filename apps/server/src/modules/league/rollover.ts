@@ -16,6 +16,7 @@ import { seedManagers } from "../agents/service.ts";
 import { seedJournalists } from "../editorial/service.ts";
 import { rescueClubs } from "../insolvency/takeover.ts";
 import { openWindow } from "../transfers/window.ts";
+import { retireAndPromote } from "./ageing.ts";
 import { CADENCES, type Cadence, kickoffs } from "./cadence.ts";
 import { developSeason } from "./careers.ts";
 import { ALL_TEAMS } from "./seed-data.ts";
@@ -51,6 +52,8 @@ export interface RolloverOptions {
    * slot at least `roundMinutes` (or a day) after the last season ends. Default: interval spacing.
    */
   cadence?: "interval" | "weekly" | "twice-weekly";
+  /** Players age, retire and are replaced by academy graduates (ageing/1). Default true. */
+  ageing?: boolean;
   /** Clubs the new season should have (default LEAGUE_CLUBS); new clubs join to make it up. */
   clubs?: number;
   /** Earliest kick-off for the new season (default: now). */
@@ -123,6 +126,14 @@ export async function rolloverSeason(db: Db, opts: RolloverOptions): Promise<str
   const matchGrowth = (growth * (teams.length + joining.length)) / Math.max(1, teams.length);
   const added = await syncSquads(db);
   if (added) opts.log?.info("squads grew for the new format", { players: added, playersPerTeam: LEAGUE_TEAM_SIZE });
+  // ageing/1: everyone is a year older; players who retire leave, and academy graduates take their
+  // places (before the new season registers its squads).
+  const retired = opts.ageing === false ? [] : await retireAndPromote(db, last.id, n + 1);
+  if (retired.length)
+    opts.log?.info("players retired; academy graduates promoted", {
+      season: slug,
+      retired: retired.map((r) => `${r.name} (${r.age})`),
+    });
   const { seasonId, created } = await createSeason(db, {
     slug,
     name: `Season ${n + 1}`,
