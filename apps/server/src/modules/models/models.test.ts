@@ -2,10 +2,12 @@ import { describe, expect, it } from "vitest";
 import { z } from "zod";
 import { LlmOutputError } from "../agents/llm.ts";
 import {
+  type ChatBody,
   GatewayLlm,
   llmForModel,
   ModelUnavailableError,
   openAiCompatible,
+  stripKeywords,
   type Transport,
   TransportError,
 } from "./gateway.ts";
@@ -30,7 +32,10 @@ describe("registry", () => {
   });
 
   it("never claims a model is qualified without live runs", () => {
-    expect(REGISTRY.some((m) => (m.status as string) === "qualified")).toBe(false);
+    for (const m of REGISTRY.filter((x) => x.status === "qualified"))
+      expect(m.qualification?.result, m.slug).toBe("pass");
+    for (const m of REGISTRY.filter((x) => x.qualification && x.qualification.result !== "pass"))
+      expect(m.status, m.slug).not.toBe("qualified");
   });
 
   it("flags a broken allocation", () => {
@@ -72,6 +77,10 @@ describe("gateway", () => {
     await new GatewayLlm(spec, t).complete(req);
     await new GatewayLlm(modelBySlug("deepseek/deepseek-flash")!, t).complete(req);
     expect(bodies[0]).toMatchObject({ model: "gpt-6.2-sol", response_format: { type: "json_schema" } });
+    // OpenAI's current models reject max_tokens (live qualification, 2026-11-27): they get max_completion_tokens.
+    expect(bodies[0]).toMatchObject({ max_completion_tokens: 4000 });
+    expect(bodies[0]).not.toHaveProperty("max_tokens");
+    expect(bodies[1]).toMatchObject({ max_tokens: 4000 });
     expect(bodies[1]).toMatchObject({
       model: "deepseek/deepseek-v4.1-flash-1017",
       provider: { order: ["deepseek"], require_parameters: false },
@@ -249,6 +258,42 @@ describe("routing (direct for OpenAI and Anthropic, pinned OpenRouter for the re
       "anthropic/claude-opus-5-5",
     );
     expect(() => llmForModel(modelBySlug("anthropic/claude-opus-5-5")!, {})).toThrow(/ANTHROPIC_API_KEY/);
+  });
+});
+
+describe("provider quirks found in live qualification (2026-11-27)", () => {
+  it("strips schema keywords a provider rejects, but still validates the full schema here", async () => {
+    const cohere = modelBySlug("cohere/command-a-plus")!;
+    const List = z.object({ pattern: z.string(), items: z.array(z.string()).min(2).max(2) });
+    const bodies: Array<{ response_format?: { json_schema?: { schema?: unknown } } }> = [];
+    const t: Transport = {
+      chat: async (b) => {
+        bodies.push(b as never);
+        return { content: '{"pattern":"hoops","items":["a"]}', finishReason: "stop", inputTokens: 1, outputTokens: 1 };
+      },
+    };
+    await expect(new GatewayLlm(cohere, t).complete({ ...req, schema: List })).rejects.toBeInstanceOf(LlmOutputError);
+    const sent = JSON.stringify(bodies[0]!.response_format!.json_schema!.schema);
+    expect(sent).not.toContain("minItems");
+    expect(sent).not.toContain("maxItems");
+    expect(sent).toContain('"pattern":{'); // a field called "pattern" survives; only keywords go
+    expect(stripKeywords({ a: [{ minLength: 1, type: "string" }] }, new Set(["minLength"]))).toEqual({
+      a: [{ type: "string" }],
+    });
+  });
+
+  it("never sends an empty assistant turn when repairing an empty answer", async () => {
+    let n = 0;
+    const seen: ChatBody[] = [];
+    const t: Transport = {
+      chat: async (b) => {
+        seen.push(b);
+        return { content: n++ === 0 ? "" : '{"answer":1}', finishReason: "stop", inputTokens: 1, outputTokens: 1 };
+      },
+    };
+    await new GatewayLlm(spec, t).complete(req);
+    const assistant = seen[1]!.messages.find((m) => m.role === "assistant")!;
+    expect(assistant.content.length).toBeGreaterThan(0);
   });
 });
 

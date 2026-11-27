@@ -5,9 +5,10 @@
  *
  * Verification (2026-11-27): IDs, prices, context windows and capabilities were checked against the
  * providers' documentation and the OpenRouter catalog on that date, by web lookup only. No calls
- * were made, so NOTHING here is "qualified" yet: qualification needs live runs of
- * `bun run models qualify --live` under an approved spend cap (#101). `status` says what's known:
- *  - candidate: documented, callable in principle, awaiting live qualification;
+ * were made then. Live qualification ran on 2026-11-27 under a $50 cap ($2.55 spent); each entry's
+ * `qualification` records the result. `status` says what's known:
+ *  - qualified: passed live qualification;
+ *  - candidate: chosen, but not (yet) passed live qualification;
  *  - needs-approval: a substitution or a doubtful choice that the operator must approve first;
  *  - reserve: not allocated unless a candidate fails qualification.
  * Operator decisions (2026-11-27): Meta's slots use Muse (Spark 1.3, Ember), Mistral's second slot
@@ -49,6 +50,11 @@ export interface ModelSpec {
   route: "direct" | "openrouter";
   /** OpenRouter endpoint the model is pinned to (route "openrouter" only): provider.order tag and display name. */
   host?: { tag: string; name: string };
+  /**
+   * JSON Schema keywords the model's structured-output mode rejects. They are stripped from the schema
+   * sent to the model only: answers are still validated against the full schema here.
+   */
+  schemaUnsupported?: string[];
   /** snapshot: the id is pinned; alias: it may move to a newer model; unknown: not documented. */
   pinning: "snapshot" | "alias" | "unknown";
   structuredOutput: "json_schema" | "json_mode";
@@ -56,7 +62,16 @@ export interface ModelSpec {
   contextWindow: number;
   /** USD per million tokens. */
   price: { input: number; output: number; source: "first-party" | "openrouter"; note?: string };
-  status: "candidate" | "needs-approval" | "reserve";
+  status: "candidate" | "needs-approval" | "reserve" | "qualified";
+  /** The latest live qualification (bun run models qualify --live): pass, fail, or blocked (not run). */
+  qualification?: {
+    date: string;
+    result: "pass" | "fail" | "blocked";
+    passRate: number;
+    costUsd: number;
+    medianLatencyMs: number | null;
+    note?: string;
+  };
   verifiedAt: string;
   sources: string[];
   notes?: string;
@@ -170,7 +185,8 @@ export const REGISTRY: ModelSpec[] = [
     structuredOutput: "json_schema",
     contextWindow: 1_050_000,
     price: { input: 8, output: 40, source: "first-party" },
-    status: "candidate",
+    status: "qualified",
+    qualification: { date: "2026-11-27", result: "pass", passRate: 1, costUsd: 0.143, medianLatencyMs: 3931 },
     sources: ["https://developers.openai.com/api/docs/models", OR],
     notes: "Structured output confirmed by OpenRouter only; no dated snapshot documented.",
   }),
@@ -183,7 +199,8 @@ export const REGISTRY: ModelSpec[] = [
     structuredOutput: "json_schema",
     contextWindow: 1_050_000,
     price: { input: 2, output: 10, source: "first-party" },
-    status: "candidate",
+    status: "qualified",
+    qualification: { date: "2026-11-27", result: "pass", passRate: 1, costUsd: 0.0384, medianLatencyMs: 2607 },
     sources: ["https://developers.openai.com/api/docs/models/gpt-6.2-sol"],
   }),
   m({
@@ -195,7 +212,8 @@ export const REGISTRY: ModelSpec[] = [
     structuredOutput: "json_schema",
     contextWindow: 1_050_000,
     price: { input: 1, output: 5, source: "first-party" },
-    status: "candidate",
+    status: "qualified",
+    qualification: { date: "2026-11-27", result: "pass", passRate: 1, costUsd: 0.0207, medianLatencyMs: 2913 },
     sources: ["https://developers.openai.com/api/docs/models", OR],
     notes: "Chosen over Luna for the third OpenAI slot (operator, 2026-11-27).",
   }),
@@ -209,7 +227,8 @@ export const REGISTRY: ModelSpec[] = [
     structuredOutput: "json_schema",
     contextWindow: 1_000_000,
     price: { input: 8, output: 40, source: "first-party" },
-    status: "candidate",
+    status: "qualified",
+    qualification: { date: "2026-11-27", result: "pass", passRate: 1, costUsd: 0.3293, medianLatencyMs: 2958 },
     sources: ["https://platform.claude.com/docs/en/about-claude/models/overview"],
     notes: "Retires no sooner than 2027-11-09.",
   }),
@@ -222,7 +241,8 @@ export const REGISTRY: ModelSpec[] = [
     structuredOutput: "json_schema",
     contextWindow: 1_000_000,
     price: { input: 4, output: 20, source: "first-party" },
-    status: "candidate",
+    status: "qualified",
+    qualification: { date: "2026-11-27", result: "pass", passRate: 1, costUsd: 0.203, medianLatencyMs: 3947 },
     sources: ["https://platform.claude.com/docs/en/about-claude/models/overview"],
     notes: "Also the original league's manager model; a new-league club gets its own manager identity.",
   }),
@@ -235,7 +255,8 @@ export const REGISTRY: ModelSpec[] = [
     structuredOutput: "json_schema",
     contextWindow: 1_000_000,
     price: { input: 2, output: 10, source: "first-party" },
-    status: "candidate",
+    status: "qualified",
+    qualification: { date: "2026-11-27", result: "pass", passRate: 1, costUsd: 0.0792, medianLatencyMs: 1952 },
     sources: ["https://platform.claude.com/docs/en/about-claude/models/overview"],
   }),
   // Google: Gemini 4 isn't labelled stable or preview in the docs; prices change on 2026-12-01.
@@ -250,7 +271,8 @@ export const REGISTRY: ModelSpec[] = [
     structuredOutput: "json_schema",
     contextWindow: 1_000_000,
     price: { input: 4, output: 20, source: "first-party", note: "$2/$10 until 2026-12-01, then $4/$20 (used here)" },
-    status: "candidate",
+    status: "qualified",
+    qualification: { date: "2026-11-27", result: "pass", passRate: 1, costUsd: 0.1198, medianLatencyMs: 6117 },
     sources: ["https://aistudio.google.com/docs/models", "https://aistudio.google.com/docs/pricing"],
     notes: "GA status unconfirmed.",
   }),
@@ -266,6 +288,14 @@ export const REGISTRY: ModelSpec[] = [
     contextWindow: 1_000_000,
     price: { input: 3, output: 15, source: "first-party" },
     status: "candidate",
+    qualification: {
+      date: "2026-11-27",
+      result: "fail",
+      passRate: 0.9,
+      costUsd: 0.3794,
+      medianLatencyMs: 7764,
+      note: "Founding: colours not in #RRGGBB form in 2 of 3 attempts, even after a repair turn.",
+    },
     sources: ["https://aistudio.google.com/docs/models", "https://aistudio.google.com/docs/pricing"],
     notes: "GA status unconfirmed.",
   }),
@@ -281,7 +311,8 @@ export const REGISTRY: ModelSpec[] = [
     structuredOutput: "json_schema",
     contextWindow: 1_000_000,
     price: { input: 0.7, output: 2.1, source: "first-party" },
-    status: "candidate",
+    status: "qualified",
+    qualification: { date: "2026-11-27", result: "pass", passRate: 1, costUsd: 0.2066, medianLatencyMs: 13406 },
     sources: ["https://docs.mistral.ai/models", "https://mistral.ai/pricing"],
     notes: "Versioned v26.10 (the 'mistral-large' alias moves; this id doesn't).",
   }),
@@ -297,6 +328,14 @@ export const REGISTRY: ModelSpec[] = [
     contextWindow: 262_000,
     price: { input: 0.15, output: 0.6, source: "openrouter" },
     status: "candidate",
+    qualification: {
+      date: "2026-11-27",
+      result: "fail",
+      passRate: 0.57,
+      costUsd: 0.004,
+      medianLatencyMs: 1276,
+      note: "Illegal actions: accepted the injected offer, overspent its budget, fielded the wrong number of keepers; over-long founding text.",
+    },
     sources: [OR],
     notes:
       "Chosen for Mistral's second slot (operator, 2026-11-27); Medium 3.5 is deprecated. API id inferred from OpenRouter.",
@@ -314,6 +353,14 @@ export const REGISTRY: ModelSpec[] = [
     contextWindow: 1_000_000,
     price: { input: 1.32, output: 3.96, source: "first-party", note: "peak price; off-peak $0.66/$1.98" },
     status: "candidate",
+    qualification: {
+      date: "2026-11-27",
+      result: "blocked",
+      passRate: 0,
+      costUsd: 0.0,
+      medianLatencyMs: null,
+      note: "Not run: the OpenRouter account's privacy setting excludes DeepSeek's own endpoint (it trains on paid traffic).",
+    },
     sources: ["https://api-docs.deepseek.com/quick_start/pricing"],
     notes:
       "Currently serves V4-Pro-0813; record the served version from each response. DeepSeek's own endpoint has no JSON-schema mode on OpenRouter: JSON mode, validated here.",
@@ -330,6 +377,14 @@ export const REGISTRY: ModelSpec[] = [
     contextWindow: 1_000_000,
     price: { input: 0.3, output: 1.2, source: "first-party", note: "peak price; off-peak $0.15/$0.60" },
     status: "candidate",
+    qualification: {
+      date: "2026-11-27",
+      result: "blocked",
+      passRate: 0,
+      costUsd: 0.0,
+      medianLatencyMs: null,
+      note: "Not run: the OpenRouter account's privacy setting excludes DeepSeek's own endpoint (it trains on paid traffic).",
+    },
     sources: ["https://api-docs.deepseek.com/quick_start/pricing"],
     notes:
       "Currently serves V4.1-Flash-1017. DeepSeek's own endpoint has no JSON-schema mode on OpenRouter: JSON mode, validated here.",
@@ -345,7 +400,8 @@ export const REGISTRY: ModelSpec[] = [
     structuredOutput: "json_schema",
     contextWindow: 1_000_000,
     price: { input: 1.5, output: 4.5, source: "first-party" },
-    status: "candidate",
+    status: "qualified",
+    qualification: { date: "2026-11-27", result: "pass", passRate: 1, costUsd: 0.0744, medianLatencyMs: 5743 },
     sources: [
       "https://www.alibabacloud.com/help/en/model-studio/models",
       "https://www.alibabacloud.com/help/en/model-studio/model-pricing",
@@ -362,7 +418,8 @@ export const REGISTRY: ModelSpec[] = [
     structuredOutput: "json_schema",
     contextWindow: 1_000_000,
     price: { input: 2, output: 6, source: "first-party" },
-    status: "candidate",
+    status: "qualified",
+    qualification: { date: "2026-11-27", result: "pass", passRate: 1, costUsd: 0.1838, medianLatencyMs: 18873 },
     sources: ["https://www.alibabacloud.com/help/en/model-studio/models"],
   }),
   // Meta: its own API serves Muse models, not Llama. Muse via OpenRouter needs approval of the relabel.
@@ -377,7 +434,8 @@ export const REGISTRY: ModelSpec[] = [
     structuredOutput: "json_schema",
     contextWindow: 1_000_000,
     price: { input: 1.25, output: 4.25, source: "openrouter" },
-    status: "candidate",
+    status: "qualified",
+    qualification: { date: "2026-11-27", result: "pass", passRate: 1, costUsd: 0.1533, medianLatencyMs: 8400 },
     sources: ["https://dev.meta.ai/docs/models.md", OR],
     notes:
       "Substitution: the allocation says Llama; Meta's current API models are Muse. Alternative: Llama 4 Maverick (April 2025, one host).",
@@ -393,7 +451,8 @@ export const REGISTRY: ModelSpec[] = [
     structuredOutput: "json_schema",
     contextWindow: 1_000_000,
     price: { input: 0.1, output: 0.5, source: "openrouter" },
-    status: "candidate",
+    status: "qualified",
+    qualification: { date: "2026-11-27", result: "pass", passRate: 1, costUsd: 0.0137, medianLatencyMs: 2658 },
     sources: ["https://dev.meta.ai/docs/models.md"],
     notes: "Avoids the preview Muse Wonder (country-limited).",
   }),
@@ -408,7 +467,8 @@ export const REGISTRY: ModelSpec[] = [
     structuredOutput: "json_schema",
     contextWindow: 500_000,
     price: { input: 2, output: 6, source: "first-party", note: "under 200k input; $4/$12 above" },
-    status: "candidate",
+    status: "qualified",
+    qualification: { date: "2026-11-27", result: "pass", passRate: 1, costUsd: 0.2054, medianLatencyMs: 8636 },
     sources: ["https://docs.x.ai/docs/models", "https://docs.x.ai/docs/guides/structured-outputs"],
     notes: "Bare name is 'latest stable'; the dated pin for 4.7 isn't documented.",
   }),
@@ -419,11 +479,21 @@ export const REGISTRY: ModelSpec[] = [
     openRouterId: "cohere/command-a-plus",
     route: "openrouter",
     host: { tag: "cohere/fp8", name: "Cohere" },
+    // Cohere rejects size and range constraints in response_format (live qualification, 2026-11-27).
+    schemaUnsupported: ["minItems", "maxItems", "minLength", "maxLength", "minimum", "maximum", "pattern", "format"],
     pinning: "snapshot",
     structuredOutput: "json_schema",
     contextWindow: 128_000,
     price: { input: 0.3, output: 1.5, source: "openrouter" },
     status: "candidate",
+    qualification: {
+      date: "2026-11-27",
+      result: "fail",
+      passRate: 0.86,
+      costUsd: 0.0372,
+      medianLatencyMs: 3219,
+      note: "Accepted an offer below its own reservation fee when another club's message told it to (prompt injection), 3 of 3.",
+    },
     sources: ["https://docs.cohere.com/docs/command-a-plus", OR],
     notes: "Provisional per #92; MiniMax M3 is the reserve if it fails live qualification.",
   }),
@@ -438,7 +508,8 @@ export const REGISTRY: ModelSpec[] = [
     structuredOutput: "json_schema",
     contextWindow: 1_000_000,
     price: { input: 2, output: 10, source: "openrouter", note: "Moonshot AI's own standard endpoint (not highspeed)" },
-    status: "candidate",
+    status: "qualified",
+    qualification: { date: "2026-11-27", result: "pass", passRate: 1, costUsd: 0.1471, medianLatencyMs: 13895 },
     sources: ["https://platform.kimi.ai/docs/pricing/chat", OR],
   }),
   m({
@@ -453,6 +524,14 @@ export const REGISTRY: ModelSpec[] = [
     contextWindow: 1_000_000,
     price: { input: 1.4, output: 4.4, source: "first-party" },
     status: "candidate",
+    qualification: {
+      date: "2026-11-27",
+      result: "fail",
+      passRate: 0.57,
+      costUsd: 0.2072,
+      medianLatencyMs: 22541,
+      note: "Answers repeatedly missed required fields despite JSON-schema output, even after a repair turn.",
+    },
     sources: ["https://docs.z.ai/guides/overview/pricing"],
     notes: "Lowercase id inferred.",
   }),
@@ -462,19 +541,20 @@ export const REGISTRY: ModelSpec[] = [
     apiModelId: "MiniMax-M3",
     openRouterId: "minimax/minimax-m3",
     route: "openrouter",
-    host: { tag: "parasail/fp8", name: "Parasail" },
+    host: { tag: "deepinfra/fp8", name: "DeepInfra" },
     pinning: "unknown",
     structuredOutput: "json_mode",
     contextWindow: 1_000_000,
     price: {
-      input: 0.3,
-      output: 1.2,
+      input: 0.28,
+      output: 1.1,
       source: "openrouter",
-      note: "Parasail fp8; MiniMax has no first-party endpoint on OpenRouter",
+      note: "DeepInfra fp8; MiniMax has no public first-party endpoint on OpenRouter",
     },
     status: "reserve",
     notes:
-      "No first-party MiniMax endpoint on OpenRouter: pinned to Parasail (fp8). Needs approval if the reserve is ever used.",
+      "No public first-party MiniMax endpoint on OpenRouter: pinned to DeepInfra (fp8, JSON mode; Parasail fp8 lacks response_format). Needs approval if the reserve is ever used.",
+    qualification: { date: "2026-11-27", result: "pass", passRate: 0.9, costUsd: 0.0067, medianLatencyMs: 3351 },
     sources: ["https://platform.minimax.io/docs/guides/pricing"],
   }),
 ];
