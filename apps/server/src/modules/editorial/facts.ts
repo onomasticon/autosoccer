@@ -366,7 +366,7 @@ async function formFact(
 export async function historyFacts(db: Db, seasonId: string): Promise<Fact[]> {
   const earlier = await db<{ id: string; name: string }[]>`
     select s.id, s.name from seasons s, seasons cur
-    where cur.id = ${seasonId} and s.status = 'completed' and s.id <> cur.id
+    where cur.id = ${seasonId} and s.status = 'completed' and s.id <> cur.id and s.league_id = cur.league_id
       and coalesce(s.starts_at, s.created_at) < coalesce(cur.starts_at, cur.created_at)
     order by coalesce(s.starts_at, s.created_at)`;
   if (!earlier.length) return [];

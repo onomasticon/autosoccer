@@ -77,7 +77,7 @@ export async function windowById(db: Db, id: string): Promise<WindowRow | null> 
 export async function previousSeason(db: Db, seasonId: string) {
   const [s] = await db<{ id: string; name: string; finance_rule: string | null; status: string }[]>`
     select p.id, p.name, p.finance_rule, p.status from seasons p, seasons s
-    where s.id = ${seasonId} and p.created_at < s.created_at order by p.created_at desc limit 1`;
+    where s.id = ${seasonId} and p.league_id = s.league_id and p.created_at < s.created_at order by p.created_at desc limit 1`;
   return s ?? null;
 }
 

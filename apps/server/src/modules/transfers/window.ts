@@ -495,7 +495,8 @@ export function transferJobHandlers(deps: ManagerDeps) {
 /** Scheduler hook: opens a qualifying upcoming season's window and moves every open window along. */
 export async function tickTransfers(db: Db, opts: { now?: Date } = {}) {
   const upcoming = await db<{ id: string }[]>`
-    select id from seasons where status = 'scheduled' and transfer_rule is not null order by created_at`;
+    select s.id from seasons s join leagues l on l.id = s.league_id
+    where s.status = 'scheduled' and s.transfer_rule is not null and l.status = 'active' order by s.created_at`;
   for (const s of upcoming) await openWindow(db, s.id, opts.now);
   const open = await db<{ id: string }[]>`select id from transfer_windows where phase <> 'closed' order by created_at`;
   const out: WindowState[] = [];

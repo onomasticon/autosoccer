@@ -1,5 +1,7 @@
 import {
   FixturesResponse,
+  LeagueDetailResponse,
+  LeagueListResponse,
   PlayerCareersResponse,
   RecordsResponse,
   ScorersResponse,
@@ -16,6 +18,7 @@ import { currentInjuries } from "../injuries/injuries.ts";
 import { type PlayerRow, type RevisionRow, type TeamRow, toTeam } from "../mappers.ts";
 import { completedDeals, type Deal, takeoverStories } from "../transfers/history.ts";
 import { ratedPlayer, seasonRatings, teamCareers } from "./careers.ts";
+import { leagueBySlug, publicLeagues } from "./leagues.ts";
 import {
   currentSeason,
   fixtureViews,
@@ -34,6 +37,15 @@ export function leagueRoutes({ db }: { db: Db }) {
   const r = new Hono();
 
   r.get("/seasons", async (c) => contractJson(c, SeasonListResponse, { items: await seasonSummaries(db) }));
+
+  r.get("/leagues", async (c) => contractJson(c, LeagueListResponse, { items: await publicLeagues(db) }));
+
+  r.get("/leagues/:league", async (c) => {
+    const l = await leagueBySlug(db, c.req.param("league"));
+    if (!l || l.status === "draft") return notFound(c, "League");
+    const [league] = await publicLeagues(db, l.id);
+    return contractJson(c, LeagueDetailResponse, { league: league!, seasons: await seasonSummaries(db, l.id) });
+  });
 
   r.get("/records", async (c) => contractJson(c, RecordsResponse, await leagueRecords(db)));
 

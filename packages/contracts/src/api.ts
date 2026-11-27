@@ -130,6 +130,28 @@ export const SeasonSummary = z.object({
 });
 export const SeasonListResponse = z.object({ items: z.array(SeasonSummary) });
 
+/**
+ * A competition that owns seasons (#93). The default league is the one the site shows; concluded
+ * and archived leagues stay browsable. `division` and `tier` are labels only (no promotion yet).
+ */
+export const League = z.object({
+  slug: Slug,
+  name: z.string(),
+  status: z.enum(["draft", "active", "concluded", "archived"]),
+  division: z.string().nullable(),
+  tier: z.number().int().positive().nullable(),
+  isDefault: z.boolean(),
+  description: z.string(),
+  seasons: z.number().int().nonnegative(),
+  /** The league's newest non-draft season, if any. */
+  latestSeason: z.object({ slug: Slug, name: z.string(), status: z.string() }).nullable(),
+  concludedAt: z.string().nullable(),
+  archivedAt: z.string().nullable(),
+});
+export type League = z.infer<typeof League>;
+export const LeagueListResponse = z.object({ items: z.array(League) });
+export const LeagueDetailResponse = z.object({ league: League, seasons: z.array(SeasonSummary) });
+
 /** Goals per player (own goals excluded), most first; ties share a rank. */
 export const ScorerRow = z.object({
   rank: z.number().int().positive(),
@@ -302,6 +324,23 @@ export interface RouteDef {
 
 const SeasonSlugParam = { season: Slug };
 export const ROUTES: RouteDef[] = [
+  {
+    method: "get",
+    path: "/leagues",
+    operationId: "listLeagues",
+    summary: "Every league that isn't still being set up, the default first: status, seasons and newest season",
+    response: LeagueListResponse,
+    responseName: "LeagueListResponse",
+  },
+  {
+    method: "get",
+    path: "/leagues/{league}",
+    operationId: "getLeague",
+    summary: "One league and its roll of honour (archived leagues included)",
+    params: { league: Slug },
+    response: LeagueDetailResponse,
+    responseName: "LeagueDetailResponse",
+  },
   {
     method: "get",
     path: "/seasons",
@@ -481,6 +520,8 @@ export type StandingsResponse = z.infer<typeof StandingsResponse>;
 export type FixturesResponse = z.infer<typeof FixturesResponse>;
 export type SeasonSummary = z.infer<typeof SeasonSummary>;
 export type SeasonListResponse = z.infer<typeof SeasonListResponse>;
+export type LeagueListResponse = z.infer<typeof LeagueListResponse>;
+export type LeagueDetailResponse = z.infer<typeof LeagueDetailResponse>;
 export type ScorerRow = z.infer<typeof ScorerRow>;
 export type ScorersResponse = z.infer<typeof ScorersResponse>;
 export type RecordsResponse = z.infer<typeof RecordsResponse>;

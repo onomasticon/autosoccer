@@ -113,7 +113,8 @@ const previousSeason = async (db: Db, s: SeasonRow) =>
   (
     await db<SeasonRow[]>`
       select id, name, slug, status, created_at, players_per_team, finance_rule, transfer_rule, insolvency_rule
-      from seasons where created_at < ${s.created_at} order by created_at desc limit 1`
+      from seasons where created_at < ${s.created_at}
+        and league_id = (select league_id from seasons where id = ${s.id}) order by created_at desc limit 1`
   )[0] ?? null;
 
 const fact = (id: string, statement: string, value: unknown, table: string): Fact => ({
@@ -132,6 +133,7 @@ async function champions(db: Db, s: SeasonRow): Promise<NewsStory | null> {
   if (!top || top.played === 0 || top.withdrawn) return null;
   const titles = await db<{ id: string }[]>`
     select id from seasons where status = 'completed'
+      and league_id = (select league_id from seasons where id = ${s.id})
       and created_at <= (select created_at from seasons where id = ${s.id}) order by created_at`;
   let count = 0;
   for (const t of titles) if ((await standingRows(db, t.id)).rows[0]?.team.id === top.team.id) count++;
@@ -679,14 +681,18 @@ export async function newsStory(db: Db, subject: NewsSubject): Promise<NewsStory
  * The job itself decides whether there's a story (e.g. a season with no changes gets no league news).
  */
 export async function enqueueNews(db: Db): Promise<number> {
-  const seasons = await db<{ id: string; status: string; window_closed: boolean }[]>`
-    select s.id, s.status,
-      exists (select 1 from transfer_windows w where w.season_id = s.id and w.phase = 'closed') as window_closed
-    from seasons s order by s.created_at desc limit 2`;
+  // Per league that is playing or has just concluded; an archived league's news is history.
+  const seasons = await db<{ id: string; status: string; window_closed: boolean; newest: boolean }[]>`
+    select id, status, window_closed, rank = 1 as newest from (
+      select s.id, s.status, s.created_at,
+        exists (select 1 from transfer_windows w where w.season_id = s.id and w.phase = 'closed') as window_closed,
+        row_number() over (partition by s.league_id order by s.created_at desc) as rank
+      from seasons s join leagues l on l.id = s.league_id where l.status in ('active', 'concluded')) x
+    where rank <= 2 order by created_at desc`;
   const subjects: NewsSubject[] = [];
-  for (const [i, s] of seasons.entries()) {
+  for (const s of seasons) {
     if (s.status === "completed") subjects.push({ topic: "champions", seasonId: s.id });
-    if (i === 0) subjects.push({ topic: "league", seasonId: s.id }, { topic: "retirements", seasonId: s.id });
+    if (s.newest) subjects.push({ topic: "league", seasonId: s.id }, { topic: "retirements", seasonId: s.id });
     if (s.window_closed) subjects.push({ topic: "transfers", seasonId: s.id }, { topic: "finances", seasonId: s.id });
     for (const w of await db<{ team_id: string }[]>`select team_id from club_withdrawals where season_id = ${s.id}`)
       subjects.push({ topic: "withdrawal", seasonId: s.id, teamId: w.team_id });
