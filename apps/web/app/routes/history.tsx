@@ -1,4 +1,10 @@
-import type { RecordsResponse, ScorersResponse, SeasonListResponse, SeasonSummary } from "@autosoccer/contracts";
+import type {
+  LeagueListResponse,
+  RecordsResponse,
+  ScorersResponse,
+  SeasonListResponse,
+  SeasonSummary,
+} from "@autosoccer/contracts";
 import { Link } from "react-router";
 import { Records } from "../components/Records";
 import { RouteError } from "../components/RouteError";
@@ -16,7 +22,8 @@ export async function loader() {
     apiMaybe<ScorersResponse>("/api/v1/scorers"),
     apiMaybe<RecordsResponse>("/api/v1/records"),
   ]);
-  return { ...seasons, scorers: scorers?.items ?? [], records };
+  const leagues = await apiMaybe<LeagueListResponse>("/api/v1/leagues");
+  return { ...seasons, scorers: scorers?.items ?? [], records, leagues: leagues?.items ?? [] };
 }
 
 export const meta: Route.MetaFunction = () =>
@@ -97,7 +104,7 @@ export function SeasonCard({ s }: { s: SeasonSummary }) {
 }
 
 export default function History({ loaderData }: Route.ComponentProps) {
-  const { items, scorers, records } = loaderData;
+  const { items, scorers, records, leagues } = loaderData;
   const titles = new Map<string, { name: string; n: number }>();
   for (const s of items)
     if (s.season.status === "completed" && s.leader) {
@@ -108,6 +115,14 @@ export default function History({ loaderData }: Route.ComponentProps) {
   return (
     <div className="mx-auto max-w-4xl space-y-6">
       <SectionHeader as="h1" banner eyebrow="Roll of honour" title="History" />
+      {leagues.length > 1 && (
+        <p className="text-sm">
+          This page shows {leagues.find((l) => l.isDefault)?.name ?? "the current league"}.{" "}
+          <Link to="/leagues" className="font-semibold underline underline-offset-4 hover:text-violet-deep">
+            Every league, including archived ones
+          </Link>
+        </p>
+      )}
       {honours.length > 0 && (
         <p className="text-sm">
           <span className="font-semibold">Titles: </span>

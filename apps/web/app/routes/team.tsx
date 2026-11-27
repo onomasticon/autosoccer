@@ -1,6 +1,7 @@
 import {
   type ArticleListResponse,
   type BudgetResponse,
+  type CharterResponse,
   type ClubFinancesResponse,
   type ManagerProfile,
   type PlayerCareersResponse,
@@ -18,6 +19,7 @@ import { ClubFinances } from "../components/ClubFinances";
 import { ClubDeals, TakeoverCard } from "../components/Consequences";
 import { DugoutTimeline } from "../components/Dugout";
 import { FollowButton } from "../components/FollowClub";
+import { FoundingCharter } from "../components/FoundingCharter";
 import { ManagerArc } from "../components/ManagerArc";
 import { FixtureCard } from "../components/MatchScoreCard";
 import { PlayerCareer } from "../components/PlayerCareer";
@@ -44,11 +46,14 @@ export async function loader({ params }: Route.LoaderArgs) {
   const profile = await apiMaybe<ManagerProfile>(`/api/v1/teams/${encodeURIComponent(params.slug)}/manager-profile`);
   const careers = await apiMaybe<PlayerCareersResponse>(`/api/v1/teams/${encodeURIComponent(params.slug)}/careers`);
   const finances = await apiMaybe<ClubFinancesResponse>(`/api/v1/teams/${encodeURIComponent(params.slug)}/finances`);
+  // Only model-founded clubs have a charter (#95); others get none, and the section doesn't render.
+  const charter = await apiMaybe<CharterResponse>(`/api/v1/teams/${encodeURIComponent(params.slug)}/charter`);
   return {
     ...detail,
     profile,
     careers: careers?.players ?? [],
     finances,
+    charter,
     news: news?.items ?? [],
     budget: budgetRow,
     dugout: dugout?.story ?? null,
@@ -260,6 +265,7 @@ export default function Team({ loaderData }: Route.ComponentProps) {
               </div>
             )}
           </section>
+          {loaderData.charter && <FoundingCharter charter={loaderData.charter} />}
           {(takeovers?.length ?? 0) > 0 && (
             <section aria-labelledby="takeover">
               <SectionHeader id="takeover" title="Why the club was taken over" meta="From the record" />

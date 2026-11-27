@@ -20,6 +20,7 @@ import {
 } from "./domain.ts";
 import { DugoutResponse, ManagerProfile, TeamDugoutResponse } from "./dugout.ts";
 import { ClubFinancesResponse } from "./finance.ts";
+import { CharterResponse } from "./founding.ts";
 import { Match, OfficialEvent, TeamMatchStats } from "./match.ts";
 import { PlayerListResponse, PlayerProfileResponse, SpotlightResponse } from "./spotlight.ts";
 import { FixtureStory } from "./story.ts";
@@ -331,6 +332,15 @@ export const ROUTES: RouteDef[] = [
     summary: "Every league that isn't still being set up, the default first: status, seasons and newest season",
     response: LeagueListResponse,
     responseName: "LeagueListResponse",
+  },
+  {
+    method: "get",
+    path: "/teams/{team}/charter",
+    operationId: "getTeamCharter",
+    summary: "A model-founded club's founding charter, founder model, submissions and rendered crest and kits",
+    params: { team: Slug },
+    response: CharterResponse,
+    responseName: "CharterResponse",
   },
   {
     method: "get",

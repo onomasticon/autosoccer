@@ -1,4 +1,5 @@
 export * from "./api.ts";
+export * from "./brand.ts";
 export * from "./careers.ts";
 export * from "./common.ts";
 export * from "./deals.ts";
@@ -7,6 +8,7 @@ export * from "./domain.ts";
 export * from "./dugout.ts";
 export * from "./editorial.ts";
 export * from "./finance.ts";
+export * from "./founding.ts";
 export * from "./jobs.ts";
 export * from "./match.ts";
 export { buildOpenApi } from "./openapi.ts";
