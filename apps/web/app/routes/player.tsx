@@ -1,5 +1,6 @@
 import type { FixtureStory, PlayerProfileResponse, SeasonResponse } from "@autosoccer/contracts";
 import { Link } from "react-router";
+import { PlayerTransfers } from "../components/Consequences";
 import { FollowButton } from "../components/FollowClub";
 import { PlayerCareer } from "../components/PlayerCareer";
 import { OverallBadge, PlayerRatings } from "../components/PlayerRatings";
@@ -134,6 +135,12 @@ export default function PlayerPage({ loaderData }: Route.ComponentProps) {
               </EmptyState>
             )}
           </section>
+          {(loaderData.transfers?.length ?? 0) > 0 && (
+            <section aria-labelledby="transfers">
+              <SectionHeader id="transfers" title="Transfers" meta="Completed deals" />
+              <PlayerTransfers transfers={loaderData.transfers!} />
+            </section>
+          )}
           <section aria-labelledby="career">
             <SectionHeader id="career" title="Career" meta="Season by season" />
             <div className="card-surface p-5">

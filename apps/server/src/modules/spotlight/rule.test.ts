@@ -149,6 +149,41 @@ describe("spotlight/1", () => {
     expect(w.detail).toBe("It was the only goal of the match.");
   });
 
+  it("a transfer or rescue with sporting significance: a new signing scores, a rescued club wins (#80)", () => {
+    const one = [match(T.rovers, T.salt, [["home", P.rov1.id, "firstHalf", 30]])];
+    const quiet = { allTime: new Map(), season: new Map() };
+    const signed = pickLead(
+      { round: 1, season, matches: one },
+      ctx({
+        ...quiet,
+        signings: new Map([[P.rov1.id, { from: "Harbour City", fee: "2.9m cr", season: season.slug }]]),
+      }),
+      teams,
+    )!;
+    expect(signed.detail).toMatch(/^A new signing: .+ joined from Harbour City for 2\.9m cr before Season 15\.$/);
+    const rescued = pickLead(
+      { round: 1, season, matches: one },
+      ctx({
+        ...quiet,
+        rescued: new Map([[T.rovers.id, { from: "Old Rovers", withdrewFrom: "Season 14", season: season.slug }]]),
+      }),
+      teams,
+    )!;
+    expect(rescued.detail).toBe(
+      `It's ${T.rovers.name}' first season under new owners, after Old Rovers withdrew from Season 14.`,
+    );
+    // Last season's signing is old news.
+    const old = pickLead(
+      { round: 1, season, matches: one },
+      ctx({
+        ...quiet,
+        signings: new Map([[P.rov1.id, { from: "Harbour City", fee: "2.9m cr", season: "season-14" }]]),
+      }),
+      teams,
+    )!;
+    expect(old.detail).toBe("It was the only goal of the match.");
+  });
+
   it("no replay: the action reads the record instead of promising a clip", () => {
     const m = [match(T.harbour, T.rovers, [["home", P.mwangi.id, "secondHalf", 110]], false)];
     const lead = pickLead({ round: 1, season, matches: m }, ctx(), teams)!;

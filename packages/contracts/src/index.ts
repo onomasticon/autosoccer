@@ -1,6 +1,7 @@
 export * from "./api.ts";
 export * from "./careers.ts";
 export * from "./common.ts";
+export * from "./deals.ts";
 export * from "./deployment.ts";
 export * from "./domain.ts";
 export * from "./dugout.ts";

@@ -17,11 +17,9 @@ import {
   type PlayerRow,
   type ReplayRow,
   type RevisionRow,
-  type TeamRow,
   toFixtureView,
   toMatch,
   toReplay,
-  toTeam,
 } from "../mappers.ts";
 
 export function matchRoutes({ db, store }: { db: Db; store: ReplayStore }) {

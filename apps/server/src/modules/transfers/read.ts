@@ -4,7 +4,6 @@ import { type BidStatus, TRANSFERS_CONTRACT, type TransferWindowResponse } from 
 import type { Db } from "@autosoccer/db";
 import { teamsAsOf } from "../insolvency/takeover.ts";
 import { overallRating, playerAttributes } from "../league/attributes.ts";
-import { type TeamRow, toTeam } from "../mappers.ts";
 import type { WindowRow } from "./market.ts";
 import { minSquad, TRANSFER } from "./rules.ts";
 

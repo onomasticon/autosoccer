@@ -14,6 +14,7 @@ import { Hono } from "hono";
 import { contractJson, notFound } from "../http.ts";
 import { currentInjuries } from "../injuries/injuries.ts";
 import { type PlayerRow, type RevisionRow, type TeamRow, toTeam } from "../mappers.ts";
+import { completedDeals, type Deal, takeoverStories } from "../transfers/history.ts";
 import { ratedPlayer, seasonRatings, teamCareers } from "./careers.ts";
 import {
   currentSeason,
@@ -191,8 +192,11 @@ export function leagueRoutes({ db }: { db: Db }) {
         };
     }
     const injuries = cur ? (await currentInjuries(db, cur.id, t.id)).map(({ teamId: _t, ...i }) => i) : [];
+    const toDeal = (d: Deal) => ({ ...d, season: { slug: d.season.slug, name: d.season.name } });
     return contractJson(c, TeamDetailResponse, {
       injuries,
+      deals: (await completedDeals(db, { teamId: t.id }, 8)).map(toDeal),
+      takeovers: await takeoverStories(db, t.id),
       team: toTeam(t),
       players,
       manager: mgr ?? null,

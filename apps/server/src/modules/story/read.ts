@@ -18,9 +18,10 @@ import {
 } from "@autosoccer/contracts";
 import type { Db } from "@autosoccer/db";
 import { teamDugout } from "../dugout/read.ts";
-import { matchFacts, prematchFacts } from "../editorial/facts.ts";
+import { matchFacts, possessive, prematchFacts } from "../editorial/facts.ts";
 import { withdrawals } from "../insolvency/check.ts";
 import { forfeitOf, type SeasonRow, seasonTeams, seasonWithdrawals, standingRows } from "../league/read.ts";
+import { completedDeals } from "../transfers/history.ts";
 
 interface FixtureRow {
   id: string;
@@ -150,6 +151,9 @@ function prematchLines(
   if (defending && champ && [home.name, away.name].includes(champ))
     lines.push(rec("history", `${defending.statement}.`, [defending.id]));
   for (const f of facts.filter((x) => x.kind === "tactics")) lines.push(rec("tactics", `${f.statement}.`, [f.id]));
+  for (const f of facts.filter((x) => x.id.startsWith("takeover:")))
+    lines.push(rec("takeover", `${f.statement}.`, [f.id]));
+  for (const f of facts.filter((x) => x.id.startsWith("deal:"))) lines.push(rec("transfer", `${f.statement}.`, [f.id]));
   return lines;
 }
 
@@ -251,6 +255,19 @@ async function articleRef(
 }
 
 /** The story for one fixture, or null if it doesn't exist. */
+async function signingReasons(db: Db, seasonId: string, facts: Fact[]): Promise<StoryLine[]> {
+  const ids = new Set(facts.filter((x) => x.id.startsWith("deal:")).map((x) => x.id.slice(5)));
+  if (!ids.size) return [];
+  return (await completedDeals(db, { seasonId }))
+    .filter((d) => ids.has(d.id))
+    .map((d) => ({
+      kind: "transfer" as const,
+      source: "interpretation" as const,
+      text: `${d.buyer.manager ?? `${possessive(d.to.name)} manager`} (${d.to.name}) on signing ${d.player.name}: ${d.buyer.reason}`,
+      factIds: [],
+    }));
+}
+
 export async function fixtureStory(db: Db, fixtureId: string, now = new Date()): Promise<FixtureStory | null> {
   const [f] = await db<FixtureRow[]>`
     select f.id, f.season_id, f.round, f.status, f.scheduled_at, f.home_team_id, f.away_team_id,
@@ -345,7 +362,11 @@ export async function fixtureStory(db: Db, fixtureId: string, now = new Date()):
       : null,
     prematch: {
       asOfRound: pre.asOfRound,
-      lines: prematchLines(pre.facts, home, away, f.round, rounds, pre.asOfRound),
+      lines: [
+        ...prematchLines(pre.facts, home, away, f.round, rounds, pre.asOfRound),
+        // The managers' own reasons for this season's signings, attributed (AI-written, not fact-checked).
+        ...(await signingReasons(db, f.season_id, pre.facts)),
+      ],
       facts: pre.facts,
     },
     postmatch,

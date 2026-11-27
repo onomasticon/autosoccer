@@ -9,6 +9,7 @@
 import { z } from "zod";
 import { PlayerCareer } from "./careers.ts";
 import { Id, Position, Slug, Timestamp } from "./common.ts";
+import { DealView } from "./deals.ts";
 import { Team } from "./domain.ts";
 import { Period } from "./match.ts";
 
@@ -107,6 +108,8 @@ export const PlayerProfileResponse = z.object({
   /** The player's latest goal(s) in a match, across seasons. */
   recent: Spotlight.nullable(),
   next: SpotlightNext.nullable(),
+  /** The player's completed transfers, newest first: both clubs, the fee and each manager's reason. */
+  transfers: z.array(DealView).optional(),
 });
 export type PlayerProfileResponse = z.infer<typeof PlayerProfileResponse>;
 

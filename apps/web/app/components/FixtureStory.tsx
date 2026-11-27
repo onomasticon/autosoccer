@@ -15,6 +15,8 @@ const KIND_LABEL: Record<StoryLine["kind"], string> = {
   result: "Result",
   goals: "Goals",
   next: "Next",
+  transfer: "Transfer",
+  takeover: "Takeover",
 };
 
 function Line({ line }: { line: StoryLine }) {

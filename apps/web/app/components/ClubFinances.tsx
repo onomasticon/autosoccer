@@ -1,4 +1,5 @@
 import type { ClubFinancesResponse } from "@autosoccer/contracts";
+import { moneyStory } from "./Consequences";
 
 /** "1.25m cr", "450k cr", "−300k cr" (same rule as the server's formatCredits). */
 export function credits(n: number): string {
@@ -55,6 +56,16 @@ export function ClubFinances({ finances: f }: { finances: ClubFinancesResponse }
           : "."}{" "}
         Headroom counts no income still to come: that depends on results.
       </p>
+      {latest && (
+        <ul className="space-y-1 text-sm" data-testid="money-story">
+          {f.seasons
+            .slice(-3)
+            .reverse()
+            .map((s) => (
+              <li key={s.season.slug}>{moneyStory(s)}</li>
+            ))}
+        </ul>
+      )}
       {latest && (
         <table className="w-full text-xs">
           <caption className="mb-1 text-left text-xs font-bold uppercase tracking-wider text-muted-text">

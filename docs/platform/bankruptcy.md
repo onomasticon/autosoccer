@@ -53,3 +53,9 @@ When the next season is created, new owners take over every club that withdrew:
 - **Tuning.** The six-season balance run ([finance-balance.md](finance-balance.md)) has no bankruptcies. The offline managers keep 3m cr of headroom, so a prudent club never comes close.
   - `scripts/bankruptcy-demo.ts` shows what a reckless one does. Northgate spent 12.15m cr of their 12.33m cr on one signing and went bankrupt before round 5. They returned the next season as Northgate Phoenix with 12m cr.
   - We kept the rules as they are. A solvent club can make this bad decision, and the consequence comes during the season, while it still matters.
+
+## Where the takeover shows
+
+- **The club's page:** "Why the club was taken over". It shows the season and round the club withdrew, the wages due against the cash it had, the new owners' capital, and the change of name. The page also lists the club's former names.
+- **Matchday in the club's first three rounds back:** a line from the record says it is playing its first season under new owners, and why.
+- **The homepage spotlight:** notes a rescued club's win in that first season. The league correspondent reports the takeover itself ([newsroom.md](newsroom.md)).

@@ -15,6 +15,7 @@ import { AgentProfileCard } from "../components/AgentProfileCard";
 import { ArticleCard } from "../components/ArticleCard";
 import { BudgetMeter } from "../components/BudgetMeter";
 import { ClubFinances } from "../components/ClubFinances";
+import { ClubDeals, TakeoverCard } from "../components/Consequences";
 import { DugoutTimeline } from "../components/Dugout";
 import { FollowButton } from "../components/FollowClub";
 import { ManagerArc } from "../components/ManagerArc";
@@ -83,6 +84,8 @@ export default function Team({ loaderData }: Route.ComponentProps) {
     profile,
     careers,
     finances,
+    deals,
+    takeovers,
   } = loaderData;
   const results = fixtures.filter((f) => f.status === "completed");
   const upcoming = fixtures.filter((f) => f.status !== "completed");
@@ -256,6 +259,16 @@ export default function Team({ loaderData }: Route.ComponentProps) {
                 </ul>
               </div>
             )}
+          </section>
+          {(takeovers?.length ?? 0) > 0 && (
+            <section aria-labelledby="takeover">
+              <SectionHeader id="takeover" title="Why the club was taken over" meta="From the record" />
+              <TakeoverCard takeovers={takeovers!} />
+            </section>
+          )}
+          <section aria-labelledby="deals">
+            <SectionHeader id="deals" title="Recent deals" meta="Transfer windows" />
+            <ClubDeals deals={deals ?? []} teamId={team.id} />
           </section>
           {finances && (
             <section aria-labelledby="finances">

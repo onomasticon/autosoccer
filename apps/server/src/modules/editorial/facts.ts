@@ -13,8 +13,10 @@ import {
   type TeamMatchStats,
 } from "@autosoccer/contracts";
 import type { Db } from "@autosoccer/db";
+import { formatCredits } from "../finance/rules.ts";
 import { absencesFor } from "../injuries/injuries.ts";
 import { seasonRace, standingRows } from "../league/read.ts";
+import { completedDeals, takeoverStories } from "../transfers/history.ts";
 
 const clock = (e: { period: string; clockSec: number }) =>
   `${e.period === "firstHalf" ? "first" : "second"} half, ${Math.floor(e.clockSec / 60)}:${String(Math.floor(e.clockSec % 60)).padStart(2, "0")}`;
@@ -446,6 +448,39 @@ interface FixtureRow {
   away_name: string;
 }
 
+/** In the first rounds of a season, a club's signings and a takeover are part of its story. */
+export const CLUB_EVENT_ROUNDS = 3;
+
+/**
+ * The season's club decisions with sporting consequences (#80): signings made in the window before
+ * it, and a club playing its first season under new owners. Only in the first rounds, while they're
+ * still news. Facts from the record; the managers' reasons are attributed separately (Matchday).
+ */
+export async function clubEventFacts(db: Db, seasonId: string, teamIds: string[], round: number): Promise<Fact[]> {
+  if (round > CLUB_EVENT_ROUNDS) return [];
+  const out: Fact[] = [];
+  for (const d of await completedDeals(db, { seasonId }))
+    if (teamIds.includes(d.to.id))
+      out.push({
+        id: `deal:${d.id}`,
+        kind: "news",
+        statement: `${d.player.name} joined ${d.to.name} from ${d.from.name} for ${formatCredits(d.fee)} in the ${d.season.name} transfer window`,
+        value: { player: d.player.name, from: d.from.name, to: d.to.name, fee: d.fee, teamId: d.to.id },
+        source: { table: "transfer_bids", id: d.id },
+      });
+  for (const teamId of teamIds)
+    for (const t of await takeoverStories(db, teamId))
+      if (t.returned.slug === (await db<{ slug: string }[]>`select slug from seasons where id = ${seasonId}`)[0]?.slug)
+        out.push({
+          id: `takeover:${seasonId}:${teamId}`,
+          kind: "news",
+          statement: `${t.to} are playing their first season under new owners, after ${t.from} withdrew from ${t.withdrew.season.name} before round ${t.withdrew.round}, unable to pay their wages`,
+          value: { from: t.from, to: t.to, teamId },
+          source: { table: "team_identities", id: teamId },
+        });
+  return out;
+}
+
 /** "Harbour City's", "Northgate Comets'". */
 export const possessive = (name: string) => (name.endsWith("s") ? `${name}'` : `${name}'s`);
 
@@ -566,6 +601,7 @@ export async function prematchFacts(db: Db, fixtureId: string): Promise<Editoria
       });
   }
   facts.push(...(await historyFacts(db, f.season_id)));
+  facts.push(...(await clubEventFacts(db, f.season_id, [f.home_team_id, f.away_team_id], f.round)));
   return {
     contract: "editorial-facts/1",
     seasonId: f.season_id,

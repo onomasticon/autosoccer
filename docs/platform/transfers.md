@@ -83,3 +83,14 @@ Each window makes at most three model calls per club (listing, bidding and reply
 ## Balance
 
 `bun run finance:balance --seasons 6` plays six seasons, with a window before each season after the first, and writes [finance-balance.md](finance-balance.md). The report covers money by source, including transfer fees, every bid and how it ended, cash after each season, titles and squad sizes. The offline managers' market rules are in `apps/server/src/modules/transfers/offline.ts`. To rebalance: change `transfers/rules.ts`, bump the version, rerun the script and compare.
+
+## Where the consequences show
+
+Every completed deal appears in four places:
+
+- **Both clubs' pages, under Recent deals:** whether the club signed or sold the player, the fee, a link to the player's career and the other club, and the club's own manager's recorded reason.
+- **The player's page, under Transfers:** both clubs and both managers' reasons.
+- **Matchday and match previews in the first three rounds of the new season:** the signing as a fact from the record, plus the buying manager's reason, labelled as theirs (AI-written).
+- **The league correspondent's window round-up:** each deal, the reasons the managers gave, and the biggest offers that were turned down, with the seller's reason. A club keeping its player is news too.
+
+When a new signing scores in their first season, the homepage player spotlight says so. A rescued club's win in its first season under new owners gets the same treatment ([bankruptcy.md](bankruptcy.md)).
