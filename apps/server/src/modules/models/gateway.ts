@@ -16,6 +16,7 @@
  *
  * No calls are made from page rendering or simulator ticks: the gateway is only reachable from jobs.
  */
+import Anthropic from "@anthropic-ai/sdk";
 import { z } from "zod";
 import {
   AnthropicLlm,
@@ -268,7 +269,10 @@ export function llmForModel(
   opts: GatewayOptions & { fetch?: typeof fetch } = {},
 ): LlmClient {
   if (spec.route === "direct" && spec.provider === "anthropic") {
-    const inner = new AnthropicLlm(spec.apiModelId);
+    // ANTHROPIC_KEY is what the credential wrapper (with-anthropic-token) exports.
+    const apiKey = env.ANTHROPIC_API_KEY ?? env.ANTHROPIC_KEY;
+    if (!apiKey) throw new Error(`${spec.slug}: ANTHROPIC_API_KEY (or ANTHROPIC_KEY) is not set`);
+    const inner = new AnthropicLlm(spec.apiModelId, { client: new Anthropic({ apiKey }) });
     return {
       provider: "anthropic",
       model: spec.slug,
