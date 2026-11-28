@@ -9,7 +9,7 @@
  * player picks the offer that suits him, ties go to a seeded order, never to the fastest club.
  */
 import { createHash } from "node:crypto";
-import type { PlayerAttributes, Position } from "@autosoccer/contracts";
+import type { PlayerAttributes, Position, TeamSize } from "@autosoccer/contracts";
 import type { Db } from "@autosoccer/db";
 import { PermanentJobError } from "../../jobs/worker.ts";
 import {
@@ -26,6 +26,7 @@ import { overallRating, playerAttributes } from "../league/attributes.ts";
 import { seasonNumber } from "../league/rollover.ts";
 import { type ClubState, type Offer, type PoolPlayer, settleRound } from "../players/recruitment.ts";
 import { TRANSFER_2 } from "../transfers/rules.ts";
+import { repairLineup } from "../transfers/settle.ts";
 import {
   type ContractFacts,
   type ContractPlayerFact,
@@ -404,6 +405,12 @@ async function storeOffers(
  * registration and their wage; they become free agents. Then the window moves to free agency.
  */
 export async function settleRenewals(db: Db, windowId: string): Promise<{ renewed: number; released: number } | null> {
+  const out = await settleRenewalsTx(db, windowId);
+  if (out) await repairLineups(db, windowId);
+  return out;
+}
+
+async function settleRenewalsTx(db: Db, windowId: string): Promise<{ renewed: number; released: number } | null> {
   return db.begin(async (tx) => {
     const t = tx as unknown as Db;
     const [w] = await t<MarketWindow[]>`select * from market_windows where id = ${windowId} for update`;
@@ -454,6 +461,36 @@ export async function settleRenewals(db: Db, windowId: string): Promise<{ renewe
  * from the window's effective round in midseason). No fee changes hands.
  */
 export async function settleFreeAgency(db: Db, windowId: string): Promise<{ signed: number } | null> {
+  const out = await settleFreeAgencyTx(db, windowId);
+  if (out) await repairLineups(db, windowId);
+  return out;
+}
+
+/**
+ * After a step settles, every club's latest lineup stays valid: players who left are replaced by the
+ * best remaining player for the place, and a better signing starts (transfer/1's repair). The manager
+ * can still change the side before kick-off. No-op for a club whose lineup is unaffected.
+ */
+async function repairLineups(db: Db, windowId: string) {
+  const w = await windowById(db, windowId);
+  if (!w) return;
+  const [s] = await db<{ players_per_team: number }[]>`select players_per_team from seasons where id = ${w.season_id}`;
+  const released = await db<{ team_id: string; name: string }[]>`
+    select d.team_id, p.name from contract_decisions d join player_contracts c on c.id = d.contract_id
+    join players p on p.id = c.player_id where d.window_id = ${w.id} and d.decision = 'release'`;
+  const signed = await db<{ team_id: string; name: string }[]>`
+    select o.team_id, p.name from free_agent_offers o join players p on p.id = o.player_id
+    where o.window_id = ${w.id} and o.outcome = 'signed'`;
+  for (const { team_id } of await db<
+    { team_id: string }[]
+  >`select team_id from season_teams where season_id = ${w.season_id}`)
+    await repairLineup(db, w.season_id, team_id, s!.players_per_team as TeamSize, {
+      in: signed.filter((x) => x.team_id === team_id).map((x) => x.name),
+      out: released.filter((x) => x.team_id === team_id).map((x) => x.name),
+    });
+}
+
+async function settleFreeAgencyTx(db: Db, windowId: string): Promise<{ signed: number } | null> {
   return db.begin(async (tx) => {
     const t = tx as unknown as Db;
     const [w] = await t<MarketWindow[]>`select * from market_windows where id = ${windowId} for update`;

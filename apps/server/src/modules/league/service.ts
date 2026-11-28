@@ -89,6 +89,11 @@ export interface CreateSeasonInput {
   injuryRule?: string | null;
   /** The league the season belongs to (default: the default league; see league/leagues.ts). */
   leagueId?: string;
+  /**
+   * An exact timetable (club slugs and kickoffs) instead of the generated round robin and cadence:
+   * Phase 2 seasons come from calendar/1, with staggered kickoffs within a round.
+   */
+  fixtures?: Array<{ round: number; home: string; away: string; kickoff: Date }>;
 }
 
 /**
@@ -140,11 +145,12 @@ export async function createSeason(db: Db, input: CreateSeasonInput): Promise<{ 
       Math.max(...calendar.map((f) => f.round)),
       input.cadence ?? { kind: "interval", minutes: input.roundIntervalMinutes ?? 60 },
     );
-    for (const f of calendar) {
+    const timetable = input.fixtures ?? calendar.map((f) => ({ ...f, kickoff: times[f.round - 1]! }));
+    for (const f of timetable) {
       await tx`
         insert into fixtures (season_id, round, home_team_id, away_team_id, seed, scheduled_at)
         values (${season!.id}, ${f.round}, ${bySlug.get(f.home)!}, ${bySlug.get(f.away)!},
-          ${fixtureSeed(input.seed, f.round, f.home, f.away)}, ${times[f.round - 1]!})`;
+          ${fixtureSeed(input.seed, f.round, f.home, f.away)}, ${f.kickoff})`;
     }
     return { seasonId: season!.id, created: true };
   });
@@ -187,6 +193,10 @@ export async function advanceSeason(db: Db, seasonId: string, opts: AdvanceOptio
   // Payroll check (insolvency/1) as soon as the round is next, before its previews and manager
   // decisions. Round 1 waits for the transfer window to close: its deals move cash.
   const [window] = await db`select 1 from transfer_windows where season_id = ${seasonId} and phase <> 'closed'`;
+  // transfer/2: a round never kicks off while the market window that feeds it is still open.
+  const [market] = await db`
+    select 1 from market_windows where season_id = ${seasonId} and effective_round = ${round} and phase <> 'closed'`;
+  if (market) return { state: "waiting", round, reason: "the market window for this round is still open" };
   if (!window) await checkSolvency(db, seasonId, round);
   // Injuries from results so far (injury/1; idempotent), before the round's managers pick their sides.
   await settleInjuries(db, seasonId);

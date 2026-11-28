@@ -50,13 +50,26 @@ That is about **106 opportunities per club per cycle**.
 - **Unanswered.** A missed deadline keeps the last valid decision, exactly as an unavailable model does today. No season stalls waiting for a model.
 - **Cost.** At about 106 calls per 23 days (4.6 per day), the cost projection's default of 5 calls per club per day is conservative ([models.md](models.md)).
 
-## Not yet wired in (next increments)
+## Wired into the scheduler (`contracts/scheduler.ts`)
 
-- **Scheduler.** Phase 2 seasons will be created from this calendar: fixtures from `rounds`, windows from `windows`. The scheduler will gate each round on `tacticsLock`. Until then the original league keeps its interval and weekly cadences.
-- **Viable squads.** Activation will require the founding phase to have produced viable squads (#95, #96).
-- **Settlement.** Contract, market and loan settlement will run at window close and round boundaries, idempotently.
-- **Pause and resume midseason.** Existing tool: `bun run ops reschedule`.
-- **Demonstration.** A compressed full season with a real worker.
+- **Creating a season.** `createPhase2Season` builds a Phase 2 season (finance/3, transfer/2) from calendar/1's exact timetable, including staggered kickoffs and the simultaneous final round. Both market windows are created up front: preseason before round 1, and midseason before the second half.
+- **Each scheduler tick.** For each open window whose time has come, one decision job is queued per club for the current step: renewals, then free agency. A step settles when every club has answered, or at its deadline. A model that never answers gets the safe default, and nothing stalls.
+- **Rounds wait for windows.** A round never kicks off while the window that feeds it is open.
+- **Midseason.** The midseason window opens only once the first half is complete.
+- **Late steps keep their full time.** A step that starts late (a delayed season, or a midseason window waiting on the first half) has its deadlines moved to start when it actually begins. Every manager gets its full time, and a late window never settles on defaults alone.
+
+**Evidence.** `contracts/phase2-season.test.ts` plays a compressed full season of four clubs through the real scheduler and job worker, with offline managers:
+- the preseason window queues decisions, settles renewals, then free agency;
+- rounds 1–3 are played;
+- the midseason window opens after round 3, and round 4 waits until it closes;
+- the second half is played and the season completes.
+
+Twelve manager decisions were made (3 steps × 4 clubs), no transfer/1 window was opened, and every fixture was played.
+
+## Still to come
+
+- **Founding:** founding and the inaugural recruitment market as the season's first phase (calendar/1's 10-day founding window).
+- **Pause and resume midseason** for Phase 2 seasons, beyond what `bun run ops reschedule` already covers.
 
 ## Evidence
 

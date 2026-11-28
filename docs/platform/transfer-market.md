@@ -89,7 +89,9 @@ These apply only to seasons whose `transfer_rule` is `transfer/2`. The original 
 
 ## Not yet
 
-- **The calendar.** Opening, moving through and closing windows from calendar/1 in the scheduler (#99), and enqueueing each club's decision as a job.
-- **Payroll from contracts.** finance/3 settlement in the database: wages from `player_contracts`, plus running costs, loans and administration (#97).
+- **Done (#99, #97):**
+  - **Scheduler.** It opens, moves through and settles both windows from calendar/1, queueing each club's decision as a job ([calendar.md](calendar.md)).
+  - **Payroll from contracts.** Each round, a club pays a round's share of the contract wage of every player registered with it as of that round, so a midseason move splits a player's wages between his clubs. finance/3 seasons also pay 1m cr a season in running costs (ledger kind `operating`).
+- **Still to do:** the insolvency/2 lender (loans, auctions, administration) in the database. Until then, a Phase 2 season runs no solvency checks, and a club short of money shows a negative balance rather than forfeiting.
 - **Founding contracts.** Founding and recruitment signings write their contracts (recruit/1 persistence).
 - **Public pages** for releases, free signings and the midseason window (#100).

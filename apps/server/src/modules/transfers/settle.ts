@@ -133,7 +133,7 @@ export async function settleWindow(db: Db, w: WindowRow, faults?: SettleFaults) 
  * Keeps a club's round-1 lineup valid after its squad changed: players who left are replaced by
  * the best remaining player for that place (same position by ability, else any outfielder).
  */
-async function repairLineup(
+export async function repairLineup(
   db: Db,
   seasonId: string,
   teamId: string,

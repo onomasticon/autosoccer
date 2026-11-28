@@ -16,14 +16,15 @@ import type { Db } from "@autosoccer/db";
 import { withdrawals } from "../insolvency/check.ts";
 import { ratedPlayer, seasonRatings } from "../league/careers.ts";
 import { standingRows } from "../league/read.ts";
+import { seasonNumber } from "../league/rollover.ts";
 import type { PlayerRow } from "../mappers.ts";
-import { type FinanceRules, prizeFor, resultIncome, rulesFor, wageFor } from "./rules.ts";
+import { FINANCE_3, type FinanceRules, prizeFor, resultIncome, rulesFor, wageFor } from "./rules.ts";
 
 interface Entry {
   teamId: string;
   seasonId: string | null;
   round: number | null;
-  kind: "opening" | "distribution" | "result" | "prize" | "payroll" | "transfer" | "takeover";
+  kind: "opening" | "distribution" | "result" | "prize" | "payroll" | "transfer" | "takeover" | "operating";
   amount: number;
   key: string;
   memo: string;
@@ -67,10 +68,54 @@ export async function payrollFor(db: Db, seasonId: string, teamId: string) {
   return { perRound: wages.reduce((s, w) => s + w.wage, 0), players: wages };
 }
 
+/**
+ * transfer/2 seasons pay contracts, not ratings: in each round a club pays a round's share of the
+ * contract wage of every player registered with it as of that round (season registration, then any
+ * registration moves from the midseason window). The contract is the one that covers the season with
+ * that club, so a player who moved midseason is paid by each club for the rounds he played for it.
+ */
+export async function contractPayroll(db: Db, seasonId: string, teamId: string, round: number) {
+  const [s] = await db<{ slug: string; rounds: number }[]>`
+    select slug, (select count(distinct round)::int from fixtures f where f.season_id = seasons.id) as rounds
+    from seasons where id = ${seasonId}`;
+  const n = seasonNumber(s!.slug) ?? 1;
+  const rows = await db<{ player_id: string; wage: string | null }[]>`
+    with reg as (
+      select r.player_id, coalesce(
+        (select m.to_team_id from registration_moves m where m.season_id = r.season_id and m.player_id = r.player_id
+           and m.from_round <= ${round} order by m.from_round desc limit 1), r.team_id) as team_id
+      from player_registrations r where r.season_id = ${seasonId}
+      union
+      select m.player_id, m.to_team_id from registration_moves m
+      where m.season_id = ${seasonId} and m.from_round <= ${round}
+        and not exists (select 1 from player_registrations r where r.season_id = m.season_id and r.player_id = m.player_id)
+        and m.from_round = (select max(m2.from_round) from registration_moves m2
+          where m2.season_id = m.season_id and m2.player_id = m.player_id and m2.from_round <= ${round})
+    )
+    select reg.player_id,
+      (select c.wage_per_season::text from player_contracts c
+        where c.player_id = reg.player_id and c.team_id = ${teamId}
+          and c.starts_season <= ${n} and c.ends_season >= ${n}
+        order by c.created_at desc limit 1) as wage
+    from reg where reg.team_id = ${teamId} order by reg.player_id`;
+  const rounds = Math.max(1, s!.rounds);
+  const players = rows.map((r) => ({
+    playerId: r.player_id,
+    wagePerSeason: Number(r.wage ?? 0),
+    wage: Math.round(Number(r.wage ?? 0) / rounds),
+  }));
+  return {
+    perRound: players.reduce((a, p) => a + p.wage, 0),
+    players,
+    uncontracted: players.filter((p) => !p.wagePerSeason).length,
+  };
+}
+
 /** Writes everything the season owes so far. Returns how many new entries were written. */
 export async function settleFinances(db: Db, seasonId: string): Promise<number> {
-  const [season] = await db<{ id: string; slug: string; status: string; finance_rule: string | null }[]>`
-    select id, slug, status, finance_rule from seasons where id = ${seasonId}`;
+  const [season] = await db<
+    { id: string; slug: string; status: string; finance_rule: string | null; transfer_rule: string | null }[]
+  >`select id, slug, status, finance_rule, transfer_rule from seasons where id = ${seasonId}`;
   if (!season?.finance_rule) return 0;
   const rule = season.finance_rule;
   const R = await seasonRules(db, seasonId);
@@ -105,8 +150,40 @@ export async function settleFinances(db: Db, seasonId: string): Promise<number> 
       memo: "League distribution",
     });
   }
-  // Payroll for every released round, at this season's ratings.
-  if (released.length) {
+  // transfer/2: wages from contracts, as registered round by round; finance/3: running costs too.
+  if (released.length && season.transfer_rule === "transfer/2") {
+    const [count] = await db<{ rounds: number }[]>`
+      select count(distinct round)::int as rounds from fixtures where season_id = ${seasonId}`;
+    const rounds = count?.rounds ?? 1;
+    const operating =
+      season.finance_rule === "finance/3" ? Math.round(FINANCE_3.operatingPerSeason / Math.max(1, rounds)) : 0;
+    for (const t of teams)
+      for (const { round } of released) {
+        if (round >= (gone.get(t.id) ?? Number.POSITIVE_INFINITY)) continue;
+        const pay = await contractPayroll(db, seasonId, t.id, round);
+        entries.push({
+          teamId: t.id,
+          seasonId,
+          round,
+          kind: "payroll",
+          amount: -pay.perRound,
+          key: `payroll:${seasonId}:${round}:${t.id}`,
+          memo: `Wages, round ${round} (${pay.players.length} players under contract)`,
+          basis: { players: pay.players, uncontracted: pay.uncontracted },
+        });
+        if (operating)
+          entries.push({
+            teamId: t.id,
+            seasonId,
+            round,
+            kind: "operating",
+            amount: -operating,
+            key: `operating:${seasonId}:${round}:${t.id}`,
+            memo: `Running costs, round ${round}`,
+            basis: { perSeason: FINANCE_3.operatingPerSeason },
+          });
+      }
+  } else if (released.length) {
     for (const t of teams) {
       const pay = await payrollFor(db, seasonId, t.id);
       for (const { round } of released) {
