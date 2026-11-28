@@ -22,7 +22,7 @@ draft ──activate──▶ active ──(final season completes / conclude)�
 ```
 
 - **draft**: being set up (founding, recruitment). Its seasons aren't played, aren't in the public API and never take over the homepage.
-- **active**: the scheduler plays its seasons. Only a league with `rollover = 'legacy'` (the original) creates its next season automatically. Other leagues get seasons from explicit commands.
+- **active**: the scheduler plays its seasons. The original league (`rollover = 'legacy'`) creates its next season with the legacy rollover. A league that came out of an inaugural phase rolls over under `rollover/1` ([rollover.md](rollover.md)). Any other league gets seasons only from explicit commands.
 - **concluded**: no more seasons. The database refuses to create one. Everything stays browsable.
 - **archived**: read-only. The database refuses inserts, updates and deletes on that league's seasons, season clubs, fixtures, matches, registrations, tactical revisions, club-ledger rows, manager runs and compute transactions. The inventory taken at archival can be re-verified at any time.
 
@@ -34,7 +34,7 @@ Exactly one league is the default (`is_default`). It is what `/seasons`, `/seaso
 
 - **Scheduler.** It advances only the seasons of active leagues.
 - **Transfer windows.** They open only for seasons of active leagues.
-- **Rollover.** Only the legacy league rolls over, only while it is active, and the next season always joins that league.
+- **Rollover.** Each league rolls over only while it is active, and the next season always joins that league: the legacy rollover for the original, `rollover/1` for a Phase 2 league. Neither touches the other's seasons.
 - **"The previous season".** Wherever the code asks for it (news, history facts, article timing, the transfer market's records, refreshing the upcoming season), it now means the previous season **of the same league**. A new league's first season starts with no history from the original.
 - **Ledgers.** The compute ledger, the editorial budget and the club ledger are keyed by season, so they are isolated by league. The club ledger's one-off opening balance belongs to the club, not to any season. New-league clubs are new clubs.
 - **News.** It is enqueued for the newest two seasons of each active or concluded league. An archived league gets no new articles.

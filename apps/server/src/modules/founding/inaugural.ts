@@ -309,7 +309,11 @@ export async function runSafetyNet(db: Db, seasonId: string): Promise<{ assigned
 }
 
 /** Each club's opening setup (default tactics, its best side), unless its manager already has one. */
-async function seedOpeningTactics(db: Db, seasonId: string) {
+export async function seedOpeningTactics(
+  db: Db,
+  seasonId: string,
+  rationale = "Opening setup after recruitment (the manager sets its own before round 1).",
+) {
   const size = await seasonTeamSize(db, seasonId);
   for (const { team_id } of await db<
     { team_id: string }[]
@@ -329,7 +333,7 @@ async function seedOpeningTactics(db: Db, seasonId: string) {
       source: "seed",
       deployment: tacticalDeployment(defaultTactics(size)),
       starters: defaultLineup(squad, size).starters,
-      rationale: "Opening setup after recruitment (the manager sets its own before round 1).",
+      rationale,
     });
   }
 }

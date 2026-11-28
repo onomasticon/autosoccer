@@ -87,7 +87,7 @@ describe("the inaugural phase: founding, recruitment and the first season", () =
     expect(founded.map((f) => f.model)).toEqual([...MODELS].sort());
     for (const f of founded) expect(f.manager_model).toBe(f.model);
     const [phases] =
-      await t.db`select count(*)::int as n from league_phases where league_id = ${leagueId} and status = 'settled'`;
+      await t.db`select count(*)::int as n from league_phases where league_id = ${leagueId} and kind <> 'rollover' and status = 'settled'`;
     expect(phases!.n).toBe(INAUGURAL.foundingRounds + 1);
   });
 
@@ -138,7 +138,8 @@ describe("the inaugural phase: founding, recruitment and the first season", () =
     // Every signing is registered for the season (midseason signings by a registration move).
     const [unregistered] = await t.db`
       select count(*)::int as n from players p join season_teams st on st.team_id = p.team_id and st.season_id = ${seasonId}
-      where not exists (select 1 from player_registrations r where r.season_id = ${seasonId} and r.player_id = p.id)
+      where p.academy_season_id is null -- graduates join after the season (rollover/1)
+        and not exists (select 1 from player_registrations r where r.season_id = ${seasonId} and r.player_id = p.id)
         and not exists (select 1 from registration_moves m where m.season_id = ${seasonId} and m.player_id = p.id)`;
     expect(unregistered!.n).toBe(0);
   });

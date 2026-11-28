@@ -15,6 +15,7 @@ import { tickMarketWindows } from "../contracts/scheduler.ts";
 import { enqueueNews } from "../editorial/news.ts";
 import { enqueuePreviews } from "../editorial/service.ts";
 import { tickInaugural } from "../founding/inaugural.ts";
+import { rolloverPhase2 } from "../founding/rollover.ts";
 import { refreshUpcomingSeason, rolloverSeason } from "../league/rollover.ts";
 import { type AdvanceResult, advanceSeason } from "../league/service.ts";
 import { tickTransfers } from "../transfers/window.ts";
@@ -93,6 +94,10 @@ export async function schedulerTick(db: Db, opts: TickOptions): Promise<TickResu
       const rolledOver = opts.rollover
         ? await rolloverSeason(db, { ...opts.rollover, now: opts.now, log: opts.log })
         : null;
+      // A new league's next season (rollover/1), once its newest season completes.
+      await rolloverPhase2(db, { now: opts.now, log: opts.log }).catch((e: Error) =>
+        opts.log?.error("phase 2 rollover failed; retrying next tick", { error: e.message }),
+      );
       // League news (champions, league changes, takeovers, bankruptcies, the window, club money).
       if (opts.previews) await enqueueNews(db);
       return { leader: true, seasons: out, rolledOver };
