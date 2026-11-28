@@ -88,7 +88,7 @@ describe("a compressed Phase 2 season through the scheduler and worker", () => {
     expect(s).toEqual({
       finance_rule: "finance/3",
       transfer_rule: "transfer/2",
-      insolvency_rule: null,
+      insolvency_rule: "insolvency/2",
       status: "completed",
     });
     const w = await t.db<{ kind: string; effective_round: number; phase: string }[]>`
@@ -152,6 +152,11 @@ describe("a compressed Phase 2 season through the scheduler and worker", () => {
     expect(prizes[0]!.n).toBe(4);
     const [fees] = await t.db`select count(*)::int as n from club_ledger where kind = 'transfer'`;
     expect(fees!.n).toBe(0);
+  });
+
+  it("the lender checked every club before every round, once", async () => {
+    const [n] = await t.db`select count(*)::int as n from lender_checks where season_id = ${seasonId}`;
+    expect(n!.n).toBe(4 * 6);
   });
 
   it("every fixture was played (no solvency forfeits in a Phase 2 season)", async () => {

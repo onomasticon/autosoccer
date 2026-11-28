@@ -71,9 +71,53 @@ These are pure rule functions, shared by the harness and, once integrated, by se
 - **The band is narrow.** That's because income and costs are both fixed amounts. A self-correcting money supply needs a working transfer market, where money moves between clubs. Liquidity is therefore the next lever, before finance/3 is adopted.
 - **The harness found and fixed a real bug.** Forced sales could sell a club's second keeper, because the list of sellable players was computed once (`candidate-lean`, seed 3, season 35). Sales now re-check after each one, and the case is a regression test.
 
+## In the database (`insolvency/lender.ts`, migration 0020)
+
+Phase 2 seasons (`insolvency_rule = 'insolvency/2'`) run the lender for real, using the same rule functions the harness calibrated. insolvency/1 seasons are untouched: the old check now runs only for them.
+
+| Table | What it holds |
+| --- | --- |
+| `club_loans` + `loan_entries` | Each loan, and its debt ledger: disbursement, interest and repayments. A balance is the sum of its entries, one row per obligation |
+| `loan_liens` | Players pledged as collateral. At most one active pledge per player (unique index) |
+| `lender_checks` | The lender's check of each club before each round: solvent, emergency or default, with the numbers. One per club per round, which is what makes it exactly once |
+| `administrations` | When a club entered administration, with what debt, and when it left |
+| `collateral_auctions` | Every forced auction: each eligible club's sealed bid, the reserve, and the winner or failure |
+
+Club treasury entries use the new ledger kinds `loan`, `repayment` and `auction`.
+
+**Before each round** (advanceSeason, before release), each club's obligations are counted: contract wages, running costs and loan instalments. A club that can't meet them:
+1. **borrows emergency financing** if it fits under the debt cap;
+2. **otherwise defaults:**
+   - auctions players one at a time until its debt is under the cap and the round is covered. The minimum squad and the last keeper are never sold. A sold player moves with his contract and registration from that round, and his liens are released;
+   - applies the proceeds senior-first;
+   - enters **administration** if its debt is still above half the cap;
+   - takes **repayable support** for what's still short.
+
+Instalments are then taken. Every fixture is played.
+
+**At season end** interest accrues. An administered club's surplus over three rounds of wages is swept to the lender, and it leaves administration once its debt is at most half its cap and it has three rounds of wages in hand.
+
+**Secured loans** (`borrowSecured`) lend at most 50% LTV of the pledged players' haircut value, within the debt cap. They're refused for a player already pledged, one whose contract ends before the loan does, or one from another club, and refused outright in administration or while emergency financing is outstanding.
+
+**Interim auction bids.** Until managers get an auction tool, a club bids by a fixed league rule: it bids when the player would play for it and it can pay with three rounds of wages in hand.
+
+**Evidence.** `insolvency/lender.test.ts` plays a full distressed season through the real scheduler and worker. Three clubs pay Ȼ6m a player, against about Ȼ23m of money a season, and the fourth is cheap.
+- **Every fixture is played:** no withdrawals, walkovers or void matches.
+- **The lender uses every tool:** emergency loans, defaults, forced auctions with real sales, administration and support.
+- **Sold players move cleanly:** each is registered with his new club from the auction's round, and his contract moves with him.
+- **Squads stay viable** (9 or more, with a keeper), and every club ends with cash of zero or more.
+- **The books balance:**
+  - every loan equals the sum of its entries;
+  - cash lent equals disbursements, and cash repaid equals repayments;
+  - auctions net to zero between clubs;
+  - no takeover money;
+  - interest accrues.
+- **Checks run exactly once.**
+
+The secured-loan limits are tested on a separate solvent league.
+
 ## Not yet (next increments)
 
-- **Persistence.** Database tables for loans, liens, auctions and administration, settled exactly once at round and window boundaries.
-- **Mid-season defaults.** Settlement must respect registration windows (a player sold at a mid-season auction joins at the next boundary) while fixtures stay playable.
-- **Inflation on held-out seeds** (gate 8, about 10% over with transfer/2). Take one careful step on running costs or the distribution, or accept a looser gate. Then adopt finance/3, insolvency/2 and transfer/2 together.
+- **Manager tools.** Secured borrowing requests and auction bids as structured manager decisions; today they're operator and league-rule driven.
 - **Fan-facing pages** for loans, defaults, auctions and recoveries (#100).
+- **Inflation on held-out seeds** (gate 8, about 10% over with transfer/2). Take one careful step on running costs or the distribution, or accept a looser gate. Then adopt finance/3, insolvency/2 and transfer/2 together.

@@ -16,6 +16,7 @@ import type { Db } from "@autosoccer/db";
 import { enqueue } from "../../jobs/queue.ts";
 import type { JobHandler } from "../../jobs/worker.ts";
 import type { ManagerDeps } from "../agents/service.ts";
+import { INSOLVENCY_2_RULE } from "../insolvency/recovery.ts";
 import { type CalendarConfig, DEFAULT_CALENDAR, seasonCalendar } from "../league/calendar.ts";
 import { seededOrder } from "../league/schedule.ts";
 import { createSeason } from "../league/service.ts";
@@ -67,7 +68,7 @@ export async function createPhase2Season(db: Db, input: Phase2SeasonInput) {
     leagueId: input.leagueId,
     financeRule: "finance/3",
     transferRule: CONTRACT_RULE,
-    insolvencyRule: null,
+    insolvencyRule: INSOLVENCY_2_RULE,
     fixtures: cal.rounds.flatMap((r) =>
       r.fixtures.map((f) => ({ round: r.round, home: f.home, away: f.away, kickoff: f.kickoff })),
     ),
