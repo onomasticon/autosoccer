@@ -1,6 +1,8 @@
+import { LeagueDetailResponse, SeasonMarketResponse } from "@autosoccer/contracts";
 import { createTestDatabase, type TestDatabase } from "@autosoccer/db/testing";
 import { MemoryReplayStore } from "@autosoccer/sim-adapter";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { createApp } from "../../app.ts";
 import { buildHandlers } from "../../jobs/handlers.ts";
 import { createWorker } from "../../jobs/worker.ts";
 import type { LlmClient } from "../agents/llm.ts";
@@ -151,5 +153,53 @@ describe("the inaugural phase: founding, recruitment and the first season", () =
     const [f] =
       await t.db`select count(*)::int as n from fixtures where season_id = ${seasonId} and (status <> 'completed' or outcome is not null)`;
     expect(f!.n).toBe(0);
+  });
+
+  it("publishes how the league began: each founder's exact model, its club, and the recruitment", async () => {
+    const app = createApp({ db: t.db, store: new MemoryReplayStore() });
+    const res = await app.request("/api/v1/leagues/pilot");
+    expect(res.status).toBe(200);
+    const body = LeagueDetailResponse.parse(await res.json());
+    expect(body.founding!.founders).toHaveLength(4);
+    for (const f of body.founding!.founders) {
+      expect(f.status).toBe("founded");
+      expect(f.team).not.toBeNull();
+      expect(f.model.apiModelId.length).toBeGreaterThan(0);
+      expect(f.live).toBe(false); // offline stand-ins here, and labelled as such
+    }
+    expect(body.founding!.recruitment).toMatchObject({ rounds: 3 });
+    expect(body.founding!.recruitment!.recruited).toBeGreaterThan(0);
+  });
+
+  it("publishes the season's market: official signings, never the offers that didn't sign", async () => {
+    const app = createApp({ db: t.db, store: new MemoryReplayStore() });
+    const res = await app.request("/api/v1/seasons/pilot-season-1/market");
+    expect(res.status).toBe(200);
+    const m = SeasonMarketResponse.parse(await res.json());
+    expect(m.windows.map((w) => `${w.kind}:${w.round}`)).toEqual([
+      "recruitment:1",
+      "recruitment:2",
+      "recruitment:3",
+      "preseason:1",
+      "midseason:1",
+    ]);
+    const recruited = m.moves.filter((x) => x.type === "recruited");
+    const [signed] = await t.db<{ n: number }[]>`
+      select count(*)::int as n from free_agent_offers o join market_windows w on w.id = o.window_id
+      where w.season_id = ${seasonId} and w.kind = 'recruitment' and o.outcome = 'signed'`;
+    expect(recruited).toHaveLength(signed!.n);
+    // Nothing in the public payload refers to an offer that lost.
+    const losing = await t.db<
+      { reason: string }[]
+    >`select reason from free_agent_offers where outcome <> 'signed' and reason <> ''`;
+    const text = JSON.stringify(m);
+    for (const l of losing) if (!m.moves.some((x) => x.reason === l.reason)) expect(text).not.toContain(l.reason);
+  });
+
+  it("keeps a draft league's market private", async () => {
+    const app = createApp({ db: t.db, store: new MemoryReplayStore() });
+    await t.db`update leagues set status = 'draft' where id = ${leagueId}`;
+    expect((await app.request("/api/v1/seasons/pilot-season-1/market")).status).toBe(404);
+    await t.db`update leagues set status = 'active' where id = ${leagueId}`;
   });
 });

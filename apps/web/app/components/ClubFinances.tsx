@@ -17,7 +17,13 @@ const SOURCES = [
   ["payroll", "Wages"],
   ["transfers", "Transfer fees"],
   ["takeover", "Takeover capital"],
+  // Phase 2 (finance/3, insolvency/2, recruit/1): shown only for clubs that have them.
+  ["operating", "Running costs"],
+  ["borrowing", "Borrowing, net of repayments"],
+  ["auctions", "Forced auctions"],
+  ["recruitment", "Safety-net fees"],
 ] as const;
+const ALWAYS = new Set(["distribution", "results", "prize", "payroll", "transfers", "takeover"]);
 
 /**
  * A club's fictional treasury (club-finances/1): cash, wages still due and headroom, then how it
@@ -84,18 +90,20 @@ export function ClubFinances({ finances: f }: { finances: ClubFinancesResponse }
             </tr>
           </thead>
           <tbody className="tabular">
-            {SOURCES.map(([k, label]) => (
-              <tr key={k} className="border-t border-line">
-                <th scope="row" className="py-1 text-left font-medium">
-                  {label}
-                </th>
-                {f.seasons.slice(-3).map((s) => (
-                  <td key={s.season.slug} className="py-1 text-right">
-                    {s.bySource[k] ? credits(s.bySource[k]) : "–"}
-                  </td>
-                ))}
-              </tr>
-            ))}
+            {SOURCES.filter(([k]) => ALWAYS.has(k) || f.seasons.slice(-3).some((s) => s.bySource[k])).map(
+              ([k, label]) => (
+                <tr key={k} className="border-t border-line">
+                  <th scope="row" className="py-1 text-left font-medium">
+                    {label}
+                  </th>
+                  {f.seasons.slice(-3).map((s) => (
+                    <td key={s.season.slug} className="py-1 text-right">
+                      {s.bySource[k] ? credits(s.bySource[k]) : "–"}
+                    </td>
+                  ))}
+                </tr>
+              ),
+            )}
             <tr className="border-t border-line font-semibold">
               <th scope="row" className="py-1 text-left">
                 Net
@@ -126,9 +134,11 @@ export function ClubFinances({ finances: f }: { finances: ClubFinancesResponse }
       <p className="text-xs text-muted-text">
         Fictional credits, settled by the league's rules ({f.rule ?? "finance/1"}): {credits(f.rules.distribution)} to
         every club each season, {credits(f.rules.result.win)} a win, {credits(f.rules.result.draw)} a draw, and{" "}
-        {f.rules.prize.map(credits).join(" / ")} for finishing 1st to {f.rules.prize.length}th. Wages rise with each
-        player's rating; a transfer fee is paid in full when the deal settles. Separate from the AI managers' real
-        compute budget.
+        {f.rules.prize.map(credits).join(" / ")} for finishing 1st to {f.rules.prize.length}th.{" "}
+        {f.rule === "finance/3"
+          ? "Wages are each player's contract, paid a round at a time, plus the club's running costs."
+          : "Wages rise with each player's rating; a transfer fee is paid in full when the deal settles."}{" "}
+        Separate from the AI managers' real compute budget.
       </p>
     </div>
   );

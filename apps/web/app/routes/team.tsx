@@ -15,6 +15,7 @@ import { Link } from "react-router";
 import { AgentProfileCard } from "../components/AgentProfileCard";
 import { ArticleCard } from "../components/ArticleCard";
 import { BudgetMeter } from "../components/BudgetMeter";
+import { ClubDebt } from "../components/ClubDebt";
 import { ClubFinances } from "../components/ClubFinances";
 import { ClubDeals, TakeoverCard } from "../components/Consequences";
 import { DugoutTimeline } from "../components/Dugout";
@@ -280,6 +281,12 @@ export default function Team({ loaderData }: Route.ComponentProps) {
             <section aria-labelledby="finances">
               <SectionHeader id="finances" title="Club finances" meta="Fictional credits" />
               <ClubFinances finances={finances} />
+            </section>
+          )}
+          {finances?.debt && (
+            <section aria-labelledby="debt">
+              <SectionHeader id="debt" title="Debt and recovery" meta="The league lender" />
+              <ClubDebt debt={finances.debt} club={team.name} />
             </section>
           )}
           <section aria-labelledby="squad">

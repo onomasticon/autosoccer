@@ -2496,11 +2496,242 @@
               ],
               "additionalProperties": false
             }
+          },
+          "founding": {
+            "default": null,
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "rule": {
+                    "type": "string"
+                  },
+                  "opensAt": {
+                    "description": "ISO-8601 timestamp",
+                    "type": "string",
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                  },
+                  "founders": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "model": {
+                          "type": "object",
+                          "properties": {
+                            "slug": {
+                              "type": "string"
+                            },
+                            "provider": {
+                              "type": "string"
+                            },
+                            "apiModelId": {
+                              "type": "string"
+                            },
+                            "route": {
+                              "type": "string",
+                              "enum": [
+                                "direct",
+                                "openrouter"
+                              ]
+                            },
+                            "host": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            }
+                          },
+                          "required": [
+                            "slug",
+                            "provider",
+                            "apiModelId",
+                            "route",
+                            "host"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "invited",
+                            "founded",
+                            "awaiting"
+                          ]
+                        },
+                        "rounds": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        "team": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "id": {
+                                  "description": "UUID primary key",
+                                  "type": "string",
+                                  "format": "uuid",
+                                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                                },
+                                "slug": {
+                                  "type": "string",
+                                  "maxLength": 80,
+                                  "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+                                },
+                                "name": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 60
+                                },
+                                "shortName": {
+                                  "type": "string",
+                                  "minLength": 2,
+                                  "maxLength": 4
+                                },
+                                "city": {
+                                  "type": "string",
+                                  "maxLength": 60
+                                },
+                                "colors": {
+                                  "type": "object",
+                                  "properties": {
+                                    "primary": {
+                                      "type": "string",
+                                      "pattern": "^#[0-9A-Fa-f]{6}$"
+                                    },
+                                    "secondary": {
+                                      "type": "string",
+                                      "pattern": "^#[0-9A-Fa-f]{6}$"
+                                    }
+                                  },
+                                  "required": [
+                                    "primary",
+                                    "secondary"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                "crest": {
+                                  "type": "object",
+                                  "properties": {
+                                    "shape": {
+                                      "type": "string",
+                                      "enum": [
+                                        "shield",
+                                        "circle",
+                                        "hexagon",
+                                        "diamond"
+                                      ]
+                                    },
+                                    "glyph": {
+                                      "description": "short monogram rendered on the badge",
+                                      "type": "string",
+                                      "minLength": 1,
+                                      "maxLength": 3
+                                    }
+                                  },
+                                  "required": [
+                                    "shape",
+                                    "glyph"
+                                  ],
+                                  "additionalProperties": false
+                                }
+                              },
+                              "required": [
+                                "id",
+                                "slug",
+                                "name",
+                                "shortName",
+                                "city",
+                                "colors",
+                                "crest"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "live": {
+                          "anyOf": [
+                            {
+                              "type": "boolean"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "model",
+                        "status",
+                        "rounds",
+                        "team",
+                        "live"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "recruitment": {
+                    "anyOf": [
+                      {
+                        "type": "object",
+                        "properties": {
+                          "rounds": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9007199254740991
+                          },
+                          "recruited": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9007199254740991
+                          },
+                          "safetyNet": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9007199254740991
+                          }
+                        },
+                        "required": [
+                          "rounds",
+                          "recruited",
+                          "safetyNet"
+                        ],
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "rule",
+                  "opensAt",
+                  "founders",
+                  "recruitment"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
           "league",
-          "seasons"
+          "seasons",
+          "founding"
         ],
         "additionalProperties": false
       },
@@ -19995,6 +20226,30 @@
                       "type": "integer",
                       "minimum": -9007199254740991,
                       "maximum": 9007199254740991
+                    },
+                    "operating": {
+                      "default": 0,
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "borrowing": {
+                      "default": 0,
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "auctions": {
+                      "default": 0,
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    },
+                    "recruitment": {
+                      "default": 0,
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
                     }
                   },
                   "required": [
@@ -20003,7 +20258,11 @@
                     "prize",
                     "payroll",
                     "transfers",
-                    "takeover"
+                    "takeover",
+                    "operating",
+                    "borrowing",
+                    "auctions",
+                    "recruitment"
                   ],
                   "additionalProperties": false
                 },
@@ -20035,7 +20294,12 @@
                     "prize",
                     "payroll",
                     "transfer",
-                    "takeover"
+                    "takeover",
+                    "operating",
+                    "loan",
+                    "repayment",
+                    "auction",
+                    "recruitment"
                   ]
                 },
                 "season": {
@@ -20100,6 +20364,469 @@
               ],
               "additionalProperties": false
             }
+          },
+          "debt": {
+            "default": null,
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "rule": {
+                    "type": "string",
+                    "const": "insolvency/2"
+                  },
+                  "total": {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
+                  },
+                  "loans": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "kind": {
+                          "type": "string",
+                          "enum": [
+                            "secured",
+                            "emergency",
+                            "support"
+                          ]
+                        },
+                        "principal": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "balance": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "repaid": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "interest": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "opened": {
+                          "type": "object",
+                          "properties": {
+                            "season": {
+                              "type": "object",
+                              "properties": {
+                                "slug": {
+                                  "type": "string",
+                                  "maxLength": 80,
+                                  "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+                                },
+                                "name": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "slug",
+                                "name"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "round": {
+                              "anyOf": [
+                                {
+                                  "type": "integer",
+                                  "minimum": -9007199254740991,
+                                  "maximum": 9007199254740991
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            }
+                          },
+                          "required": [
+                            "season",
+                            "round"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "dueSeason": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "active",
+                            "repaid"
+                          ]
+                        },
+                        "pledged": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        }
+                      },
+                      "required": [
+                        "kind",
+                        "principal",
+                        "balance",
+                        "repaid",
+                        "interest",
+                        "opened",
+                        "dueSeason",
+                        "status",
+                        "pledged"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "administration": {
+                    "anyOf": [
+                      {
+                        "type": "object",
+                        "properties": {
+                          "since": {
+                            "type": "object",
+                            "properties": {
+                              "season": {
+                                "type": "object",
+                                "properties": {
+                                  "slug": {
+                                    "type": "string",
+                                    "maxLength": 80,
+                                    "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+                                  },
+                                  "name": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "slug",
+                                  "name"
+                                ],
+                                "additionalProperties": false
+                              },
+                              "round": {
+                                "anyOf": [
+                                  {
+                                    "type": "integer",
+                                    "minimum": -9007199254740991,
+                                    "maximum": 9007199254740991
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              }
+                            },
+                            "required": [
+                              "season",
+                              "round"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "debtAtEntry": {
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991
+                          },
+                          "reason": {
+                            "type": "string"
+                          },
+                          "exited": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "slug": {
+                                    "type": "string",
+                                    "maxLength": 80,
+                                    "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+                                  },
+                                  "name": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "slug",
+                                  "name"
+                                ],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          }
+                        },
+                        "required": [
+                          "since",
+                          "debtAtEntry",
+                          "reason",
+                          "exited"
+                        ],
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "events": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "season": {
+                          "type": "object",
+                          "properties": {
+                            "slug": {
+                              "type": "string",
+                              "maxLength": 80,
+                              "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+                            },
+                            "name": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "slug",
+                            "name"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "round": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "outcome": {
+                          "type": "string",
+                          "enum": [
+                            "emergency",
+                            "default"
+                          ]
+                        },
+                        "shortfall": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "auctioned": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991
+                        }
+                      },
+                      "required": [
+                        "season",
+                        "round",
+                        "outcome",
+                        "shortfall",
+                        "auctioned"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "auctions": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "season": {
+                          "type": "object",
+                          "properties": {
+                            "slug": {
+                              "type": "string",
+                              "maxLength": 80,
+                              "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+                            },
+                            "name": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "slug",
+                            "name"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "round": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "player": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            },
+                            "name": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "name"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "role": {
+                          "type": "string",
+                          "enum": [
+                            "sold",
+                            "bought",
+                            "unsold"
+                          ]
+                        },
+                        "counterparty": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "id": {
+                                  "description": "UUID primary key",
+                                  "type": "string",
+                                  "format": "uuid",
+                                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                                },
+                                "slug": {
+                                  "type": "string",
+                                  "maxLength": 80,
+                                  "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+                                },
+                                "name": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "maxLength": 60
+                                },
+                                "shortName": {
+                                  "type": "string",
+                                  "minLength": 2,
+                                  "maxLength": 4
+                                },
+                                "city": {
+                                  "type": "string",
+                                  "maxLength": 60
+                                },
+                                "colors": {
+                                  "type": "object",
+                                  "properties": {
+                                    "primary": {
+                                      "type": "string",
+                                      "pattern": "^#[0-9A-Fa-f]{6}$"
+                                    },
+                                    "secondary": {
+                                      "type": "string",
+                                      "pattern": "^#[0-9A-Fa-f]{6}$"
+                                    }
+                                  },
+                                  "required": [
+                                    "primary",
+                                    "secondary"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                "crest": {
+                                  "type": "object",
+                                  "properties": {
+                                    "shape": {
+                                      "type": "string",
+                                      "enum": [
+                                        "shield",
+                                        "circle",
+                                        "hexagon",
+                                        "diamond"
+                                      ]
+                                    },
+                                    "glyph": {
+                                      "description": "short monogram rendered on the badge",
+                                      "type": "string",
+                                      "minLength": 1,
+                                      "maxLength": 3
+                                    }
+                                  },
+                                  "required": [
+                                    "shape",
+                                    "glyph"
+                                  ],
+                                  "additionalProperties": false
+                                }
+                              },
+                              "required": [
+                                "id",
+                                "slug",
+                                "name",
+                                "shortName",
+                                "city",
+                                "colors",
+                                "crest"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "amount": {
+                          "anyOf": [
+                            {
+                              "type": "integer",
+                              "minimum": -9007199254740991,
+                              "maximum": 9007199254740991
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "reserve": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "bidders": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991
+                        }
+                      },
+                      "required": [
+                        "season",
+                        "round",
+                        "player",
+                        "role",
+                        "counterparty",
+                        "amount",
+                        "reserve",
+                        "bidders"
+                      ],
+                      "additionalProperties": false
+                    }
+                  }
+                },
+                "required": [
+                  "rule",
+                  "total",
+                  "loans",
+                  "administration",
+                  "events",
+                  "auctions"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "rules": {
             "type": "object",
@@ -20201,6 +20928,7 @@
           "headroom",
           "seasons",
           "entries",
+          "debt",
           "rules"
         ],
         "additionalProperties": false

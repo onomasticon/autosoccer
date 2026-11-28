@@ -14,6 +14,7 @@ import {
 } from "@autosoccer/contracts";
 import type { Db } from "@autosoccer/db";
 import { Hono } from "hono";
+import { leagueFounding } from "../founding/public.ts";
 import { charterOf } from "../founding/service.ts";
 import { contractJson, notFound } from "../http.ts";
 import { currentInjuries } from "../injuries/injuries.ts";
@@ -52,7 +53,11 @@ export function leagueRoutes({ db }: { db: Db }) {
     const l = await leagueBySlug(db, c.req.param("league"));
     if (!l || l.status === "draft") return notFound(c, "League");
     const [league] = await publicLeagues(db, l.id);
-    return contractJson(c, LeagueDetailResponse, { league: league!, seasons: await seasonSummaries(db, l.id) });
+    return contractJson(c, LeagueDetailResponse, {
+      league: league!,
+      seasons: await seasonSummaries(db, l.id),
+      founding: await leagueFounding(db, l.id),
+    });
   });
 
   r.get("/records", async (c) => contractJson(c, RecordsResponse, await leagueRecords(db)));

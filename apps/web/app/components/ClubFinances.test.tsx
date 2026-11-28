@@ -56,6 +56,33 @@ describe("ClubFinances", () => {
     expect(r.violations.map((v) => v.id)).toEqual([]);
   });
 
+  it("shows Phase 2 lines (running costs, borrowing, auctions) only for clubs that have them", () => {
+    render(<ClubFinances finances={active} />);
+    expect(screen.queryByRole("row", { name: /Running costs/ })).toBeNull();
+    cleanup();
+    const phase2 = {
+      ...active,
+      rule: "finance/3",
+      seasons: [
+        {
+          ...active.seasons[0]!,
+          bySource: {
+            ...active.seasons[0]!.bySource,
+            operating: -1_000_000,
+            borrowing: 3_000_000,
+            auctions: 1_800_000,
+          },
+        },
+      ],
+    };
+    render(<ClubFinances finances={phase2} />);
+    expect(screen.getByRole("row", { name: /Running costs −Ȼ1m/ })).toBeTruthy();
+    expect(screen.getByRole("row", { name: /Borrowing, net of repayments Ȼ3m/ })).toBeTruthy();
+    expect(screen.getByRole("row", { name: /Forced auctions Ȼ1.8m/ })).toBeTruthy();
+    expect(screen.queryByRole("row", { name: /Safety-net fees/ })).toBeNull();
+    expect(screen.getByTestId("club-finances").textContent).toMatch(/Wages are each player's contract/);
+  });
+
   it("before the club's first finance season, explains when money starts", () => {
     render(<ClubFinances finances={{ ...active, active: false, seasons: [], entries: [] }} />);
     expect(screen.getByTestId("club-finances").textContent).toContain("opening balance of Ȼ12m");

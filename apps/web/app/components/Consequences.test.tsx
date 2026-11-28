@@ -76,4 +76,28 @@ describe("consequences (#80)", () => {
       "Season 2: earned Ȼ7.2m (league distribution Ȼ6m, results Ȼ1.2m); spent Ȼ9.2m (wages Ȼ8.7m, transfer fees Ȼ500k); down Ȼ2m.",
     );
   });
+
+  it("a Phase 2 money story counts running costs and fees, and states borrowing apart, so it adds up", () => {
+    // earned 6.43 − spent (48.32 + 0.895 + 2.25) + borrowed 33.08 = −11.955
+    expect(
+      moneyStory({
+        season: { name: "Season 1" },
+        bySource: {
+          distribution: 4_500_000,
+          results: 1_930_000,
+          prize: 0,
+          payroll: -48_320_000,
+          transfers: 0,
+          takeover: 0,
+          operating: -895_000,
+          borrowing: 33_080_000,
+          auctions: 0,
+          recruitment: -2_250_000,
+        },
+        net: -11_955_000,
+      }),
+    ).toBe(
+      "Season 1: earned Ȼ6.43m (league distribution Ȼ4.5m, results Ȼ1.93m); spent Ȼ51.47m (wages Ȼ48.32m, running costs Ȼ895k, safety-net fees Ȼ2.25m); borrowed Ȼ33.08m more than it repaid; down Ȼ11.96m.",
+    );
+  });
 });

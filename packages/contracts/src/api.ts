@@ -20,7 +20,7 @@ import {
 } from "./domain.ts";
 import { DugoutResponse, ManagerProfile, TeamDugoutResponse } from "./dugout.ts";
 import { ClubFinancesResponse } from "./finance.ts";
-import { CharterResponse } from "./founding.ts";
+import { CharterResponse, LeagueFounding } from "./founding.ts";
 import { Match, OfficialEvent, TeamMatchStats } from "./match.ts";
 import { PlayerListResponse, PlayerProfileResponse, SpotlightResponse } from "./spotlight.ts";
 import { FixtureStory } from "./story.ts";
@@ -151,7 +151,12 @@ export const League = z.object({
 });
 export type League = z.infer<typeof League>;
 export const LeagueListResponse = z.object({ items: z.array(League) });
-export const LeagueDetailResponse = z.object({ league: League, seasons: z.array(SeasonSummary) });
+export const LeagueDetailResponse = z.object({
+  league: League,
+  seasons: z.array(SeasonSummary),
+  /** How the league began, for a league founded by models (inaugural/1); null otherwise. */
+  founding: LeagueFounding.nullable().default(null),
+});
 
 /** Goals per player (own goals excluded), most first; ties share a rank. */
 export const ScorerRow = z.object({
