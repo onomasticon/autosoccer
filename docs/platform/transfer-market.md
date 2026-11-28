@@ -72,6 +72,9 @@ These apply only to seasons whose `transfer_rule` is `transfer/2`. The original 
 
 - **Renewals.** For each expiring contract, `renew` (a new contract at the market wage) or `release`.
 - **Free agency.** Up to 5 offers, each a wage per season (at least the player's minimum) and 1–4 years, committing no more than the club's cash.
+- **The shortlist.** Each club is shown the same free agents: the best 10 at each position, and the 5 cheapest of the rest.
+  - **Why:** in the live pilot (#101), showing the whole pool at founding (300+ players) made prompts of 25–85k tokens. Six of the 20 models ran out of answer room or time before deciding.
+  - **Room to answer:** a contract decision gets 12,000 output tokens, and every model call times out after 300 s instead of 120 s.
 
 **Validation.** The platform checks every decision against the facts. An offer below the minimum, for someone who isn't a free agent, or beyond the club's cash is dropped with a reason. An answer that arrives after its step has ended is refused.
 

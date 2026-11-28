@@ -133,6 +133,12 @@ export interface GatewayOptions {
 
 const stripFences = (s: string) => s.replace(/^\s*```(?:json)?\s*/i, "").replace(/\s*```\s*$/, "");
 
+/**
+ * Per-call timeout. 120 s cut off Grok and Kimi mid-answer on market decisions in the live pilot
+ * (#101); every decision deadline in calendar/1 is at least 30 minutes away.
+ */
+export const CALL_TIMEOUT_MS = 300_000;
+
 /** An LlmClient for one registered model over a transport. */
 export class GatewayLlm implements LlmClient {
   readonly provider: string;
@@ -262,7 +268,7 @@ export class GatewayLlm implements LlmClient {
     for (let attempt = 0; attempt <= max; attempt++) {
       this.lastAttempts++;
       const ctl = new AbortController();
-      const timer = setTimeout(() => ctl.abort(), this.opts.timeoutMs ?? 120_000);
+      const timer = setTimeout(() => ctl.abort(), this.opts.timeoutMs ?? CALL_TIMEOUT_MS);
       try {
         return await this.transport.chat(body, { signal: ctl.signal });
       } catch (e) {

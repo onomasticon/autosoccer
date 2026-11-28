@@ -107,6 +107,8 @@ describe("Phase 2 rollover: a new league runs on into its next season", () => {
     const [phase] = await t.db<{ status: string; summary: Record<string, unknown> }[]>`
       select status, summary from league_phases where league_id = ${leagueId} and kind = 'rollover' and round = 2`;
     expect(phase).toMatchObject({ status: "settled", summary: { rule: ROLLOVER_RULE, from: "relay-season-1" } });
+    // One graduate per retiree; emergency cover (injury/1) leaves at season end and isn't a retirement.
+    expect(phase!.summary.retired).toBe(phase!.summary.graduates);
     expect(secondCall).toEqual([]); // idempotent: nothing more to do once the season exists
   });
 

@@ -91,7 +91,7 @@ ${(f.expiring ?? []).map((p) => `${p.playerId} · ${p.name} · ${p.position} · 
 For each player, renew (a new contract at the market wage) or release (he becomes a free agent any club can sign). A player you don't decide on is renewed. Keep at least one goalkeeper and enough players for a squad. Return one decision per player, with a short reason.`;
   return `${head}
 
-## Free agents (id · name · position · age · overall · minimum wage · years wanted)
+## Free agents: the best 10 at each position and the 5 cheapest of the rest; every club sees the same list (id · name · position · age · overall · minimum wage · years wanted)
 ${(f.freeAgents ?? []).map((p) => `${p.playerId} · ${p.name} · ${p.position} · ${p.age} · ${p.overall} · ${cr(p.minWagePerSeason)} · ${p.wantsYears}`).join("\n") || "(none)"}
 
 Offer contracts to any free agents you want: a wage per season (at least his minimum) and 1–4 years. Offers are settled together after the deadline: each player chooses the offer that suits him best, so speed doesn't matter. Your offers can't commit more than your cash. Up to 5 offers, or none.`;
