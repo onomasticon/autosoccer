@@ -1,16 +1,16 @@
 /**
- * The inaugural phase of a new league (#95, #96, #99, `inaugural/1`): calendar/1's 10-day founding
- * window, run by the scheduler, before the operator activates the league.
+ * The inaugural phase of a new league (#95, #96, #99, `inaugural/1`): calendar/1's founding
+ * window (8 hours of founding, then 6 days of recruitment), run by the scheduler, before the operator activates the league.
  *
- *   day 0–3   founding: up to three founding rounds, one a day (one job per round; every founder
+ *   hour 0–8  founding: up to three founding rounds, 2h40m apart (one job per round; every founder
  *             answers through its own model, results settled in a seeded order: founding/1)
- *   day 3     the season is created for the clubs that were founded: each gets its opening balance,
+ *   hour 8    the season is created for the clubs that were founded: each gets its opening balance,
  *             and the shared talent pool is created as the league's own unattached players
- *   day 3–9   recruitment: three simultaneous offer rounds of 48 hours each, as market windows settled
+ *   day ⅓–6⅓  recruitment: three simultaneous offer rounds of 48 hours each, as market windows settled
  *             by recruit/1's offer round (every club's offers at once; a faster model gains nothing)
- *   day 9     the safety net: a club still short of a viable squad is assigned the best remaining
- *             players at minimum terms plus the stated fee (charged, and shown as such)
- *   day 10    the preseason window and the season, once the operator has activated the league
+ *   day 6⅓    the safety net: a club still short of a viable squad is assigned the best remaining
+ *             players at minimum terms plus the stated fee (charged, and shown as such), then the
+ *             preseason window and the season, once the operator has activated the league
  *
  * Every step is idempotent and keyed, so ticks, retries and several workers give the same result.
  * Activation stays an explicit operator step, refused until every club has a viable, contracted squad.
@@ -38,16 +38,20 @@ export const INAUGURAL_RULE = "inaugural/1";
 export const FOUNDING_JOB = "league.founding";
 
 const H = 3_600_000;
-/** The founding window's timetable (calendar/1's 10 days), in hours from when it opens. */
+/** The founding window's timetable (calendar/1's founding days), in hours from when it opens. */
 export const INAUGURAL = {
   version: INAUGURAL_RULE,
-  foundingRoundHours: 24,
+  /** Founding takes 8 hours: three rounds, 2h40m apart. */
+  foundingRoundHours: 8 / 3,
   foundingRounds: MAX_ROUNDS,
   recruitmentRoundHours: 48,
   recruitmentRounds: RECRUIT.rounds,
-  /** The season (its preseason window) opens this long after founding opens. */
-  days: 10,
 } as const;
+
+/** Hours from founding opening to the season's preseason window: founding (8h), then recruitment (6 days). */
+export const INAUGURAL_HOURS =
+  INAUGURAL.foundingRounds * INAUGURAL.foundingRoundHours +
+  INAUGURAL.recruitmentRounds * INAUGURAL.recruitmentRoundHours;
 
 export interface InauguralSettings {
   rule: typeof INAUGURAL_RULE;
@@ -182,7 +186,7 @@ async function createInauguralSeason(db: Db, l: League): Promise<string | null> 
     name: "Season 1",
     seed: s.seed,
     teamSlugs: clubs.map((c) => c.slug),
-    opens: at(s, INAUGURAL.days * 24),
+    opens: at(s, INAUGURAL_HOURS),
     budgetPerTeamMicroUsd: s.budgetPerTeamMicroUsd,
     editorialBudgetMicroUsd: s.editorialBudgetMicroUsd,
     calendar: s.calendar,
