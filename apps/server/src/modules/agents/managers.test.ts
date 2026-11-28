@@ -10,8 +10,16 @@ import { advanceSeason, createSeason, seedTeams } from "../league/service.ts";
 import { latestValidRevision } from "../tactics/service.ts";
 import type { LlmClient, LlmRequest } from "./llm.ts";
 import { offlineManagerLlm } from "./offline.ts";
+import { costMicroUsd } from "./pricing.ts";
 import type { PreMatchDecision } from "./prompts.ts";
-import { type ComputeGate, managerRoundHook, runPostMatch, runPreMatch, seedManagers } from "./service.ts";
+import {
+  type ComputeGate,
+  managerRoundHook,
+  PRE_MATCH_MAX_OUTPUT_TOKENS,
+  runPostMatch,
+  runPreMatch,
+  seedManagers,
+} from "./service.ts";
 
 const MODEL = "claude-opus-5-5";
 
@@ -145,6 +153,25 @@ describe("manager pre/post-match loop", () => {
       expect(runs).toEqual([{ status: "succeeded", attempt: 2 }]);
     } finally {
       await t3.drop();
+    }
+  });
+
+  it("pre-match gets 12,000 tokens of answer room, and reserves its worst case for all of it", async () => {
+    const t5 = await createTestDatabase();
+    try {
+      const c = await setup(t5);
+      const estimates: number[] = [];
+      const gate: ComputeGate = {
+        reserve: async (a) => (estimates.push(a.estimateMicroUsd), true),
+        settle: async () => {},
+        release: async () => {},
+      };
+      const { llm, calls } = scripted(offlineManagerLlm(MODEL), (_n, o) => o);
+      await runPreMatch({ db: t5.db, llm, gate }, c.fixture.id, c.fixture.home_team_id);
+      expect(calls[0]!.maxTokens).toBe(PRE_MATCH_MAX_OUTPUT_TOKENS);
+      expect(estimates[0]).toBeGreaterThanOrEqual(costMicroUsd(MODEL, 0, PRE_MATCH_MAX_OUTPUT_TOKENS));
+    } finally {
+      await t5.drop();
     }
   });
 
