@@ -211,7 +211,11 @@ export async function runPreMatch(base: ManagerDeps, fixtureId: string, teamId: 
   const { db } = base;
   const gate = base.gate ?? unlimitedGate;
   const { fixture, manager } = await loadContext(db, fixtureId, teamId);
-  const deps = forManager(base, manager.model);
+  // Pre-match gets more answer room (reserved the same way): see PRE_MATCH_MAX_OUTPUT_TOKENS.
+  const deps = {
+    ...forManager(base, manager.model),
+    maxOutputTokens: base.maxOutputTokens ?? PRE_MATCH_MAX_OUTPUT_TOKENS,
+  };
   const llm = deps.llm;
   const start = await startRun(db, {
     key: preKey(fixtureId, teamId),
@@ -428,6 +432,11 @@ export function managerJobHandlers(deps: ManagerDeps) {
  * reservation, so a reservation is a true worst case (thinking tokens count as output).
  */
 export const DEFAULT_MAX_OUTPUT_TOKENS = 4000;
+/**
+ * Pre-match decisions (tactics and the starting side) get 12,000: in the live pilot (#101) DeepSeek
+ * V4 Pro thought past 4,000 tokens before answering, and its side went unchanged.
+ */
+export const PRE_MATCH_MAX_OUTPUT_TOKENS = 12_000;
 function maxOut(deps: ManagerDeps) {
   return deps.maxOutputTokens ?? DEFAULT_MAX_OUTPUT_TOKENS;
 }
