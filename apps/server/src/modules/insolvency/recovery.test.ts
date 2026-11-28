@@ -139,6 +139,30 @@ describe("insolvency/2 in the economy harness", () => {
     expect(r.failures).toEqual([]);
   });
 
+  it("known risk: on lean income with the launch's running costs, a weak club's debt isn't bounded", () => {
+    // Recorded in recovery.md. If a change to the lender bounds it, this test should be flipped to
+    // expect no failures.
+    const r = runLeague({
+      clubs: 20,
+      seasons: 40,
+      seed: 3,
+      ruleset: RULESETS["lean-ops11"]!,
+      scenario: SCENARIOS.baseline!,
+    });
+    expect(new Set(r.failures.map((f) => f.invariant))).toEqual(new Set(["bounded-debt"]));
+  });
+
+  it("the launch ruleset (finance/3 at Ȼ1.1m running costs) holds every invariant on the same seed", () => {
+    const r = runLeague({
+      clubs: 20,
+      seasons: 40,
+      seed: 3,
+      ruleset: RULESETS["candidate-t2"]!,
+      scenario: SCENARIOS.baseline!,
+    });
+    expect(r.failures).toEqual([]);
+  });
+
   it("is deterministic for a seed", () => {
     const strip = (x: ReturnType<typeof run>) => JSON.stringify({ ...x, ms: 0 });
     expect(strip(run("extreme-leverage", 4, 4))).toBe(strip(run("extreme-leverage", 4, 4)));
