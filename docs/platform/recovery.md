@@ -71,6 +71,28 @@ These are pure rule functions, shared by the harness and, once integrated, by se
 - **The band is narrow.** That's because income and costs are both fixed amounts. A self-correcting money supply needs a working transfer market, where money moves between clubs. Liquidity is therefore the next lever, before finance/3 is adopted.
 - **The harness found and fixed a real bug.** Forced sales could sell a club's second keeper, because the list of sellable players was computed once (`candidate-lean`, seed 3, season 35). Sales now re-check after each one, and the case is a regression test.
 
+## Launch calibration (2026-11-28, #101): Ȼ1.1m running costs with transfer/2
+
+Gate 8 was the last open gate. One careful step on the sink, tried with transfer/2 on both seed sets (20 clubs × 100 seasons, 6 scenarios), closes it. Reports: [launch baseline](economy-balance-launch.md), [launch held-out](economy-balance-launch-heldout.md).
+
+| Gate | Ȼ1m (before) baseline / held-out | **Ȼ1.1m (adopted)** baseline / held-out | Ȼ1.2m | Ȼ1m + 2% of income | Ȼ1m + 4% |
+| --- | --- | --- | --- | --- | --- |
+| 1. Hard invariants (all 6 scenarios) | 0 / 0 | **0 / 0** | 0 / 0 | 0 / 0 | 0 / 0 |
+| 4. Gini ≤ 0.45 | 0.41 / 0.40 | **0.43 / 0.41** | ✗ 0.52 / 0.48 | ✗ 0.55 / 0.47 | ✗ 0.66 / 0.58 |
+| 4. Richest quarter ≤ 60% | 49% / 48% | **51% / 48%** | 58% / 56% | 60% / 55% | ✗ 80% / 67% |
+| 5. Distinct champions ≥ 8; mobility 0.2–0.8 | 17 / 18; 0.58 / 0.57 | **16 / 14; 0.61 / 0.62** | | | |
+| 6. Deals per club per window ≥ 0.25 | 0.69 / 0.67 | **0.68 / 0.66** | 0.70 / 0.69 | 0.70 / 0.71 | 0.74 / 0.72 |
+| 7. Recovery (median seasons) | 1 / 1 | **1 / 1** | 1 / 1 | 1 / 1 | 1 / 1 |
+| 8. League cash ≤ Ȼ960m | Ȼ927m / ✗ Ȼ1,055m | **Ȼ760m / Ȼ897m** | Ȼ584m / Ȼ643m | Ȼ689m / Ȼ719m | Ȼ420m / Ȼ472m |
+
+Forfeits (gate 2) and free rescue money (gate 3) are 0 everywhere. **finance/3 now charges Ȼ1.1m a season of running costs**, and all eight gates pass on both seed sets. No production season had run under finance/3, so the change carries no version bump. The pilot databases used Ȼ1m.
+
+**Residual risks** (for sign-off):
+- **The band is narrow.** Ȼ1.2m, or any revenue-share cost, breaks concentration (gate 4). Revisit with real seasons before moving the sink again.
+- **Stress inflation.** In the ageing-wave stress scenario, held-out league cash is Ȼ1,003m, 4% over the baseline gate. Gate 8 applies to baseline and held-out runs, which pass.
+- **Lean income spirals debt.** With league distribution cut to Ȼ4m (`lean-ops11`), weak clubs' debts grow past three seasons of wages (the bounded-debt invariant), even though support loans and administration are in place. This isn't one unlucky club: it fails thousands of times, on every seed and in every scenario (both launch reports include it). The launch's income has no such shortfall, and its invariants hold on the same seed. This becomes live if distribution is ever cut: bound support lending first. A test pins the behaviour, so a fix will show up.
+- **transfer/2 changed the picture.** With transfer/1, Ȼ1.1m broke the debt bound under stress (531 failures). With transfer/2 it breaks nothing: money moves between clubs instead of piling up in a few.
+
 ## In the database (`insolvency/lender.ts`, migration 0020)
 
 Phase 2 seasons (`insolvency_rule = 'insolvency/2'`) run the lender for real, using the same rule functions the harness calibrated. insolvency/1 seasons are untouched: the old check now runs only for them.
@@ -120,4 +142,5 @@ The secured-loan limits are tested on a separate solvent league.
 
 - **Manager tools.** Secured borrowing requests and auction bids as structured manager decisions; today they're operator and league-rule driven.
 - **Fan-facing pages** for loans, defaults, auctions and recoveries (#100).
-- **Inflation on held-out seeds** (gate 8, about 10% over with transfer/2). Take one careful step on running costs or the distribution, or accept a looser gate. Then adopt finance/3, insolvency/2 and transfer/2 together.
+- **Done: inflation on held-out seeds** (gate 8). Closed by the Ȼ1.1m step (see the launch calibration above), so finance/3, insolvency/2 and transfer/2 are adopted together.
+- **Bounding support lending,** so a club on lean income can't spiral past the debt bound (`lean-ops11`).

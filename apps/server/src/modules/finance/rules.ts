@@ -59,8 +59,12 @@ export const FINANCE_3 = {
   prizeTop: 4_000_000,
   prizeBottom: 300_000,
   curve: 2,
-  /** Running costs every club pays each season (staff, travel, ground), in equal shares per round. */
-  operatingPerSeason: 1_000_000,
+  /**
+   * Running costs every club pays each season (staff, travel, ground), in equal shares per round.
+   * Ȼ1.1m (was Ȼ1m): with transfer/2, Ȼ1m left held-out league cash 10% over gate 8; Ȼ1.1m passes all
+   * eight gates on baseline and held-out seeds, and Ȼ1.2m breaks concentration (gate 4). See recovery.md.
+   */
+  operatingPerSeason: 1_100_000,
   /**
    * Running costs that grow with the club: this share of what it earned last season (distribution,
    * results and prizes), charged across the next season. A rich club pays more, a struggling one less,

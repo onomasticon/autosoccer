@@ -116,8 +116,17 @@ export const RULESETS: Record<string, Ruleset> = {
   "t2-binding": withMarket(CANDIDATE, "t2-binding", { bindingListings: true }),
   "t2-ask75": withMarket(CANDIDATE, "t2-ask75", { bindingListings: true, listingAsk: 0.75 }),
   "t2-keep8": withMarket(CANDIDATE, "t2-keep8", { renewal: { keepBest: 8, keepYoungUpTo: 23 } }),
+  // Gate 8 (held-out inflation) on transfer/2: one careful step on the running-cost sink.
+  "t2-ops11": withMarket(variant("ops11", { operatingPerSeason: 1_100_000 }), "t2-ops11"),
+  "t2-ops12": withMarket(variant("ops12", { operatingPerSeason: 1_200_000 }), "t2-ops12"),
+  "t2-ops1-s02": withMarket(variant("ops1-s02", { operatingShare: 0.02 }), "t2-ops1-s02"),
+  "t2-ops1-s04": withMarket(variant("ops1-s04", { operatingShare: 0.04 }), "t2-ops1-s04"),
   "candidate-v0": UNCALIBRATED,
-  "candidate-lean": variant("candidate-lean", { distribution: 4_000_000 }),
+  // Pinned at the Ȼ1m running costs it was calibrated with (its regression test is about keepers).
+  "candidate-lean": variant("candidate-lean", { distribution: 4_000_000, operatingPerSeason: 1_000_000 }),
+  // Lean income with the launch's Ȼ1.1m running costs: a chronically weak club's debt passes the
+  // bounded-debt invariant (a known risk, recovery.md); kept so the harness keeps measuring it.
+  "lean-ops11": variant("lean-ops11", { distribution: 4_000_000 }),
   "candidate-rich": variant("candidate-rich", { distribution: 5_000_000 }),
   "candidate-flat": variant("candidate-flat", { curve: 1 }),
   ...Object.fromEntries(Object.entries(GRID).map(([k, v]) => [k, variant(k, v, CONTRACTS)])),
