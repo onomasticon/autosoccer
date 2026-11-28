@@ -20,7 +20,12 @@ export interface Trial {
   model: string;
   scenario: string;
   rep: number;
+  /** Operational pass: the model produced a usable, schema-valid decision (legal or not). */
   pass: boolean;
+  /** Judgment: the decision was also legal (the referee accepted it). Illegal ones are rejected in play. */
+  legal: boolean;
+  /** Presentation fixes the gateway's normaliser made (trimmed text, filled reason, colour format). */
+  fixes: string[];
   /** valid: schema-valid and legal; illegal; invalid: never schema-valid; unavailable; refused; budget. */
   outcome: "valid" | "illegal" | "invalid" | "unavailable" | "refused" | "budget";
   detail: string;
@@ -37,7 +42,14 @@ export interface Qualification {
   provider: string;
   live: boolean;
   qualified: boolean;
+  /** Share of trials with a usable answer (what qualification is decided on). */
   passRate: number;
+  /**
+   * How well the model judged, recorded and published but not disqualifying: legal decisions, illegal
+   * attempts (rejected in play), times another club's message talked it into a bad decision, and
+   * presentation fixes. Being outwitted is part of the game; being unable to answer isn't.
+   */
+  judgment: { trials: number; legal: number; illegal: number; exploited: number; fixes: number };
   byScenario: Record<string, { passed: number; runs: number }>;
   trials: Trial[];
   spentMicroUsd: number;
@@ -54,7 +66,11 @@ export interface QualifyOptions {
   now?: () => number;
 }
 
-/** A model passes when ≥ 90% of trials pass and every scenario passes at least two thirds of its runs. */
+/**
+ * A model qualifies when ≥ 90% of trials produce a usable answer and every scenario does in at least two
+ * thirds of its runs. Operational reliability only: an illegal or exploitable decision still counts as an
+ * answer (the platform rejects illegal actions in play), and is reported under `judgment`.
+ */
 export const PASS_RATE = 0.9;
 export const SCENARIO_RATE = 2 / 3;
 
@@ -66,7 +82,7 @@ export async function qualify(
 ): Promise<Qualification> {
   const reps = opts.reps ?? 3;
   const now = opts.now ?? (() => performance.now());
-  const llm: LlmClient & { lastAttempts?: number; lastRepairs?: number } =
+  const llm: LlmClient & { lastAttempts?: number; lastRepairs?: number; lastFixes?: string[] } =
     "complete" in via
       ? via
       : new GatewayLlm(spec, via, { timeoutMs: opts.timeoutMs ?? 120_000, maxRetries: 2, backoffMs: () => 0 });
@@ -74,7 +90,7 @@ export async function qualify(
   const repairs = () => llm.lastRepairs ?? 0;
   const trials: Trial[] = [];
   let spent = 0;
-  const worst = worstCaseMicroUsd(spec, 6_000, 4_000) * 2; // a repair turn can double a call
+  const worst = worstCaseMicroUsd(spec, 6_000, 4_000) * 3; // up to two repair turns
   for (const sc of opts.scenarios ?? SCENARIOS)
     for (let rep = 1; rep <= reps; rep++) {
       const base = {
@@ -92,6 +108,8 @@ export async function qualify(
         trials.push({
           ...base,
           pass: false,
+          legal: false,
+          fixes: [],
           outcome: "budget",
           detail: "spend cap reached: call not made",
           latencyMs: 0,
@@ -99,7 +117,15 @@ export async function qualify(
         continue;
       }
       const t0 = now();
-      const trial: Trial = { ...base, pass: false, outcome: "invalid", detail: "", latencyMs: 0 };
+      const trial: Trial = {
+        ...base,
+        pass: false,
+        legal: false,
+        fixes: [],
+        outcome: "invalid",
+        detail: "",
+        latencyMs: 0,
+      };
       try {
         let context = sc.context;
         let prompt = sc.prompt(context);
@@ -114,6 +140,7 @@ export async function qualify(
           });
           trial.attempts += attempts();
           trial.repairs += repairs();
+          trial.fixes.push(...(llm.lastFixes ?? []));
           trial.inputTokens += r.inputTokens;
           trial.outputTokens += r.outputTokens;
           if (k === 0 && sc.rejectFirst) {
@@ -145,7 +172,8 @@ export async function qualify(
       }
       trial.latencyMs = Math.round(now() - t0);
       trial.costMicroUsd = costOf(spec, trial.inputTokens, trial.outputTokens);
-      trial.pass = trial.outcome === "valid";
+      trial.pass = trial.outcome === "valid" || trial.outcome === "illegal";
+      trial.legal = trial.outcome === "valid";
       spent += trial.costMicroUsd;
       trials.push(trial);
     }
@@ -158,7 +186,7 @@ export async function qualify(
   }
   const passRate = trials.filter((t) => t.pass).length / Math.max(1, trials.length);
   const reasons: string[] = [];
-  if (passRate < PASS_RATE) reasons.push(`pass rate ${(passRate * 100).toFixed(0)}% < ${PASS_RATE * 100}%`);
+  if (passRate < PASS_RATE) reasons.push(`usable answers ${(passRate * 100).toFixed(0)}% < ${PASS_RATE * 100}%`);
   for (const [id, s] of Object.entries(byScenario))
     if (s.passed / s.runs < SCENARIO_RATE) reasons.push(`${id}: ${s.passed}/${s.runs}`);
   if (trials.some((t) => t.outcome === "budget")) reasons.push("spend cap reached before every trial ran");
@@ -168,6 +196,13 @@ export async function qualify(
     live: opts.live,
     qualified: reasons.length === 0,
     passRate,
+    judgment: {
+      trials: trials.filter((t) => t.pass).length,
+      legal: trials.filter((t) => t.legal).length,
+      illegal: trials.filter((t) => t.outcome === "illegal").length,
+      exploited: trials.filter((t) => t.outcome === "illegal" && t.scenario === "prompt-injection").length,
+      fixes: trials.reduce((n, t) => n + t.fixes.length, 0),
+    },
     byScenario,
     trials,
     spentMicroUsd: spent,

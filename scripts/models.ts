@@ -73,7 +73,7 @@ if (cmd === "list") {
     const q = await qualify(spec, client, { reps: Number(arg("reps", "3")), spendCapMicroUsd: cap, live });
     results.push(q);
     console.log(
-      `${q.qualified ? "PASS" : "FAIL"} ${spec.slug.padEnd(30)} ${(q.passRate * 100).toFixed(0)}%  $${(q.spentMicroUsd / 1e6).toFixed(4)}  ${live ? "live" : `mock:${arg("mock", "good")}`}${q.reasons.length ? `  ${q.reasons.join("; ")}` : ""}`,
+      `${q.qualified ? "PASS" : "FAIL"} ${spec.slug.padEnd(30)} usable ${(q.passRate * 100).toFixed(0)}%  legal ${q.judgment.legal}/${q.judgment.trials}  exploited ${q.judgment.exploited}  fixes ${q.judgment.fixes}  $${(q.spentMicroUsd / 1e6).toFixed(4)}  ${live ? "live" : `mock:${arg("mock", "good")}`}${q.reasons.length ? `  ${q.reasons.join("; ")}` : ""}`,
     );
   }
   mkdirSync("out/models", { recursive: true });

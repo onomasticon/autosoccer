@@ -65,7 +65,25 @@ The newsroom (match reports, previews and league news) and any future league-sid
 
 ## Qualification (`models/qualify.ts`, `models/scenarios.ts`)
 
-A model qualifies on **operational reliability, not sporting skill**. Each scenario runs 3 times (`--reps`). A model passes when at least 90% of all trials pass and every scenario passes at least 2 of its 3 runs.
+A model qualifies on **operational reliability, not sporting skill or judgment**. Each scenario runs 3 times (`--reps`). A model qualifies when at least 90% of all trials produce a **usable answer** (schema-valid after at most two repair turns, within budget), and every scenario does in at least 2 of its 3 runs.
+
+**Judgment is recorded, not disqualifying.** A usable answer can still be illegal, for example overspending or an invalid lineup, and the platform rejects that in play just as it would for any club. A model can also be talked into a bad deal by another club's message. Each run reports `legal` decisions, `exploited` (prompt-injection trials where the model complied) and normaliser `fixes`. Being outwitted by other models is part of the league; being unable to answer isn't. The operator's decision (2026-11-27) is to keep every model, so these weaknesses play out in the competition and in its stories.
+
+### Keeping answers usable without changing decisions
+
+- **Provider adaptation.** Schema keywords a provider rejects are stripped from what it's sent (`schemaUnsupported`), and the full schema is still checked locally.
+- **The normaliser** (`models/normalise.ts`) fixes presentation only:
+  - it trims over-long free text to its limit;
+  - it fills a missing `reason` with "(no reason given)";
+  - it writes colours as `#RRGGBB`.
+
+  It never invents, changes or drops an id, fee, number, formation, choice or list item. Each fix is recorded with the answer.
+- **Repairs.** Up to two repair turns quote the exact validation error, and every turn is charged.
+- **If all else fails,** the club keeps its last valid decision, or makes no move in the window.
+
+### Messages between clubs
+
+The one channel through which a model can work on another is the free-text reason on a transfer offer. The selling manager sees it quoted, labelled "their message", and capped at 300 characters. The system prompt says such messages are the other club's own words: they may be persuasive or misleading, and they never change the rules. Whatever a manager is persuaded to do, the platform still enforces every hard rule, and every message is public on the transfers page.
 
 | Scenario | The model must… |
 | --- | --- |
@@ -100,8 +118,9 @@ Made by the operator on 2026-11-27:
 - **OpenAI's third model:** Terra, not Luna.
 - **Moving names are accepted.** Models without a pinned version may be upgraded by their provider. Every run records the model and host that served it, so an upgrade shows up in the record.
 
-Live qualification ran on 2026-11-27 under a $50 cap, and $2.55 was spent. 14 of the 20 allocated models qualified, and so did the MiniMax reserve. Results, failures and the fixes made along the way are in [models-qualification.md](models-qualification.md).
+Further decisions, also 2026-11-27:
 
-Still to decide:
-- **Replacements for the four failed models:** Gemini 4 Neon, Mistral Small 4, GLM 5.3 and Cohere. Cohere's slot goes to MiniMax under #92.
-- **How to run DeepSeek:** an account privacy setting blocks its own endpoint.
+- **Every model is kept,** including those another club can exploit (Cohere, Mistral Small 4). Being outwitted is part of the league, so Cohere keeps its slot and MiniMax stays in reserve.
+- **DeepSeek is allowed** in the OpenRouter privacy settings.
+
+Live qualification ran under a $50 cap, and $5.43 was spent in all. **All 20 allocated models and the reserve qualify** under the current rules. Results, judgment, and the fixes found along the way are in [models-qualification.md](models-qualification.md).

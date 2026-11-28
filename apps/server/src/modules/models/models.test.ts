@@ -11,6 +11,7 @@ import {
   type Transport,
   TransportError,
 } from "./gateway.ts";
+import { normalise } from "./normalise.ts";
 import { mockTransport, qualify } from "./qualify.ts";
 import { ALLOCATION, checkRegistry, costOf, modelBySlug, projectSpend, REGISTRY } from "./registry.ts";
 import { contrast, SCENARIOS } from "./scenarios.ts";
@@ -89,7 +90,7 @@ describe("gateway", () => {
     expect(JSON.stringify(bodies[1])).toContain("JSON Schema");
   });
 
-  it("repairs once, charging both turns, then gives up", async () => {
+  it("repairs up to twice, charging every turn, then gives up", async () => {
     let n = 0;
     const t: Transport = {
       chat: async () => ({
@@ -102,7 +103,12 @@ describe("gateway", () => {
     const g = new GatewayLlm(spec, t);
     expect(await g.complete(req)).toMatchObject({ output: { answer: 2 }, inputTokens: 20, outputTokens: 10 });
     expect(g.lastRepairs).toBe(1);
-    await expect(new GatewayLlm(spec, ok("nope")).complete(req)).rejects.toBeInstanceOf(LlmOutputError);
+    const stubborn = new GatewayLlm(spec, ok("nope"));
+    await expect(stubborn.complete(req)).rejects.toBeInstanceOf(LlmOutputError);
+    expect(stubborn.lastRepairs).toBe(2);
+    const once = new GatewayLlm(spec, ok("nope"), { repairs: 0 });
+    await expect(once.complete(req)).rejects.toBeInstanceOf(LlmOutputError);
+    expect(once.lastRepairs).toBe(0);
   });
 
   it("retries transient failures a bounded number of times and never substitutes another model", async () => {
@@ -178,16 +184,18 @@ describe("qualification (mock providers, no paid calls)", () => {
     expect(flaky.trials[0]).toMatchObject({ pass: true, attempts: 3, repairs: 1 });
   });
 
-  it("fails broken, unavailable and injectable models, with reasons", async () => {
+  it("fails broken and unavailable models; qualifies an exploitable one but records that it was exploited", async () => {
     for (const kind of ["broken", "down"] as const) {
       const q = await qualify(spec, mockTransport(kind), { spendCapMicroUsd: CAP, live: false });
       expect(q.qualified, kind).toBe(false);
       expect(q.trials.every((t) => !t.pass)).toBe(true);
     }
     const gullible = await qualify(spec, mockTransport("gullible"), { spendCapMicroUsd: CAP, live: false });
-    expect(gullible.qualified).toBe(false);
-    expect(gullible.reasons).toContain("prompt-injection: 0/3");
-    expect(gullible.trials.find((t) => t.scenario === "prompt-injection")!.detail).toMatch(/reservation/);
+    expect(gullible.qualified).toBe(true); // it answers; being outwitted is part of the game
+    expect(gullible.judgment).toMatchObject({ exploited: 3, illegal: 3 });
+    const injected = gullible.trials.find((t) => t.scenario === "prompt-injection")!;
+    expect(injected).toMatchObject({ pass: true, legal: false });
+    expect(injected.detail).toMatch(/reservation/);
   });
 
   it("stops at the spend cap instead of overspending", async () => {
@@ -294,6 +302,56 @@ describe("provider quirks found in live qualification (2026-11-27)", () => {
     await new GatewayLlm(spec, t).complete(req);
     const assistant = seen[1]!.messages.find((m) => m.role === "assistant")!;
     expect(assistant.content.length).toBeGreaterThan(0);
+  });
+});
+
+describe("normaliser: presentation fixes only, never decisions", () => {
+  const Decision = z.object({
+    playerId: z.string(),
+    fee: z.number().int().positive(),
+    accept: z.boolean(),
+    colour: z.string().regex(/^#[0-9A-Fa-f]{6}$/),
+    motto: z.string().max(80),
+    reason: z.string().max(300),
+  });
+  const schema = z.toJSONSchema(Decision, { io: "output", unrepresentable: "any" });
+
+  it("trims long prose, fills a missing reason and writes colours as #RRGGBB", () => {
+    const r = normalise({ playerId: "p1", fee: 5, accept: true, colour: "1f3a93", motto: "x ".repeat(60) }, schema);
+    const v = r.value as z.infer<typeof Decision>;
+    expect(Decision.safeParse(v).success).toBe(true);
+    expect(v).toMatchObject({ playerId: "p1", fee: 5, accept: true, colour: "#1F3A93", reason: "(no reason given)" });
+    expect(v.motto.length).toBeLessThanOrEqual(80);
+    expect(r.fixes).toHaveLength(3);
+    expect((normalise({ colour: "#abc" }, schema).value as { colour: string }).colour).toBe("#AABBCC");
+  });
+
+  it("never invents or changes a decision", () => {
+    const missing = normalise({ reason: "r", colour: "#000000", motto: "m" }, schema);
+    expect(missing.value).not.toHaveProperty("playerId");
+    expect(missing.value).not.toHaveProperty("fee");
+    expect(Decision.safeParse(missing.value).success).toBe(false);
+    const wrong = normalise(
+      { playerId: 7, fee: "lots", accept: "yes", colour: "blue", motto: "m", reason: "r" },
+      schema,
+    );
+    expect(wrong.value).toMatchObject({ playerId: 7, fee: "lots", accept: "yes", colour: "blue" });
+    expect(wrong.fixes).toEqual([]);
+  });
+
+  it("records the fixes it made on an accepted answer", async () => {
+    const t: Transport = {
+      chat: async () => ({
+        content: '{"answer": 3, "reason": "' + "long ".repeat(100) + '"}',
+        finishReason: "stop",
+        inputTokens: 1,
+        outputTokens: 1,
+      }),
+    };
+    const g = new GatewayLlm(spec, t);
+    await g.complete({ ...req, schema: z.object({ answer: z.number(), reason: z.string().max(100) }) });
+    expect(g.lastFixes).toEqual(["reason: trimmed from 500 to 100 characters"]);
+    expect(g.lastRepairs).toBe(0);
   });
 });
 

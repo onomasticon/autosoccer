@@ -26,6 +26,7 @@ import {
   type LlmRequest,
   type LlmResponse,
 } from "../agents/llm.ts";
+import { normalise } from "./normalise.ts";
 import { type ModelSpec, OPENROUTER, PROVIDERS, requestModel } from "./registry.ts";
 
 export class ModelUnavailableError extends Error {
@@ -121,7 +122,9 @@ export function openAiCompatible(opts: {
 export interface GatewayOptions {
   timeoutMs?: number;
   maxRetries?: number;
-  /** One repair turn when output fails the schema (default true). */
+  /** Repair turns when output fails the schema (default 2; 0 or repair: false disables). */
+  repairs?: number;
+  /** @deprecated use repairs: 0 */
   repair?: boolean;
   /** Delay before retry n (ms); default 500 × 2^n. */
   backoffMs?: (attempt: number) => number;
@@ -137,6 +140,8 @@ export class GatewayLlm implements LlmClient {
   /** Attempts and repairs made by the last call (for qualification evidence). */
   lastAttempts = 0;
   lastRepairs = 0;
+  /** Presentation fixes the normaliser made to the last accepted answer (see normalise.ts). */
+  lastFixes: string[] = [];
 
   constructor(
     readonly spec: ModelSpec,
@@ -148,10 +153,8 @@ export class GatewayLlm implements LlmClient {
   }
 
   async complete<T>(req: LlmRequest<T>): Promise<LlmResponse<T>> {
-    const schema = stripKeywords(
-      z.toJSONSchema(req.schema as z.ZodType, { io: "output", unrepresentable: "any" }),
-      new Set(this.spec.schemaUnsupported ?? []),
-    );
+    const fullSchema = z.toJSONSchema(req.schema as z.ZodType, { io: "output", unrepresentable: "any" });
+    const schema = stripKeywords(fullSchema, new Set(this.spec.schemaUnsupported ?? []));
     const structured = this.spec.structuredOutput;
     const system =
       structured === "json_schema"
@@ -165,6 +168,10 @@ export class GatewayLlm implements LlmClient {
     let output = 0;
     this.lastAttempts = 0;
     this.lastRepairs = 0;
+    this.lastFixes = [];
+    const maxRepairs = this.opts.repair === false ? 0 : (this.opts.repairs ?? 2);
+    // Some models need more room to finish an answer (registry maxOutputTokens).
+    const maxOut = Math.max(req.maxTokens ?? 4000, this.spec.maxOutputTokens ?? 0);
     for (let repairs = 0; ; repairs++) {
       const reply = await this.call({
         model: requestModel(this.spec),
@@ -178,9 +185,7 @@ export class GatewayLlm implements LlmClient {
             }
           : {}),
         messages,
-        ...(this.spec.provider === "openai"
-          ? { max_completion_tokens: req.maxTokens ?? 4000 }
-          : { max_tokens: req.maxTokens ?? 4000 }),
+        ...(this.spec.provider === "openai" ? { max_completion_tokens: maxOut } : { max_tokens: maxOut }),
         ...(this.opts.temperature !== undefined ? { temperature: this.opts.temperature } : {}),
         ...(structured === "json_schema"
           ? { response_format: { type: "json_schema", json_schema: { name: "answer", strict: false, schema } } }
@@ -197,7 +202,7 @@ export class GatewayLlm implements LlmClient {
           `served by ${reply.servedBy}, not the pinned host ${this.spec.host.name}`,
           this.lastAttempts,
         );
-      const problem = this.check(reply, req.schema);
+      const problem = this.check(reply, req.schema, fullSchema);
       if (problem.ok)
         return {
           output: problem.value,
@@ -206,7 +211,7 @@ export class GatewayLlm implements LlmClient {
           inputTokens: input,
           outputTokens: output,
         };
-      if (repairs >= 1 || this.opts.repair === false) {
+      if (repairs >= maxRepairs) {
         const e = new LlmOutputError(problem.error);
         Object.assign(e, { usage: { inputTokens: input, outputTokens: output } });
         throw e;
@@ -216,13 +221,19 @@ export class GatewayLlm implements LlmClient {
         { role: "assistant", content: reply.content.slice(0, 8000) || "(an empty answer)" },
         {
           role: "user",
-          content: `That answer was rejected: ${problem.error}. Reply again with only the corrected JSON object.`,
+          content: problem.error.startsWith("output truncated")
+            ? "That answer was cut off before it finished. Reply again with only the JSON object: no explanation around it, and keep every reason to a sentence or two."
+            : `That answer was rejected: ${problem.error}. Reply again with only the corrected JSON object.`,
         },
       );
     }
   }
 
-  private check<T>(reply: ChatReply, schema: z.ZodType<T>): { ok: true; value: T } | { ok: false; error: string } {
+  private check<T>(
+    reply: ChatReply,
+    schema: z.ZodType<T>,
+    fullSchema: unknown,
+  ): { ok: true; value: T } | { ok: false; error: string } {
     if (reply.finishReason === "length") return { ok: false, error: "output truncated (max tokens)" };
     let json: unknown;
     try {
@@ -230,7 +241,9 @@ export class GatewayLlm implements LlmClient {
     } catch {
       return { ok: false, error: "output was not JSON" };
     }
-    const parsed = schema.safeParse(json);
+    // Presentation fixes only (normalise.ts); decisions are never changed.
+    const tidy = normalise(json, fullSchema);
+    const parsed = schema.safeParse(tidy.value);
     if (!parsed.success)
       return {
         ok: false,
@@ -239,6 +252,7 @@ export class GatewayLlm implements LlmClient {
           .map((i) => `${i.path.join(".") || "(root)"} ${i.message}`)
           .join("; ")}`,
       };
+    this.lastFixes = tidy.fixes;
     return { ok: true, value: parsed.data };
   }
 
