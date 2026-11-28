@@ -77,6 +77,21 @@ cd ~/autosoccer
 ```
 `deploy.sh` refuses to run without `.env` or with a weak or non-URL-safe `POSTGRES_PASSWORD`, and only accepts tags made of `[A-Za-z0-9._-]`. Migrations take an advisory lock, are checksummed, and run once per deploy, before the new version starts. A rollback doesn't undo migrations, so keep them backward compatible.
 
+### Disk space
+
+The VM has a 40 GB disk, and each deploy pulls about 0.8 GB of images.
+- **Pruning.** `deploy.sh` keeps only the deployed tag and the previous one (for `--rollback`). It removes every other autosoccer image.
+- **Free-space guard.** It refuses to pull with less than 4 GB free.
+
+**What happened before:** until 2026-11-28 it only pruned images older than a week. A day of frequent deploys filled the disk (89 images, 35 GB). Postgres then hit checkpoint PANICs and went through crash recovery until space was freed.
+
+To free space by hand, keeping the running and previous tags:
+
+```sh
+ssh autosoccer.exe.xyz 'docker images --format "{{.Repository}}:{{.Tag}}" | grep "^ghcr.io/onomasticon/autosoccer" \
+  | grep -v -e ":<running-sha>" -e ":<previous-sha>" | xargs -r docker rmi; docker image prune -f; df -h /'
+```
+
 ### Rotating the deploy key
 If the deploy job fails at *Ship compose file and scripts* with `Access denied for VM` / `Permission denied (publickey)`, exe.dev no longer accepts the key in `DEPLOY_SSH_KEY`. Rotate it from a machine logged in to exe.dev:
 ```sh
