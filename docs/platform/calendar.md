@@ -68,7 +68,7 @@ Twelve manager decisions were made (3 steps × 4 clubs), no transfer/1 window wa
 
 ## Still to come
 
-- **Founding:** founding and the inaugural recruitment market as the season's first phase (calendar/1's 10-day founding window).
+- **Done:** founding and the inaugural recruitment market as the season's first phase, in calendar/1's 10-day founding window ([inaugural.md](inaugural.md)).
 - **Pause and resume midseason** for Phase 2 seasons, beyond what `bun run ops reschedule` already covers.
 
 ## Evidence

@@ -7,12 +7,14 @@
  * Any number of worker processes may run the scheduler: a Postgres advisory lock elects one
  * leader per tick, so rounds are never double-released.
  */
+
 import type { Db } from "@autosoccer/db";
 import type { Logger } from "../../log.ts";
 import { managerRoundHook } from "../agents/service.ts";
 import { tickMarketWindows } from "../contracts/scheduler.ts";
 import { enqueueNews } from "../editorial/news.ts";
 import { enqueuePreviews } from "../editorial/service.ts";
+import { tickInaugural } from "../founding/inaugural.ts";
 import { refreshUpcomingSeason, rolloverSeason } from "../league/rollover.ts";
 import { type AdvanceResult, advanceSeason } from "../league/service.ts";
 import { tickTransfers } from "../transfers/window.ts";
@@ -52,6 +54,10 @@ export async function schedulerTick(db: Db, opts: TickOptions): Promise<TickResu
       // settlement is retried next tick; round 1 of that season waits for it (advanceSeason).
       await tickTransfers(db, { now: opts.now }).catch((e: Error) =>
         opts.log?.error("transfer window tick failed; retrying next tick", { error: e.message }),
+      );
+      // A draft league's inaugural phase: founding rounds, the season, the pool and the safety net.
+      await tickInaugural(db, { now: opts.now }).catch((e: Error) =>
+        opts.log?.error("inaugural tick failed; retrying next tick", { error: e.message }),
       );
       // transfer/2 market windows (Phase 2 leagues): queue decisions, settle at answers or deadline.
       await tickMarketWindows(db, { now: opts.now }).catch((e: Error) =>

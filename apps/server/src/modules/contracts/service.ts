@@ -15,6 +15,7 @@ import { PermanentJobError } from "../../jobs/worker.ts";
 import {
   addUsage,
   finishRun,
+  forManager,
   type ManagerDeps,
   reserveFor,
   startRun,
@@ -52,7 +53,9 @@ export const marketWage = (overall: number, rounds: number) => wageFor(overall, 
 export interface MarketWindow {
   id: string;
   season_id: string;
-  kind: "preseason" | "midseason";
+  kind: "preseason" | "midseason" | "recruitment";
+  /** Recruitment windows are numbered (the inaugural offer rounds); others are round 1. */
+  round: number;
   effective_round: number;
   opens_at: Date;
   phase_ends_at: Date;
@@ -106,24 +109,29 @@ export async function signContract(
   return row!.id;
 }
 
-/** Opens a season's preseason or midseason window (idempotent). */
+/**
+ * Opens a season's preseason or midseason window, or one of its inaugural recruitment rounds
+ * (free agency over the league's talent pool, before round 1). Idempotent.
+ */
 export async function openMarketWindow(
   db: Db,
   seasonId: string,
-  kind: "preseason" | "midseason",
+  kind: MarketWindow["kind"],
   opensAt: Date,
   deadline: Date,
+  round = 1,
 ): Promise<MarketWindow> {
   const s = await seasonInfo(db, seasonId);
-  const effective = kind === "preseason" ? 1 : Math.floor(s.rounds / 2) + 1;
-  // Preseason: renewals take the first half of the window, free agency the second. Midseason: free agency only.
+  const effective = kind === "midseason" ? Math.floor(s.rounds / 2) + 1 : 1;
+  // Preseason: renewals take the first half of the window, free agency the second. Otherwise free agency only.
   const phase = kind === "preseason" ? "renewals" : "free_agency";
   const phaseEnds = kind === "preseason" ? new Date((opensAt.getTime() + deadline.getTime()) / 2) : deadline;
   await db`
-    insert into market_windows (season_id, kind, rule, effective_round, opens_at, phase_ends_at, deadline, phase)
-    values (${seasonId}, ${kind}, ${CONTRACT_RULE}, ${effective}, ${opensAt}, ${phaseEnds}, ${deadline}, ${phase})
-    on conflict (season_id, kind) do nothing`;
-  const [w] = await db<MarketWindow[]>`select * from market_windows where season_id = ${seasonId} and kind = ${kind}`;
+    insert into market_windows (season_id, kind, round, rule, effective_round, opens_at, phase_ends_at, deadline, phase)
+    values (${seasonId}, ${kind}, ${round}, ${CONTRACT_RULE}, ${effective}, ${opensAt}, ${phaseEnds}, ${deadline}, ${phase})
+    on conflict (season_id, kind, round) do nothing`;
+  const [w] = await db<MarketWindow[]>`
+    select * from market_windows where season_id = ${seasonId} and kind = ${kind} and round = ${round}`;
   return w!;
 }
 
@@ -156,7 +164,9 @@ async function playersOf(db: Db, seasonId: string, where: { teamId?: string; una
     from players p left join player_ratings r on r.player_id = p.id and r.season_id = ${seasonId}
     where p.retired_season_id is null
       and (${where.teamId ?? null}::uuid is null or p.team_id = ${where.teamId ?? null}::uuid)
-      and (${where.unattached ?? false} = false or p.team_id is null)
+      and (${where.unattached ?? false} = false or (p.team_id is null
+        -- A league's talent pool is only its own free agents.
+        and (p.pool_league_id is null or p.pool_league_id = (select league_id from seasons where id = ${seasonId}))))
     order by p.shirt_number, p.id`;
   return rows.map((p) => {
     const attrs = p.attributes ?? playerAttributes({ name: p.name, shirtNumber: p.shirt_number, position: p.position });
@@ -242,18 +252,20 @@ export type ContractOutcome =
 
 /** One club's decision for one window step, through its own model. Recorded like any manager run. */
 export async function runContractDecision(
-  deps: ManagerDeps,
+  base: ManagerDeps,
   windowId: string,
   step: Step,
   teamId: string,
 ): Promise<ContractOutcome> {
-  const { db, llm } = deps;
-  const gate = deps.gate ?? unlimitedGate;
+  const { db } = base;
+  const gate = base.gate ?? unlimitedGate;
   const w = await windowById(db, windowId);
   if (!w) throw new PermanentJobError(`market window ${windowId} not found`);
-  const [manager] = await db<{ id: string; name: string; persona: string; philosophy: string }[]>`
-    select id, name, persona, philosophy from manager_agents where team_id = ${teamId}`;
+  const [manager] = await db<{ id: string; name: string; persona: string; philosophy: string; model: string }[]>`
+    select id, name, persona, philosophy, model from manager_agents where team_id = ${teamId}`;
   if (!manager) throw new PermanentJobError(`team ${teamId} has no manager`);
+  const deps = forManager(base, manager.model);
+  const llm = deps.llm;
   const start = await startRun(db, {
     key: contractKey(windowId, step, teamId),
     agentId: manager.id,
@@ -433,7 +445,8 @@ async function settleRenewalsTx(db: Db, windowId: string): Promise<{ renewed: nu
       if (!p) continue;
       if (d?.decision === "release") {
         await t`update player_contracts set status = 'released', ended_at = now() where id = ${c.id}`;
-        await t`update players set team_id = null, free_agent_since_season_id = ${s.id} where id = ${c.player_id}`;
+        await t`update players set team_id = null, free_agent_since_season_id = ${s.id},
+          pool_league_id = (select league_id from seasons where id = ${s.id}) where id = ${c.player_id}`;
         await t`delete from player_registrations where season_id = ${s.id} and player_id = ${c.player_id}`;
         released++;
       } else {

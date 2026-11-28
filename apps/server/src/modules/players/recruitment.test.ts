@@ -149,4 +149,34 @@ describe("recruit/1 market", () => {
     expect(net.every((s) => s.via === "safety-net" && s.bonus === RECRUIT.safetyNetFee)).toBe(true);
     expect(viable(clubs.get("c0")!, pool)).toBe(false); // a keeper shortage is reported, not hidden
   });
+
+  it("a squad heavy with keepers isn't viable: the net adds outfielders until it can field a side", () => {
+    const pool = poolOf(6, 2);
+    const clubs = clubsOf(2);
+    const c = clubs.get("c0")!;
+    const keepers = [...pool.values()].filter((p) => p.position === "GK").slice(0, 4);
+    const outfield = [...pool.values()].filter((p) => p.position !== "GK").slice(0, 5);
+    for (const p of [...keepers, ...outfield]) {
+      p.club = c.id;
+      c.squad.push(p.id);
+    }
+    expect(viable(c, pool)).toBe(false);
+    const net = safetyNet(6, pool, clubs).filter((s) => s.club === c.id);
+    expect(net.map((s) => pool.get(s.player)!.position).every((p) => p !== "GK")).toBe(true);
+    expect(c.squad.length - 4).toBeGreaterThanOrEqual(RECRUIT.squad.outfield);
+    expect(viable(c, pool)).toBe(true);
+  });
+
+  it("the safety net takes one keeper, then outfielders, so an empty club can field a side", () => {
+    const pool = poolOf(5, 2);
+    // Keepers rated highest: a net that only took the best would fill the squad with them.
+    for (const p of pool.values()) if (p.position === "GK") p.overall = 99;
+    const clubs = clubsOf(2);
+    safetyNet(5, pool, clubs);
+    for (const c of clubs.values()) {
+      const keepers = c.squad.filter((id) => pool.get(id)!.position === "GK").length;
+      expect(keepers).toBe(1);
+      expect(c.squad.length - keepers).toBeGreaterThanOrEqual(6);
+    }
+  });
 });

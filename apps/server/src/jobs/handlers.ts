@@ -8,6 +8,7 @@ import { contractJobHandlers } from "../modules/contracts/scheduler.ts";
 import { offlineEditorialLlm } from "../modules/editorial/offline.ts";
 import { editorialJobHandlers, enqueueEditorial } from "../modules/editorial/service.ts";
 import { settleFinances } from "../modules/finance/settle.ts";
+import { foundingJobHandlers } from "../modules/founding/inaugural.ts";
 import { settleInjuries } from "../modules/injuries/injuries.ts";
 import { type EditorialGate, editorialGate, ledgerGate } from "../modules/ledger/service.ts";
 import { MATCH_JOB, matchJobHandler } from "../modules/matches/service.ts";
@@ -19,6 +20,10 @@ export interface PlatformDeps {
   store: ReplayStore;
   /** Model client for the AI managers. */
   llm: LlmClient;
+  /** Phase 2: the client for each manager's own model (default: `llm` for everyone). */
+  llmFor?: (model: string) => LlmClient;
+  /** Phase 2 founding: the client a founder answers through (default: llmFor, then `llm`). */
+  founderLlmFor?: (model: string) => LlmClient;
   /** Model client for the AI journalists; without it no articles are written. */
   editorialLlm?: LlmClient;
   gate?: ComputeGate;
@@ -47,11 +52,13 @@ export function buildHandlers(d: PlatformDeps): Record<string, JobHandler> {
       },
     }),
     // Every manager call is metered against the team's season budget unless a gate is injected.
-    ...managerJobHandlers({ db: d.db, llm: d.llm, gate: d.gate ?? ledgerGate(d.db), log: d.log }),
+    ...managerJobHandlers({ db: d.db, llm: d.llm, llmFor: d.llmFor, gate: d.gate ?? ledgerGate(d.db), log: d.log }),
     // Transfer-window decisions (listing, bidding, replying), metered the same way.
-    ...transferJobHandlers({ db: d.db, llm: d.llm, gate: d.gate ?? ledgerGate(d.db), log: d.log }),
+    ...transferJobHandlers({ db: d.db, llm: d.llm, llmFor: d.llmFor, gate: d.gate ?? ledgerGate(d.db), log: d.log }),
     // transfer/2 contract decisions (renewals, free-agent offers), metered the same way.
-    ...contractJobHandlers({ db: d.db, llm: d.llm, gate: d.gate ?? ledgerGate(d.db), log: d.log }),
+    ...contractJobHandlers({ db: d.db, llm: d.llm, llmFor: d.llmFor, gate: d.gate ?? ledgerGate(d.db), log: d.log }),
+    // The inaugural phase's founding rounds: every founder answers through its own model.
+    ...foundingJobHandlers({ db: d.db, llmFor: d.founderLlmFor ?? d.llmFor ?? (() => d.llm) }),
     // Journalist calls are metered against the season's editorial budget; once it can't cover a
     // call, the offline template writer (same facts, no model, no cost) writes the piece instead.
     ...(d.editorialLlm

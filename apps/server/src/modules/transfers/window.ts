@@ -21,6 +21,7 @@ import type { ManagerRow } from "../agents/facts.ts";
 import {
   addUsage,
   finishRun,
+  forManager,
   type ManagerDeps,
   reserveFor,
   startRun,
@@ -399,12 +400,14 @@ export async function runTransferDecision(
   phase: TransferPhase,
   teamId: string,
 ): Promise<TransferOutcome> {
-  const { db, llm } = deps;
+  const { db } = deps;
   const gate = deps.gate ?? unlimitedGate;
   const w = await windowById(db, windowId);
   if (!w) throw new PermanentJobError(`transfer window ${windowId} not found`);
   const [manager] = await db<ManagerRow[]>`select * from manager_agents where team_id = ${teamId}`;
   if (!manager) throw new PermanentJobError(`team ${teamId} has no manager`);
+  deps = forManager(deps, manager.model);
+  const llm = deps.llm;
   const start = await startRun(db, {
     key: transferKey(windowId, phase, teamId),
     agentId: manager.id,
