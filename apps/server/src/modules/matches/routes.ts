@@ -84,7 +84,15 @@ export function matchRoutes({ db, store }: { db: Db; store: ReplayStore }) {
     const [rep] = await db<ReplayRow[]>`select * from replay_artifacts where match_id = ${id}`;
     if (!rep) return notFound(c, "Replay");
     if (c.req.header("if-none-match") === `"${rep.sha256}"`) return c.body(null, 304);
-    const bytes = await store.get(rep.uri);
+    // A replay recorded in the database but missing from the store (a store outage, or a restore
+    // without its replay files) is a clean 404 for the player, not an unhandled 500.
+    const bytes = await store.get(rep.uri).catch((e: Error) => {
+      console.error(
+        JSON.stringify({ level: "error", msg: "replay file unavailable", match: id, uri: rep.uri, error: e.message }),
+      );
+      return null;
+    });
+    if (!bytes) return notFound(c, "Replay file");
     return c.body(bytes as Uint8Array<ArrayBuffer>, 200, {
       "content-type": "application/gzip",
       "content-length": String(bytes.byteLength),
