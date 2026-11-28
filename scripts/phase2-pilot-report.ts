@@ -225,7 +225,8 @@ md.push("", "## Rollover", "");
 for (const r of rollovers) md.push(`- Season ${r.round}: ${r.status} ${JSON.stringify(r.summary)}`);
 for (const [slug, rows] of Object.entries(tables)) {
   md.push("", `## Table: ${slug}`, "", "| # | Club | Model | P | Pts | GD |", "|--:|---|---|--:|--:|--:|");
-  rows.forEach((r, i) => md.push(`| ${i + 1} | ${r.team} | \`${r.model}\` | ${r.p} | ${r.pts} | ${r.gd} |`));
+  for (const [i, r] of rows.entries())
+    md.push(`| ${i + 1} | ${r.team} | \`${r.model}\` | ${r.p} | ${r.pts} | ${r.gd} |`);
 }
 writeFileSync(`${OUT}/report.md`, `${md.join("\n")}\n`);
 console.log(md.slice(0, 6).join("\n"));
