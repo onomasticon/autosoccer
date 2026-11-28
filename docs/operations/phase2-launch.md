@@ -13,7 +13,7 @@ This is the final gate before the 20-model league replaces the original league a
 | #97 Finance and recovery | finance/3 (contract payroll, running costs) and insolvency/2 (the lender, forced auctions, administration) run in the database for Phase 2 seasons, calibrated in the harness ([recovery.md](../platform/recovery.md)) | Manager tools for borrowing and auction bids, fan-facing pages, and held-out inflation (gate 8) |
 | #98 Balance harness | Fast and integrated modes, invariants, baseline and held-out reports, gates ([economy-harness.md](../platform/economy-harness.md)) | Rerun on every rule change, and a larger integrated sample |
 | #99 Calendar | Exact-UTC calendar wired into season creation and the scheduler, including the inaugural phase (8 hours of founding, then 6 days of recruitment); compressed full seasons with a real worker ([calendar.md](../platform/calendar.md), [inaugural.md](../platform/inaugural.md)) | Pause and resume midseason for Phase 2 seasons |
-| #100 Archive and founding UI | `/leagues`, `/leagues/{slug}`, the club founding charter, honest archive labels | Founding-event, market and distressed-club stories, and a full walkthrough |
+| #100 Archive and founding UI | `/leagues`, `/leagues/{slug}` (with how the league began), the club founding charter, honest archive labels; the season player market, and club debt and recovery ([phase2-pages.md](../platform/phase2-pages.md)) | Matchday and news coverage that changes prominence with sporting events; a full narrated walkthrough |
 
 ## Gate checklist (all must hold, with links to evidence)
 

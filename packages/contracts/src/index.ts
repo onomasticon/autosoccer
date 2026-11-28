@@ -10,6 +10,7 @@ export * from "./editorial.ts";
 export * from "./finance.ts";
 export * from "./founding.ts";
 export * from "./jobs.ts";
+export * from "./market.ts";
 export * from "./match.ts";
 export { buildOpenApi } from "./openapi.ts";
 export * from "./spotlight.ts";

@@ -9,7 +9,21 @@ import { Team } from "./domain.ts";
 
 export const FINANCES_CONTRACT = "club-finances/1";
 
-export const LedgerKind = z.enum(["opening", "distribution", "result", "prize", "payroll", "transfer", "takeover"]);
+export const LedgerKind = z.enum([
+  "opening",
+  "distribution",
+  "result",
+  "prize",
+  "payroll",
+  "transfer",
+  "takeover",
+  // Phase 2 (finance/3, insolvency/2, recruit/1)
+  "operating",
+  "loan",
+  "repayment",
+  "auction",
+  "recruitment",
+]);
 export type LedgerKind = z.infer<typeof LedgerKind>;
 
 export const FinanceSeason = z.object({
@@ -24,10 +38,75 @@ export const FinanceSeason = z.object({
     transfers: z.number().int().default(0),
     /** New owners' capital after a bankruptcy (insolvency/1); 0 otherwise. */
     takeover: z.number().int().default(0),
+    /** Running costs (finance/3); 0 otherwise. */
+    operating: z.number().int().default(0),
+    /** Loans received minus repayments (insolvency/2); 0 otherwise. */
+    borrowing: z.number().int().default(0),
+    /** Forced auction proceeds minus purchases (insolvency/2); 0 otherwise. */
+    auctions: z.number().int().default(0),
+    /** Safety-net assignment fees (recruit/1); 0 otherwise. */
+    recruitment: z.number().int().default(0),
   }),
   net: z.number().int(),
 });
 export type FinanceSeason = z.infer<typeof FinanceSeason>;
+
+const SeasonRef = z.object({ slug: Slug, name: z.string() });
+
+/** A loan from the league lender (insolvency/2), as the official record shows it. */
+export const ClubLoan = z.object({
+  kind: z.enum(["secured", "emergency", "support"]),
+  principal: z.number().int(),
+  /** Still owed: principal plus interest, minus repayments. */
+  balance: z.number().int(),
+  repaid: z.number().int(),
+  interest: z.number().int(),
+  opened: z.object({ season: SeasonRef, round: z.number().int().nullable() }),
+  dueSeason: z.number().int(),
+  status: z.enum(["active", "repaid"]),
+  /** Players pledged as collateral (names, as public record), still pledged. */
+  pledged: z.array(z.string()),
+});
+
+/** Debt and recovery (insolvency/2): only for clubs that have been in a season with the league lender. */
+export const ClubDebt = z.object({
+  rule: z.literal("insolvency/2"),
+  total: z.number().int(),
+  loans: z.array(ClubLoan),
+  administration: z
+    .object({
+      since: z.object({ season: SeasonRef, round: z.number().int().nullable() }),
+      debtAtEntry: z.number().int(),
+      reason: z.string(),
+      exited: SeasonRef.nullable(),
+    })
+    .nullable(),
+  /** Rounds where the club couldn't meet its obligations, and what the lender did. Newest first. */
+  events: z.array(
+    z.object({
+      season: SeasonRef,
+      round: z.number().int(),
+      outcome: z.enum(["emergency", "default"]),
+      shortfall: z.number().int(),
+      /** Players the lender auctioned that round. */
+      auctioned: z.number().int().nonnegative(),
+    }),
+  ),
+  /** Forced auctions the club was part of (as seller or buyer). Sealed bids stay private: only the count. */
+  auctions: z.array(
+    z.object({
+      season: SeasonRef,
+      round: z.number().int(),
+      player: z.object({ id: z.string(), name: z.string() }),
+      role: z.enum(["sold", "bought", "unsold"]),
+      counterparty: Team.nullable(),
+      amount: z.number().int().nullable(),
+      reserve: z.number().int(),
+      bidders: z.number().int().nonnegative(),
+    }),
+  ),
+});
+export type ClubDebt = z.infer<typeof ClubDebt>;
 
 export const ClubFinancesResponse = z.object({
   contract: z.literal(FINANCES_CONTRACT),
@@ -58,6 +137,8 @@ export const ClubFinancesResponse = z.object({
       at: Timestamp,
     }),
   ),
+  /** Debt and recovery under insolvency/2; null for clubs that never played under the lender. */
+  debt: ClubDebt.nullable().default(null),
   /** The rule's numbers, for "how the money works". */
   rules: z.object({
     opening: z.number().int(),

@@ -134,7 +134,8 @@ export function PlayerTransfers({ transfers }: { transfers: DealView[] }) {
 /** "Season 2: earned Ȼ9.6m (distribution 6m, results 1.2m, prize 2.4m); spent Ȼ9.2m (wages 8.7m, transfers 500k)." */
 export function moneyStory(s: {
   season: { name: string };
-  bySource: Record<"distribution" | "results" | "prize" | "payroll" | "transfers" | "takeover", number>;
+  bySource: Record<"distribution" | "results" | "prize" | "payroll" | "transfers" | "takeover", number> &
+    Partial<Record<"operating" | "borrowing" | "auctions" | "recruitment", number>>;
   net: number;
 }): string {
   const parts = Object.entries({
@@ -143,6 +144,9 @@ export function moneyStory(s: {
     "prize money": s.bySource.prize,
     "takeover capital": s.bySource.takeover,
     "transfer fees": s.bySource.transfers,
+    "running costs": s.bySource.operating ?? 0,
+    "forced auctions": s.bySource.auctions ?? 0,
+    "safety-net fees": s.bySource.recruitment ?? 0,
   });
   const income = parts.filter(([, v]) => v > 0);
   const spend = [
@@ -151,5 +155,10 @@ export function moneyStory(s: {
   ].filter(([, v]) => v > 0);
   const sum = (xs: ReadonlyArray<readonly [string, number]>) => xs.reduce((a, [, v]) => a + v, 0);
   const list = (xs: ReadonlyArray<readonly [string, number]>) => xs.map(([k, v]) => `${k} ${credits(v)}`).join(", ");
-  return `${s.season.name}: earned ${credits(sum(income))}${income.length ? ` (${list(income)})` : ""}; spent ${credits(sum(spend))}${spend.length ? ` (${list(spend)})` : ""}; ${s.net >= 0 ? "up" : "down"} ${credits(Math.abs(s.net))}.`;
+  // Borrowing isn't earned or spent: it's said separately, so earned − spent ± borrowing = the net.
+  const borrowed = s.bySource.borrowing ?? 0;
+  const debt = borrowed
+    ? `; ${borrowed > 0 ? `borrowed ${credits(borrowed)} more than it repaid` : `repaid ${credits(-borrowed)} of debt`}`
+    : "";
+  return `${s.season.name}: earned ${credits(sum(income))}${income.length ? ` (${list(income)})` : ""}; spent ${credits(sum(spend))}${spend.length ? ` (${list(spend)})` : ""}${debt}; ${s.net >= 0 ? "up" : "down"} ${credits(Math.abs(s.net))}.`;
 }

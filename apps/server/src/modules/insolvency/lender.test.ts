@@ -1,6 +1,8 @@
+import { ClubFinancesResponse, SeasonMarketResponse } from "@autosoccer/contracts";
 import { createTestDatabase, type TestDatabase } from "@autosoccer/db/testing";
 import { MemoryReplayStore } from "@autosoccer/sim-adapter";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { createApp } from "../../app.ts";
 import { buildHandlers } from "../../jobs/handlers.ts";
 import { createWorker } from "../../jobs/worker.ts";
 import { offlineManagerLlm } from "../agents/offline.ts";
@@ -164,6 +166,31 @@ describe("insolvency/2: the league lender under distress", () => {
     // Season end: interest accrued on whatever is still owed.
     const [interest] = await t.db`select count(*)::int as n from loan_entries where kind = 'interest'`;
     expect(interest!.n).toBeGreaterThan(0);
+  });
+
+  it("publishes each distressed club's debt and recovery, and the auctions (without the sealed bids)", async () => {
+    const app = createApp({ db: t.db, store: new MemoryReplayStore() });
+    const [seller] = await t.db<{ slug: string; id: string }[]>`
+      select t.slug, t.id from collateral_auctions a join teams t on t.id = a.seller_team_id where a.status = 'sold' limit 1`;
+    const f = ClubFinancesResponse.parse(await (await app.request(`/api/v1/teams/${seller!.slug}/finances`)).json());
+    expect(f.debt).not.toBeNull();
+    expect(f.debt!.loans.length).toBeGreaterThan(0);
+    expect(f.debt!.events.some((e) => e.outcome === "default")).toBe(true);
+    expect(f.debt!.auctions.some((a) => a.role === "sold" && a.amount! > 0 && a.bidders > 0)).toBe(true);
+    const [owed] = await t.db<{ n: string }[]>`
+      select coalesce(sum(e.amount), 0)::text as n from loan_entries e join club_loans l on l.id = e.loan_id
+      where l.team_id = ${seller!.id} and l.status = 'active'`;
+    expect(f.debt!.total).toBe(Number(owed!.n));
+    // Phase 2 money lines add up to the season's net.
+    for (const s of f.seasons) expect(Object.values(s.bySource).reduce((a, b) => a + b, 0)).toBe(s.net);
+    const m = SeasonMarketResponse.parse(await (await app.request("/api/v1/seasons/founders-season-2/market")).json());
+    expect(m.auctions.length).toBeGreaterThan(0);
+    const [bid] = await t.db<{ bids: Array<{ amount: number }> }[]>`
+      select bids from collateral_auctions where jsonb_array_length(bids) > 1 limit 1`;
+    if (bid) {
+      const losing = bid.bids.map((b) => b.amount).filter((a) => !m.auctions.some((x) => x.amount === a));
+      for (const a of losing) expect(JSON.stringify(m.auctions)).not.toContain(`"amount":${a}`);
+    }
   });
 
   it("is exactly once: re-running a round's check changes nothing", async () => {

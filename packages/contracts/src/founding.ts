@@ -5,7 +5,8 @@
  */
 import { z } from "zod";
 import { BrandSpec } from "./brand.ts";
-import { Slug } from "./common.ts";
+import { Slug, Timestamp } from "./common.ts";
+import { Team } from "./domain.ts";
 
 const text = (min: number, max: number) => z.string().trim().min(min).max(max);
 
@@ -51,3 +52,41 @@ export const CharterResponse = z.object({
   assets: z.object({ crestSvg: z.string(), homeKitSvg: z.string(), awayKitSvg: z.string() }),
 });
 export type CharterResponse = z.infer<typeof CharterResponse>;
+
+/**
+ * How a league began (inaugural/1), for its public page: every invited founder with its exact model
+ * identity, what became of it, and the recruitment that built the squads. Facts from the official
+ * records only: no prompts, no rejected charters' contents, no unsuccessful offers.
+ */
+export const LeagueFounding = z.object({
+  rule: z.string(),
+  opensAt: Timestamp,
+  founders: z.array(
+    z.object({
+      model: z.object({
+        slug: z.string(),
+        /** The model's maker (e.g. "anthropic", "openai", "mistral"). */
+        provider: z.string(),
+        /** The exact id sent to the API. */
+        apiModelId: z.string(),
+        route: z.enum(["direct", "openrouter"]),
+        /** The OpenRouter host it is pinned to (route "openrouter" only). */
+        host: z.string().nullable(),
+      }),
+      status: z.enum(["invited", "founded", "awaiting"]),
+      /** Founding rounds it took (rejected submissions get the reasons and try again, at most 3). */
+      rounds: z.number().int().nonnegative(),
+      team: Team.nullable(),
+      /** Whether the charter came from the live model (false: the offline stand-in, e.g. a rehearsal). */
+      live: z.boolean().nullable(),
+    }),
+  ),
+  recruitment: z
+    .object({
+      rounds: z.number().int().nonnegative(),
+      recruited: z.number().int().nonnegative(),
+      safetyNet: z.number().int().nonnegative(),
+    })
+    .nullable(),
+});
+export type LeagueFounding = z.infer<typeof LeagueFounding>;

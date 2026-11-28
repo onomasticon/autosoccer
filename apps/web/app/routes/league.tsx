@@ -1,5 +1,6 @@
 import type { LeagueDetailResponse } from "@autosoccer/contracts";
 import { Link } from "react-router";
+import { LeagueFounding } from "../components/LeagueFounding";
 import { RouteError } from "../components/RouteError";
 import { SectionHeader } from "../components/SectionHeader";
 import { EmptyState } from "../components/States";
@@ -17,7 +18,10 @@ export const meta: Route.MetaFunction = ({ data }) =>
   seo(data?.league.name ?? "League", data ? `${data.league.name}: every season, champion and top scorer.` : "");
 
 export default function LeaguePage({ loaderData }: Route.ComponentProps) {
-  const { league, seasons } = loaderData;
+  const { league, seasons, founding } = loaderData;
+  // Seasons come newest first; the inaugural season is the oldest.
+  const first = seasons.at(-1);
+  const latest = seasons[0];
   const s = leagueStatus(league);
   return (
     <div className="mx-auto max-w-4xl space-y-6">
@@ -30,6 +34,20 @@ export default function LeaguePage({ loaderData }: Route.ComponentProps) {
         </p>
       )}
       {league.description && <p className="text-sm">{league.description}</p>}
+      {founding && (
+        <LeagueFounding founding={founding} marketHref={first ? `/seasons/${first.season.slug}/market` : null} />
+      )}
+      {founding && latest && (
+        <p className="text-sm">
+          <Link
+            to={`/seasons/${latest.season.slug}/market`}
+            className="font-semibold underline underline-offset-4 hover:text-violet-deep"
+          >
+            {latest.season.name} player market
+          </Link>
+          : contracts, free agents, releases and any forced auctions.
+        </p>
+      )}
       <p className="text-sm">
         <Link to="/leagues" className="font-semibold underline underline-offset-4 hover:text-violet-deep">
           All leagues
