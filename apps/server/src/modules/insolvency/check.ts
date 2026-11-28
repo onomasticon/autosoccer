@@ -19,7 +19,7 @@
 import type { Db } from "@autosoccer/db";
 import { RULES } from "../finance/rules.ts";
 import { payrollFor, settleFinances } from "../finance/settle.ts";
-import { INSOLVENCY } from "./rules.ts";
+import { INSOLVENCY, INSOLVENCY_RULE } from "./rules.ts";
 
 export interface Declared {
   teamId: string;
@@ -49,7 +49,8 @@ export const withdrawnBy = (w: Map<string, number>, round: number) =>
 export async function checkSolvency(db: Db, seasonId: string, round: number): Promise<Declared[]> {
   const [s] = await db<{ finance_rule: string | null; insolvency_rule: string | null; slug: string }[]>`
     select finance_rule, insolvency_rule, slug from seasons where id = ${seasonId}`;
-  if (!s?.finance_rule || !s.insolvency_rule) return [];
+  // insolvency/1 only: insolvency/2 seasons are handled by the lender (lender.ts), never by forfeits.
+  if (!s?.finance_rule || s.insolvency_rule !== INSOLVENCY_RULE) return [];
   const rule = s.insolvency_rule;
   const releasedYet = () => db`
     select 1 from fixtures where season_id = ${seasonId} and round = ${round} and status <> 'scheduled' limit 1`;

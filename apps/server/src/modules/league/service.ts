@@ -5,6 +5,7 @@ import { FINANCE_RULE } from "../finance/rules.ts";
 import { settleFinances } from "../finance/settle.ts";
 import { INJURY_RULE, settleInjuries } from "../injuries/injuries.ts";
 import { checkSolvency, resolveForfeits, withdrawals, withdrawnBy } from "../insolvency/check.ts";
+import { lenderRound, lenderSeasonEnd } from "../insolvency/lender.ts";
 import { INSOLVENCY_RULE } from "../insolvency/rules.ts";
 import { enqueueFixture } from "../matches/service.ts";
 import { TRANSFER_RULE } from "../transfers/rules.ts";
@@ -187,6 +188,7 @@ export async function advanceSeason(db: Db, seasonId: string, opts: AdvanceOptio
   if (!next) {
     await db`update seasons set status = 'completed', completed_at = coalesce(completed_at, now()) where id = ${seasonId}`;
     await settleFinances(db, seasonId); // finishing-position prizes (idempotent)
+    await lenderSeasonEnd(db, seasonId); // insolvency/2: interest, administration sweep and exit (idempotent)
     return { state: "completed" };
   }
   const round = next.round;
@@ -218,6 +220,8 @@ export async function advanceSeason(db: Db, seasonId: string, opts: AdvanceOptio
     // released (and before the managers pick their round-1 sides from the new squads).
     await closeWindowForKickoff(db, seasonId);
     await checkSolvency(db, seasonId, round);
+    // insolvency/2 (Phase 2): the lender makes sure every club can meet the round (no forfeits).
+    await lenderRound(db, seasonId, round);
     // A withdrawn club's fixtures resolve now, as walkovers (or void): never simulated.
     if (await resolveForfeits(db, seasonId, round)) fixtures = await roundFixtures();
     const live = fixtures.filter((f) => f.status === "scheduled").map((f) => f.id);
