@@ -26,6 +26,13 @@ compose() { docker compose -f compose.yml "$@"; }
 services=(db api worker web)
 [[ "${SKIP_TUNNEL:-}" == "1" ]] || services+=(cloudflared)
 
+# A full disk crashes Postgres (2026-11-28: checkpoint PANICs, crash recovery). Refuse to pull into one.
+free_kb="$(df -Pk / | awk 'NR==2 {print $4}')"
+if (( free_kb < 4 * 1024 * 1024 )); then
+  echo "only $((free_kb / 1024)) MB free on /: not pulling. Free space first (old images: see the deploy doc)." >&2
+  exit 1
+fi
+
 # Tags are commit SHAs, so an image already present is the right one: pull only what's missing.
 for image in "ghcr.io/onomasticon/autosoccer:$tag" "ghcr.io/onomasticon/autosoccer-web:$tag"; do
   docker image inspect "$image" >/dev/null 2>&1 || { echo "→ pulling $image"; docker pull --quiet "$image"; }
@@ -40,5 +47,10 @@ compose ps
 
 if [[ -n "$current" && "$current" != "$tag" ]]; then echo "$current" > .previous-tag; fi
 echo "$tag" > .deployed-tag
-docker image prune -f --filter "until=168h" >/dev/null
+# Keep only this deploy's images and the previous one's (for --rollback); every deploy adds ~0.8 GB.
+keep="$tag${current:+|$current}"
+docker images --format '{{.Repository}}:{{.Tag}}' |
+  grep -E '^ghcr\.io/onomasticon/autosoccer(-web)?:' | grep -Ev ":($keep)$" |
+  xargs -r docker rmi >/dev/null 2>&1 || true
+docker image prune -f >/dev/null
 echo "✓ deployed $tag${current:+ (was $current)}"
