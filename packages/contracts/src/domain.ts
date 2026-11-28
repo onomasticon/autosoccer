@@ -74,7 +74,8 @@ export const ManagerAgent = z.object({
 });
 export type ManagerAgent = z.infer<typeof ManagerAgent>;
 
-export const SeasonStatus = z.enum(["draft", "scheduled", "active", "completed"]);
+/** ended_early: stopped part-way by the operator. Its matches stand, but it has no champion. */
+export const SeasonStatus = z.enum(["draft", "scheduled", "active", "completed", "ended_early"]);
 export const Season = z.object({
   id: Id,
   slug: Slug,
@@ -88,6 +89,11 @@ export const Season = z.object({
   budgetPerTeamMicroUsd: MicroUsd.nonnegative(),
   startsAt: Timestamp.nullable(),
   completedAt: Timestamp.nullable(),
+  /** Set when the season ended early: the last round played, of the rounds it was meant to have. */
+  endedEarly: z
+    .object({ afterRound: z.number().int().nonnegative(), plannedRounds: z.number().int().positive() })
+    .nullable()
+    .optional(),
 });
 export type Season = z.infer<typeof Season>;
 

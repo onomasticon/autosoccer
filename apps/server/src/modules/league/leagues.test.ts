@@ -20,6 +20,7 @@ import {
   PlanRefused,
   planArchive,
   planConclude,
+  planEndSeason,
   planFor,
   verifyArchive,
 } from "./leagues.ts";
@@ -290,5 +291,102 @@ describe("league lifecycle: conclude, archive and a second league", () => {
     await t.db`insert into club_ledger (team_id, season_id, kind, amount, key, rule, memo)
       values (${team!.id}, ${s1}, 'prize', 1, 'test:unarchived', 'finance/2', 'x')`;
     expect((await verifyArchive(t.db, "original")).ok).toBe(false);
+  });
+});
+
+describe("ending a season early (the original league stops for the new one)", () => {
+  let t: TestDatabase;
+  let store: MemoryReplayStore;
+  let s1: string;
+  let worker: ReturnType<typeof createWorker>;
+
+  beforeAll(async () => {
+    t = await createTestDatabase();
+    store = new MemoryReplayStore();
+    worker = createWorker({
+      db: t.db,
+      handlers: { [MATCH_JOB]: matchJobHandler({ db: t.db, store, halfDurationSec: 10 }) },
+    });
+    await seedTeams(t.db);
+    ({ seasonId: s1 } = await createSeason(t.db, {
+      slug: "season-1",
+      name: "Season 1",
+      seed: 20261128,
+      budgetPerTeamMicroUsd: 0,
+      teamSlugs: SEED_TEAMS.map((x) => x.slug),
+      roundIntervalMinutes: 60,
+      startsAt: new Date("2026-01-01T00:00:00Z"),
+    }));
+    // Round 1 is played; round 2 is released to the match queue but not played yet.
+    await advanceSeason(t.db, s1);
+    await worker.drain();
+    await advanceSeason(t.db, s1);
+  }, 180_000);
+  afterAll(async () => {
+    await t.drop();
+  });
+
+  it("won't stop a season while one of its matches is being played", async () => {
+    const p = await planEndSeason(t.db, "original", "season-1");
+    expect(p.ok).toBe(false);
+    expect(p.checks.find((c) => c.name === "no match being played")?.ok).toBe(false);
+    // Let round 2's matches finish; round 3 stays unreleased.
+    await worker.drain();
+  }, 60_000);
+
+  it("plans it: how far the season got, what goes, and the league concluding", async () => {
+    const p = await planEndSeason(t.db, "original", "season-1");
+    expect(p.ok).toBe(true);
+    expect(p.changes[0]).toMatch(/^season-1 ends early after round 2 of 6: its 4 played matches stay on record/);
+    expect(p.changes[1]).toMatch(/remove its 8 unplayed fixtures/);
+    expect((await planEndSeason(t.db, "original", "season-9")).ok).toBe(false);
+  });
+
+  it("keeps the played matches, removes the rest, and concludes the league with no champion", async () => {
+    const [f] = await t.db<{ id: string }[]>`
+      select id from fixtures where season_id = ${s1} and round = 3 order by id limit 1`;
+    await t.db`insert into jobs (kind, idempotency_key, payload) values ('agent.pre_match', 'test:round3', ${t.db.json({ fixtureId: f!.id })})`;
+    const matches = await t.db`select id, home_score, away_score from matches order by id`;
+
+    await apply(t.db, "end-season", { slug: "original", confirm: "original", season: "season-1" });
+
+    const [s] =
+      await t.db`select status, ended_after_round, planned_rounds, completed_at is not null as done from seasons where id = ${s1}`;
+    expect(s).toEqual({ status: "ended_early", ended_after_round: 2, planned_rounds: 6, done: true });
+    const left = await t.db<{ round: number; status: string }[]>`
+      select distinct round, status from fixtures where season_id = ${s1} order by round`;
+    expect(left).toEqual([
+      { round: 1, status: "completed" },
+      { round: 2, status: "completed" },
+    ]);
+    expect(await t.db`select id, home_score, away_score from matches order by id`).toEqual(matches);
+    const [job] = await t.db`select status, last_error from jobs where idempotency_key = 'test:round3'`;
+    expect(job).toEqual({ status: "failed", last_error: "season ended early" });
+    const l = (await leagueBySlug(t.db, "original"))!;
+    expect(l.status).toBe("concluded");
+    expect(l.final_season_id).toBe(s1);
+  });
+
+  it("is never played, rolled over or counted as a completed season afterwards", async () => {
+    expect(await rolloverSeason(t.db, MODELS)).toBeNull();
+    await schedulerTick(t.db, { respectSchedule: false, rollover: MODELS });
+    expect(await t.db`select count(*)::int as n from seasons`).toEqual([{ n: 1 }]);
+    expect(await t.db`select count(*)::int as n from fixtures where season_id = ${s1}`).toEqual([{ n: 4 }]);
+    // Doing it twice is refused, not repeated.
+    await expect(
+      apply(t.db, "end-season", { slug: "original", confirm: "original", season: "season-1" }),
+    ).rejects.toThrow(PlanRefused);
+  });
+
+  it("shows on the API as ended early, and sets no records", async () => {
+    const app = createApp({ db: t.db, store });
+    const st = StandingsResponse.parse(await (await app.request("/api/v1/seasons/season-1/standings")).json());
+    expect(st.season.status).toBe("ended_early");
+    expect(st.season.endedEarly).toEqual({ afterRound: 2, plannedRounds: 6 });
+    expect(st.afterRound).toBe(2);
+    const list = SeasonListResponse.parse(await (await app.request("/api/v1/seasons")).json());
+    expect(list.items[0]!.season.status).toBe("ended_early");
+    const records = await (await app.request("/api/v1/records")).json();
+    expect(records).toEqual({ mostPoints: [], perfectSeasons: [], mostGoalsInSeason: [], biggestWin: [] });
   });
 });

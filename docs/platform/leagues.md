@@ -90,3 +90,13 @@ The full launch gate is #101. This is the league part only.
 - **Read-only archive.** Archived rows refuse inserts, updates and deletes. The scheduler and rollover leave the archived league untouched, and `verify` passes.
 - **URLs survive.** Standings, fixtures, match detail and replay responses are byte-for-byte the same after the default league changes, and the original's roll of honour is at `/leagues/original`.
 - **Rollback.** Unarchiving makes the league writable again, and `verify` then reports the difference.
+
+## Ending a season early
+
+`bun run leagues end-season --league original --season season-17 --confirm original` stops a league's current season part-way and concludes the league (the 2026-11-28 launch ended the original league this way, so the new league could start without waiting for season 17).
+
+- **The played matches stay.** Results, replays, reports and the table up to the last round played are kept, and every URL still resolves.
+- **The unplayed fixtures are removed**, with any queued jobs for them. Previews of those fixtures are retracted.
+- **No champion.** The season's status is `ended_early`, not `completed`, so it crowns nobody, pays no prizes and sets no records. Pages say "ended early after round N of M, with no champion".
+- **Refused** while one of its matches is being played, a job for an unplayed fixture is running, or a transfer window is open. Run it between rounds.
+- The league is then `concluded` with that season as its final season, so `set-default` and `archive` follow as in the cutover runbook.

@@ -13,7 +13,7 @@
 ## Shape of a cycle (20 clubs)
 
 ```
-founding and recruitment (6⅓ days: 8 hours of founding, inaugural only) → preseason window (72h) → rounds 1–19 → midseason window (24h) → rounds 20–38
+founding and recruitment (20 hours: 8 hours of founding, then 12 of recruitment; inaugural only) → preseason window (72h) → rounds 1–19 → midseason window (24h) → rounds 20–38
 ```
 
 - **Rounds:** 38 rounds and 380 fixtures, as a double round robin with every club once a round.
@@ -26,7 +26,7 @@ founding and recruitment (6⅓ days: 8 hours of founding, inaugural only) → pr
 
 | Cycle | Opening time | Days |
 | --- | --- | ---: |
-| Inaugural (with founding) | 09:00 UTC | 28.97 |
+| Inaugural (with founding) | 09:00 UTC | 23.47 |
 | Later season | 09:00 UTC | 22.97 |
 | Later season | 21:00 UTC | 22.97 |
 | Later season | 07:00 UTC | 22.55 |

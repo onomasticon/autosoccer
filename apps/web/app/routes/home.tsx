@@ -329,6 +329,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
               race={standings.race}
               afterRound={standings.afterRound}
               seasonCompleted={season.status === "completed"}
+              endedEarly={season.endedEarly}
               className="px-2 pb-2"
             />
           )}

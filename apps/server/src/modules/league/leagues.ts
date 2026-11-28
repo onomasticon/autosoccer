@@ -158,7 +158,7 @@ export interface Check {
 }
 
 export interface Plan {
-  action: "create" | "final-season" | "conclude" | "archive" | "unarchive" | "activate" | "set-default";
+  action: "create" | "final-season" | "end-season" | "conclude" | "archive" | "unarchive" | "activate" | "set-default";
   league: string;
   ok: boolean;
   checks: Check[];
@@ -241,6 +241,83 @@ export async function planFinalSeason(db: Db, slug: string, seasonSlug: string):
       },
     ],
     [`when ${seasonSlug} completes, ${slug} concludes instead of rolling over`],
+  );
+}
+
+interface SeasonEnd {
+  id: string;
+  slug: string;
+  status: string;
+  playedRound: number;
+  plannedRounds: number;
+  played: number;
+  unplayed: number;
+  inPlay: number;
+  queuedJobs: number;
+  runningJobs: number;
+  previews: number;
+  openWindows: number;
+}
+
+async function seasonEnd(db: Db, leagueId: string, seasonSlug: string): Promise<SeasonEnd | null> {
+  const [r] = await db<(SeasonEnd & { newest: string })[]>`
+    with s as (select id, slug, status from seasons where league_id = ${leagueId} and slug = ${seasonSlug}),
+    f as (select f.* from fixtures f where f.season_id = (select id from s)),
+    u as (select id::text as id from f where status <> 'completed')
+    select (select id from s) as id, (select slug from s) as slug, (select status from s) as status,
+      (select slug from seasons where league_id = ${leagueId} order by created_at desc limit 1) as newest,
+      coalesce((select max(round) from f where status = 'completed'), 0)::int as "playedRound",
+      coalesce((select max(round) from f), 0)::int as "plannedRounds",
+      (select count(*) from f where status = 'completed')::int as played,
+      (select count(*) from u)::int as unplayed,
+      (select count(*) from f where status in ('ready', 'playing')
+        or (status <> 'completed' and exists (select 1 from matches m where m.fixture_id = f.id)))::int as "inPlay",
+      (select count(*) from jobs where status = 'queued' and payload->>'fixtureId' in (select id from u))::int as "queuedJobs",
+      (select count(*) from jobs where status = 'running' and payload->>'fixtureId' in (select id from u))::int as "runningJobs",
+      (select count(*) from articles where status <> 'rejected' and fixture_id::text in (select id from u))::int as previews,
+      (select count(*) from transfer_windows where season_id = (select id from s) and phase <> 'closed')::int as "openWindows"`;
+  if (!r?.id) return null;
+  return r.newest === r.slug ? r : { ...r, status: `not the newest (${r.newest} is)` };
+}
+
+/**
+ * Ends a league's current season part-way, and with it the league (#101 launch: the original league
+ * stops for the new one). The played matches stay on record; the unplayed fixtures are removed, with
+ * their queued jobs, and previews of them are retracted. The season is `ended_early`, never
+ * `completed`: it has no champion, no prizes and sets no records.
+ */
+export async function planEndSeason(db: Db, slug: string, seasonSlug: string): Promise<Plan> {
+  const l = await leagueBySlug(db, slug);
+  const e = l ? await seasonEnd(db, l.id, seasonSlug) : null;
+  const checks: Check[] = [
+    exists(l, slug),
+    { name: "league is active", ok: l?.status === "active", detail: l?.status ?? "-" },
+    {
+      name: "season is the league's newest, and under way",
+      ok: e?.status === "active" || e?.status === "scheduled",
+      detail: e ? `${e.slug} (${e.status})` : `no season ${seasonSlug} in ${slug}`,
+    },
+  ];
+  if (e) {
+    checks.push({ name: "no match being played", ok: e.inPlay === 0, detail: `${e.inPlay} in play` });
+    checks.push({
+      name: "no job running for an unplayed fixture",
+      ok: e.runningJobs === 0,
+      detail: `${e.runningJobs} running`,
+    });
+    checks.push({ name: "no open transfer window", ok: e.openWindows === 0, detail: `${e.openWindows} open` });
+  }
+  return plan(
+    "end-season",
+    slug,
+    checks,
+    e
+      ? [
+          `${e.slug} ends early after round ${e.playedRound} of ${e.plannedRounds}: its ${e.played} played matches stay on record, with no champion`,
+          `remove its ${e.unplayed} unplayed fixtures, cancel ${e.queuedJobs} queued jobs for them, and retract ${e.previews} previews of them`,
+          `${slug} → concluded, with ${e.slug} as its final season`,
+        ]
+      : [],
   );
 }
 
@@ -368,6 +445,21 @@ export async function apply(
       case "final-season":
         await t`update leagues set final_season_id = (select id from seasons where slug = ${args.season!}) where slug = ${args.slug}`;
         break;
+      case "end-season": {
+        const l = (await leagueBySlug(t, args.slug))!;
+        const e = (await seasonEnd(t, l.id, args.season!))!;
+        const ids = (
+          await t<{ id: string }[]>`select id from fixtures where season_id = ${e.id} and status <> 'completed'`
+        ).map((r) => r.id);
+        await t`update jobs set status = 'failed', last_error = 'season ended early', updated_at = now()
+          where status = 'queued' and payload->>'fixtureId' = any(${ids}::text[])`;
+        await t`update articles set status = 'rejected' where status <> 'rejected' and fixture_id = any(${ids}::uuid[])`;
+        await t`delete from fixtures where id = any(${ids}::uuid[])`;
+        await t`update seasons set status = 'ended_early', completed_at = now(),
+          ended_after_round = ${e.playedRound}, planned_rounds = ${e.plannedRounds} where id = ${e.id}`;
+        await t`update leagues set final_season_id = ${e.id}, status = 'concluded', concluded_at = now() where id = ${l.id}`;
+        break;
+      }
       case "conclude":
         await t`update leagues set status = 'concluded', concluded_at = now() where slug = ${args.slug}`;
         break;
@@ -396,6 +488,8 @@ export function planFor(db: Db, action: Plan["action"], args: Parameters<typeof 
       return planCreate(db, { slug: args.slug, name: args.name ?? "", division: args.division, tier: args.tier });
     case "final-season":
       return planFinalSeason(db, args.slug, args.season ?? "");
+    case "end-season":
+      return planEndSeason(db, args.slug, args.season ?? "");
     case "conclude":
       return planConclude(db, args.slug);
     case "archive":

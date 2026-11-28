@@ -32,6 +32,8 @@ export interface SeasonRow {
   budget_per_team_micro_usd: number;
   starts_at: Date | null;
   completed_at: Date | null;
+  ended_after_round?: number | null;
+  planned_rounds?: number | null;
 }
 export const toSeason = (r: SeasonRow): Season => ({
   id: r.id,
@@ -44,6 +46,10 @@ export const toSeason = (r: SeasonRow): Season => ({
   budgetPerTeamMicroUsd: r.budget_per_team_micro_usd,
   startsAt: r.starts_at?.toISOString() ?? null,
   completedAt: r.completed_at?.toISOString() ?? null,
+  endedEarly:
+    r.ended_after_round != null && r.planned_rounds != null
+      ? { afterRound: r.ended_after_round, plannedRounds: r.planned_rounds }
+      : null,
 });
 
 /** Players per side in a season (5 for every season before 7-a-side). */

@@ -73,6 +73,23 @@ describe("roll of honour", () => {
     expect(r.violations.map((v) => v.id)).toEqual([]);
   });
 
+  it("crowns nobody in a season that ended early, and says how far it got", async () => {
+    const { container } = show(
+      summary({
+        season: { ...summary().season, status: "ended_early", endedEarly: { afterRound: 2, plannedRounds: 18 } },
+        roundsPlayed: 2,
+        rounds: 2,
+        decidedAfterRound: null,
+      }),
+    );
+    expect(screen.getByRole("heading", { name: "Ended early, no champion" })).toBeTruthy();
+    expect(screen.getByText(/ended early after round 2 of 18/)).toBeTruthy();
+    expect(container.textContent).toMatch(`Top when it stopped: ${a!.name}, 10 pts`);
+    expect(container.textContent).not.toMatch(/champions|Title won/);
+    const r = await axe.run(container, { rules: { region: { enabled: false } } });
+    expect(r.violations.map((v) => v.id)).toEqual([]);
+  });
+
   it("calls an unfinished season's leader the leader, not the champion", () => {
     show(summary({ season: { ...summary().season, status: "active" }, roundsPlayed: 3 }));
     expect(screen.getByRole("heading", { name: `${a!.name} lead` })).toBeTruthy();
