@@ -8,7 +8,7 @@
  *  - match time (the simulator's clock inside a match), which never touches either.
  *
  * Shape of a cycle (defaults; all configurable):
- *   [founding: 10 days, inaugural season only] → preseason window (72h) → first half (n−1 rounds)
+ *   [founding: 6⅓ days, inaugural season only] → preseason window (72h) → first half (n−1 rounds)
  *   → midseason window (24h) → second half (n−1 rounds) → the next cycle's preseason.
  * Rounds sit on fixed matchday slots (two a day, 12 hours apart). A half of an odd number of rounds
  * ends on the opposite slot to the one it started on, so the cycle's length depends on slot
@@ -47,7 +47,8 @@ export const DEFAULT_CALENDAR: CalendarConfig = {
   slotHoursUtc: [8, 20],
   preseasonHours: 72,
   midseasonHours: 24,
-  foundingDays: 10,
+  // Inaugural only: 8 hours of founding, then three 48-hour recruitment rounds (inaugural/1).
+  foundingDays: (8 + 3 * 48) / 24,
   staggerMinutes: 20,
   perWave: 5,
   tacticsLockMinutes: 30,

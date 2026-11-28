@@ -13,7 +13,7 @@
 ## Shape of a cycle (20 clubs)
 
 ```
-founding (10 days, inaugural only) → preseason window (72h) → rounds 1–19 → midseason window (24h) → rounds 20–38
+founding and recruitment (6⅓ days: 8 hours of founding, inaugural only) → preseason window (72h) → rounds 1–19 → midseason window (24h) → rounds 20–38
 ```
 
 - **Rounds:** 38 rounds and 380 fixtures, as a double round robin with every club once a round.
@@ -26,7 +26,7 @@ founding (10 days, inaugural only) → preseason window (72h) → rounds 1–19 
 
 | Cycle | Opening time | Days |
 | --- | --- | ---: |
-| Inaugural (with founding) | 09:00 UTC | 32.97 |
+| Inaugural (with founding) | 09:00 UTC | 28.97 |
 | Later season | 09:00 UTC | 22.97 |
 | Later season | 21:00 UTC | 22.97 |
 | Later season | 07:00 UTC | 22.55 |
@@ -68,7 +68,7 @@ Twelve manager decisions were made (3 steps × 4 clubs), no transfer/1 window wa
 
 ## Still to come
 
-- **Done:** founding and the inaugural recruitment market as the season's first phase, in calendar/1's 10-day founding window ([inaugural.md](inaugural.md)).
+- **Done:** founding and the inaugural recruitment market as the season's first phase, in calendar/1's founding window (8 hours of founding, then recruitment) ([inaugural.md](inaugural.md)).
 - **Pause and resume midseason** for Phase 2 seasons, beyond what `bun run ops reschedule` already covers.
 
 ## Evidence
