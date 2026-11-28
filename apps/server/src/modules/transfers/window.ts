@@ -48,7 +48,7 @@ import {
   transferPrompt,
   transferSystem,
 } from "./prompts.ts";
-import { minSquad, TRANSFER } from "./rules.ts";
+import { minSquad, TRANSFER, TRANSFER_RULE } from "./rules.ts";
 import { settleWindow } from "./settle.ts";
 
 export const TRANSFER_JOB = "manager.transfer";
@@ -64,7 +64,8 @@ const PHASES = TRANSFER.window.phases;
 export async function openWindow(db: Db, seasonId: string, now = new Date()): Promise<WindowRow | null> {
   const [s] = await db<{ id: string; status: string; transfer_rule: string | null; starts_at: Date | null }[]>`
     select id, status, transfer_rule, starts_at from seasons where id = ${seasonId}`;
-  if (!s?.transfer_rule || s.status !== "scheduled") return null;
+  // transfer/1 only: transfer/2 seasons use market windows (contracts/scheduler.ts).
+  if (s?.transfer_rule !== TRANSFER_RULE || s.status !== "scheduled") return null;
   const [existing] = await db<WindowRow[]>`select * from transfer_windows where season_id = ${seasonId}`;
   if (existing) return existing;
   const [released] = await db`select 1 from fixtures where season_id = ${seasonId} and status <> 'scheduled' limit 1`;
@@ -496,7 +497,7 @@ export function transferJobHandlers(deps: ManagerDeps) {
 export async function tickTransfers(db: Db, opts: { now?: Date } = {}) {
   const upcoming = await db<{ id: string }[]>`
     select s.id from seasons s join leagues l on l.id = s.league_id
-    where s.status = 'scheduled' and s.transfer_rule is not null and l.status = 'active' order by s.created_at`;
+    where s.status = 'scheduled' and s.transfer_rule = ${TRANSFER_RULE} and l.status = 'active' order by s.created_at`;
   for (const s of upcoming) await openWindow(db, s.id, opts.now);
   const open = await db<{ id: string }[]>`select id from transfer_windows where phase <> 'closed' order by created_at`;
   const out: WindowState[] = [];

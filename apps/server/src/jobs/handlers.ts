@@ -4,6 +4,7 @@ import type { ReplayStore } from "@autosoccer/sim-adapter";
 import type { Logger } from "../log.ts";
 import type { LlmClient } from "../modules/agents/llm.ts";
 import { type ComputeGate, enqueueManagerJobs, managerJobHandlers } from "../modules/agents/service.ts";
+import { contractJobHandlers } from "../modules/contracts/scheduler.ts";
 import { offlineEditorialLlm } from "../modules/editorial/offline.ts";
 import { editorialJobHandlers, enqueueEditorial } from "../modules/editorial/service.ts";
 import { settleFinances } from "../modules/finance/settle.ts";
@@ -49,6 +50,8 @@ export function buildHandlers(d: PlatformDeps): Record<string, JobHandler> {
     ...managerJobHandlers({ db: d.db, llm: d.llm, gate: d.gate ?? ledgerGate(d.db), log: d.log }),
     // Transfer-window decisions (listing, bidding, replying), metered the same way.
     ...transferJobHandlers({ db: d.db, llm: d.llm, gate: d.gate ?? ledgerGate(d.db), log: d.log }),
+    // transfer/2 contract decisions (renewals, free-agent offers), metered the same way.
+    ...contractJobHandlers({ db: d.db, llm: d.llm, gate: d.gate ?? ledgerGate(d.db), log: d.log }),
     // Journalist calls are metered against the season's editorial budget; once it can't cover a
     // call, the offline template writer (same facts, no model, no cost) writes the piece instead.
     ...(d.editorialLlm
