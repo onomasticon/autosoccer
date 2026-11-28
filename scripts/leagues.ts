@@ -7,11 +7,14 @@
  *   bun run leagues inventory --league original
  *   bun run leagues create --league founders --name "The Founders League" [--division "Division 1" --tier 1] [--confirm founders]
  *   bun run leagues final-season --league original --season season-30 [--confirm original]
+ *   bun run leagues end-season --league original --season season-17 [--confirm original]
+ *       # stops the league's current season part-way and concludes the league: played matches stay,
+ *       # unplayed fixtures go, and the season has no champion (status ended_early)
  *   bun run leagues conclude --league original [--confirm original]
  *   bun run leagues archive --league original --backup db/2026-12-01T03:00:00Z.dump [--confirm original]
  *   bun run leagues verify --league original      # an archived league still matches its archive inventory
  *   bun run leagues unarchive --league original [--confirm original]   # rollback of an archive
- *   bun run leagues inaugural --league founders --opens 2027-01-04T09:00:00Z --seed 7 [--models a,b,c] [--budget-usd 10] [--editorial-usd 25] [--confirm founders]
+ *   bun run leagues inaugural --league founders --opens 2027-01-04T09:00:00Z --seed 7 [--models a,b,c] [--budget-usd 10] [--editorial-usd 25] [--first-preseason-hours 12] [--confirm founders]
  *       # defaults: every allocated registry model (not the reserve), and LAUNCH_CAPS (founding/inaugural.ts)
  *       # schedules the inaugural phase (founding, recruitment, safety net); `status` shows where it is
  *   bun run leagues inaugural-status --league founders
@@ -55,7 +58,16 @@ function print(p: Plan, applied: boolean) {
   if (!applied && p.ok) console.log(`  re-run with --confirm ${p.league} to apply`);
 }
 
-const ACTIONS = ["create", "final-season", "conclude", "archive", "unarchive", "activate", "set-default"] as const;
+const ACTIONS = [
+  "create",
+  "final-season",
+  "end-season",
+  "conclude",
+  "archive",
+  "unarchive",
+  "activate",
+  "set-default",
+] as const;
 let code = 0;
 try {
   if (cmd === "list") {
@@ -81,7 +93,10 @@ try {
       models,
       budgetPerTeamMicroUsd: Math.round(Number(opt("budget-usd") ?? LAUNCH_CAPS.managerPerClubPerSeasonUsd) * 1e6),
       editorialBudgetMicroUsd: Math.round(Number(opt("editorial-usd") ?? LAUNCH_CAPS.editorialPerSeasonUsd) * 1e6),
+      ...(opt("first-preseason-hours") ? { firstPreseasonHours: Number(opt("first-preseason-hours")) } : {}),
     };
+    if (input.firstPreseasonHours !== undefined && !(input.firstPreseasonHours >= 3))
+      throw new Error("--first-preseason-hours must be at least 3: one hour for each transfer phase");
     if (!(input.budgetPerTeamMicroUsd > 0))
       throw new Error("--budget-usd must be positive: with $0, every manager decision is skipped");
     // Preflight: a founder whose provider key is missing would fail every founding round, unseen.
@@ -98,7 +113,7 @@ try {
     if (missing.length && opt("confirm") === slug)
       throw new Error(`refusing to schedule: ${missing.length} founders have no API key in this environment`);
     console.log(
-      `inaugural ${slug}: ${models.length} founders, founding opens ${opens.toISOString()}, seed ${input.seed}, $${input.budgetPerTeamMicroUsd / 1e6} per club per season, newsroom $${input.editorialBudgetMicroUsd / 1e6} per season`,
+      `inaugural ${slug}: ${models.length} founders, founding opens ${opens.toISOString()}, seed ${input.seed}, $${input.budgetPerTeamMicroUsd / 1e6} per club per season, newsroom $${input.editorialBudgetMicroUsd / 1e6} per season, season 1 preseason ${input.firstPreseasonHours ?? 72}h`,
     );
     if (opt("confirm") !== slug) console.log(`  dry run: re-run with --confirm ${slug} to schedule it`);
     else {

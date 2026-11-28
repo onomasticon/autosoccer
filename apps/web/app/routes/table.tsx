@@ -32,9 +32,11 @@ export default function Table({ loaderData }: Route.ComponentProps) {
         eyebrow={
           season.status === "completed"
             ? `${season.name} · final`
-            : afterRound
-              ? `${season.name} · after round ${afterRound}`
-              : season.name
+            : season.endedEarly
+              ? `${season.name} · ended early after round ${season.endedEarly.afterRound}`
+              : afterRound
+                ? `${season.name} · after round ${afterRound}`
+                : season.name
         }
         title="League table"
       />
@@ -43,7 +45,12 @@ export default function Table({ loaderData }: Route.ComponentProps) {
           Past seasons and champions
         </Link>
       </p>
-      <TitleRaceLine race={race} afterRound={afterRound} seasonCompleted={season.status === "completed"} />
+      <TitleRaceLine
+        race={race}
+        afterRound={afterRound}
+        seasonCompleted={season.status === "completed"}
+        endedEarly={season.endedEarly}
+      />
       <StandingsTable
         holdersTeamId={holders}
         rows={rows}

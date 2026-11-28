@@ -54,9 +54,9 @@ describe("calendar/1", () => {
   });
 
   it("computes the cycle's length from slot alignment instead of assuming it", () => {
-    // 6⅓ days founding and recruitment + 3 days preseason + 19 rounds (9.5 days) + 1 day break + 19 rounds.
-    expect(cal.cycleDays).toBeGreaterThan(28.5);
-    expect(cal.cycleDays).toBeLessThan(30);
+    // 20 hours founding and recruitment + 3 days preseason + 19 rounds (9.5 days) + 1 day break + 19 rounds.
+    expect(cal.cycleDays).toBeGreaterThan(23);
+    expect(cal.cycleDays).toBeLessThan(24.5);
     const later = seasonCalendar(teams, OPENS, { ...DEFAULT_CALENDAR, foundingDays: 0 });
     expect(later.cycleDays).toBeGreaterThan(22.5);
     expect(later.cycleDays).toBeLessThan(24.5);

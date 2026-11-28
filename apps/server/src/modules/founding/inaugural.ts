@@ -1,14 +1,14 @@
 /**
  * The inaugural phase of a new league (#95, #96, #99, `inaugural/1`): calendar/1's founding
- * window (8 hours of founding, then 6 days of recruitment), run by the scheduler, before the operator activates the league.
+ * window (8 hours of founding, then 12 hours of recruitment), run by the scheduler, before the operator activates the league.
  *
  *   hour 0–8  founding: up to three founding rounds, 2h40m apart (one job per round; every founder
  *             answers through its own model, results settled in a seeded order: founding/1)
  *   hour 8    the season is created for the clubs that were founded: each gets its opening balance,
  *             and the shared talent pool is created as the league's own unattached players
- *   day ⅓–6⅓  recruitment: three simultaneous offer rounds of 48 hours each, as market windows settled
+ *   hour 8–20 recruitment: three simultaneous offer rounds of 4 hours each, as market windows settled
  *             by recruit/1's offer round (every club's offers at once; a faster model gains nothing)
- *   day 6⅓    the safety net: a club still short of a viable squad is assigned the best remaining
+ *   hour 20   the safety net: a club still short of a viable squad is assigned the best remaining
  *             players at minimum terms plus the stated fee (charged, and shown as such), then the
  *             preseason window and the season, once the operator has activated the league
  *
@@ -44,11 +44,12 @@ export const INAUGURAL = {
   /** Founding takes 8 hours: three rounds, 2h40m apart. */
   foundingRoundHours: 8 / 3,
   foundingRounds: MAX_ROUNDS,
-  recruitmentRoundHours: 48,
+  /** Recruitment takes 12 hours: three offer rounds of 4 hours. */
+  recruitmentRoundHours: 4,
   recruitmentRounds: RECRUIT.rounds,
 } as const;
 
-/** Hours from founding opening to the season's preseason window: founding (8h), then recruitment (6 days). */
+/** Hours from founding opening to the season's preseason window: founding (8h), then recruitment (12h). */
 export const INAUGURAL_HOURS =
   INAUGURAL.foundingRounds * INAUGURAL.foundingRoundHours +
   INAUGURAL.recruitmentRounds * INAUGURAL.recruitmentRoundHours;
@@ -75,6 +76,11 @@ export interface InauguralSettings {
   budgetPerTeamMicroUsd: number;
   editorialBudgetMicroUsd?: number;
   calendar?: Partial<CalendarConfig>;
+  /**
+   * Season 1's preseason window, in hours (default: calendar/1's 72). Every squad has just been
+   * signed, so there is nothing to renew; later seasons keep the full window.
+   */
+  firstPreseasonHours?: number;
 }
 
 interface League {
@@ -114,6 +120,7 @@ export async function startInaugural(
       budgetPerTeamMicroUsd: input.budgetPerTeamMicroUsd,
       editorialBudgetMicroUsd: input.editorialBudgetMicroUsd,
       calendar: input.calendar,
+      ...(input.firstPreseasonHours ? { firstPreseasonHours: input.firstPreseasonHours } : {}),
     };
     if (!l.inaugural) await t`update leagues set inaugural = ${t.json(settings as never)} where id = ${l.id}`;
     for (let r = 1; r <= INAUGURAL.foundingRounds; r++)
@@ -203,7 +210,7 @@ async function createInauguralSeason(db: Db, l: League): Promise<string | null> 
     opens: at(s, INAUGURAL_HOURS),
     budgetPerTeamMicroUsd: s.budgetPerTeamMicroUsd,
     editorialBudgetMicroUsd: s.editorialBudgetMicroUsd,
-    calendar: s.calendar,
+    calendar: s.firstPreseasonHours ? { ...s.calendar, preseasonHours: s.firstPreseasonHours } : s.calendar,
   });
   await db.begin(async (tx) => {
     const t = tx as unknown as Db;

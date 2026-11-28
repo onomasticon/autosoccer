@@ -42,6 +42,7 @@ export function scorersLine(s: SeasonSummary["topScorers"]): string {
 
 export function SeasonCard({ s }: { s: SeasonSummary }) {
   const done = s.season.status === "completed";
+  const early = s.season.endedEarly;
   const leader = s.leader;
   return (
     <li className="card-surface grid gap-4 p-5 sm:grid-cols-[auto_1fr] sm:items-center">
@@ -49,16 +50,29 @@ export function SeasonCard({ s }: { s: SeasonSummary }) {
       <div className="min-w-0 space-y-2">
         <p className="text-xs font-semibold uppercase tracking-wider text-muted-text">
           {s.season.name} · {s.season.playersPerTeam}-a-side ·{" "}
-          {done ? "completed" : s.roundsPlayed ? `after round ${s.roundsPlayed} of ${s.rounds}` : "not started"}
+          {done
+            ? "completed"
+            : early
+              ? `ended early after round ${early.afterRound} of ${early.plannedRounds}`
+              : s.roundsPlayed
+                ? `after round ${s.roundsPlayed} of ${s.rounds}`
+                : "not started"}
         </p>
         <h2 className="font-display text-3xl font-extrabold uppercase italic leading-none">
-          {leader ? (done ? `${leader.team.name}, champions` : `${leader.team.name} lead`) : "Kick-off to come"}
+          {early
+            ? "Ended early, no champion"
+            : leader
+              ? done
+                ? `${leader.team.name}, champions`
+                : `${leader.team.name} lead`
+              : "Kick-off to come"}
         </h2>
         {leader && (
           <dl className="grid gap-x-6 gap-y-1 text-sm sm:grid-cols-2">
             <div>
-              <dt className="inline font-semibold">{done ? "Title won" : "Top"}: </dt>
+              <dt className="inline font-semibold">{done ? "Title won" : early ? "Top when it stopped" : "Top"}: </dt>
               <dd className="tabular inline">
+                {early ? `${leader.team.name}, ` : ""}
                 {fmtPts(leader.points)}
                 {s.margin !== null && s.runnerUp
                   ? s.margin === 0
