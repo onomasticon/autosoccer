@@ -53,6 +53,20 @@ export const INAUGURAL_HOURS =
   INAUGURAL.foundingRounds * INAUGURAL.foundingRoundHours +
   INAUGURAL.recruitmentRounds * INAUGURAL.recruitmentRoundHours;
 
+/**
+ * The launch's spend caps (#101), the defaults for `bun run leagues inaugural`. From the live pilot's
+ * measured cost per decision: the league's managers cost about $40 a season (about $52 per 30 days),
+ * the dearest club about $7.50 before its answers got more room.
+ * - Managers: $10 per club per season covers the dearest model with headroom. It's a hard ceiling
+ *   (every call reserves its worst case), so the league can't spend more than 20 × $10 a season.
+ * - Newsroom: $25 a season (about 340 pieces at the measured ~$0.07 each). Past it, the offline
+ *   template writer covers the rest at no cost.
+ */
+export const LAUNCH_CAPS = {
+  managerPerClubPerSeasonUsd: 10,
+  editorialPerSeasonUsd: 25,
+} as const;
+
 export interface InauguralSettings {
   rule: typeof INAUGURAL_RULE;
   opens: string;

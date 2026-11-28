@@ -11,7 +11,8 @@
  *   bun run leagues archive --league original --backup db/2026-12-01T03:00:00Z.dump [--confirm original]
  *   bun run leagues verify --league original      # an archived league still matches its archive inventory
  *   bun run leagues unarchive --league original [--confirm original]   # rollback of an archive
- *   bun run leagues inaugural --league founders --models a,b,c,d --opens 2027-01-04T09:00:00Z --seed 7 --budget-usd 25 [--confirm founders]
+ *   bun run leagues inaugural --league founders --opens 2027-01-04T09:00:00Z --seed 7 [--models a,b,c] [--budget-usd 10] [--editorial-usd 25] [--confirm founders]
+ *       # defaults: every allocated registry model (not the reserve), and LAUNCH_CAPS (founding/inaugural.ts)
  *       # schedules the inaugural phase (founding, recruitment, safety net); `status` shows where it is
  *   bun run leagues inaugural-status --league founders
  *   bun run leagues activate --league founders [--confirm founders]
@@ -22,7 +23,7 @@
  */
 import { createDb } from "@autosoccer/db";
 import { loadConfig } from "../apps/server/src/config.ts";
-import { inauguralReadiness, startInaugural } from "../apps/server/src/modules/founding/inaugural.ts";
+import { inauguralReadiness, LAUNCH_CAPS, startInaugural } from "../apps/server/src/modules/founding/inaugural.ts";
 import {
   apply,
   inventory,
@@ -33,7 +34,8 @@ import {
   planFor,
   verifyArchive,
 } from "../apps/server/src/modules/league/leagues.ts";
-import { modelBySlug } from "../apps/server/src/modules/models/registry.ts";
+import { missingKeys } from "../apps/server/src/modules/models/gateway.ts";
+import { modelBySlug, REGISTRY } from "../apps/server/src/modules/models/registry.ts";
 
 const [cmd = "list"] = process.argv
   .slice(2)
@@ -67,7 +69,8 @@ try {
     console.log(JSON.stringify(await inventory(db, l.id), null, 2));
   } else if (cmd === "inaugural") {
     const slug = opt("league") ?? "";
-    const models = (opt("models") ?? "").split(",").filter(Boolean);
+    const allocated = REGISTRY.filter((m) => m.status !== "reserve").map((m) => m.slug);
+    const models = (opt("models") ?? allocated.join(",")).split(",").filter(Boolean);
     const unknown = models.filter((m) => !modelBySlug(m));
     if (unknown.length) throw new Error(`not in the model registry: ${unknown.join(", ")}`);
     const opens = new Date(opt("opens") ?? "");
@@ -76,10 +79,26 @@ try {
       opens,
       seed: Number(opt("seed") ?? 1),
       models,
-      budgetPerTeamMicroUsd: Math.round(Number(opt("budget-usd") ?? 0) * 1_000_000),
+      budgetPerTeamMicroUsd: Math.round(Number(opt("budget-usd") ?? LAUNCH_CAPS.managerPerClubPerSeasonUsd) * 1e6),
+      editorialBudgetMicroUsd: Math.round(Number(opt("editorial-usd") ?? LAUNCH_CAPS.editorialPerSeasonUsd) * 1e6),
     };
+    if (!(input.budgetPerTeamMicroUsd > 0))
+      throw new Error("--budget-usd must be positive: with $0, every manager decision is skipped");
+    // Preflight: a founder whose provider key is missing would fail every founding round, unseen.
+    const live = process.env.LLM_PROVIDER !== "offline";
+    const missing = live ? missingKeys(models.map((m) => modelBySlug(m)!)) : [];
+    for (const k of [...new Set(missing.map((m) => m.key))])
+      console.log(
+        `  ✗ ${k} is not set: ${missing
+          .filter((m) => m.key === k)
+          .map((m) => m.model)
+          .join(", ")}`,
+      );
+    if (!live) console.log("  note: LLM_PROVIDER=offline, so founders and managers are the offline stand-ins");
+    if (missing.length && opt("confirm") === slug)
+      throw new Error(`refusing to schedule: ${missing.length} founders have no API key in this environment`);
     console.log(
-      `inaugural ${slug}: ${models.length} founders, founding opens ${opens.toISOString()}, seed ${input.seed}, $${input.budgetPerTeamMicroUsd / 1e6} per club`,
+      `inaugural ${slug}: ${models.length} founders, founding opens ${opens.toISOString()}, seed ${input.seed}, $${input.budgetPerTeamMicroUsd / 1e6} per club per season, newsroom $${input.editorialBudgetMicroUsd / 1e6} per season`,
     );
     if (opt("confirm") !== slug) console.log(`  dry run: re-run with --confirm ${slug} to schedule it`);
     else {
