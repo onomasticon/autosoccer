@@ -46,3 +46,27 @@ export function guideFee(overall: number, goalsLastSeason = 0): number {
   const raw = wageFor(overall) * g.wageRounds + g.perGoal * Math.min(goalsLastSeason, g.goalCap);
   return Math.max(TRANSFER.minFee, Math.round(raw / g.roundTo) * g.roundTo);
 }
+
+/**
+ * transfer/2 (candidate for the Phase 2 league, #96): a market that moves. Calibrated in the economy
+ * harness (#98); not used by any live season.
+ *  - Free agency: when a contract ends, the club renews or releases the player; a released player is
+ *    a free agent any club can sign for wages alone.
+ *  - Binding listings (available, off): a bid at or above a listing's asking fee would complete the
+ *    sale with no veto. Off by default: in the harness it let rich clubs pick up listed players
+ *    cheaply and concentrated money (Gini 0.47 against 0.41 without), for little extra liquidity.
+ *  - Two windows a season: preseason and midseason (calendar/1).
+ */
+export const TRANSFER_2 = {
+  version: "transfer/2",
+  maxListings: 3,
+  maxBids: 2,
+  minFee: TRANSFER.minFee,
+  /** Asking fee a listing defaults to, as a share of the guide fee. */
+  listingAsk: 0.9,
+  freeAgency: true,
+  bindingListings: false,
+  midseasonWindow: true,
+  /** Renewal: a club keeps (at least) its best players by rating, and young players worth developing. */
+  renewal: { keepBest: 10, keepYoungUpTo: 23 },
+} as const;

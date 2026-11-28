@@ -28,7 +28,7 @@ import {
   rng,
   type Scenario,
 } from "./model.ts";
-import { decideBids, decideReply } from "./policies.ts";
+import { decideBids, decideListings, decideRenewal, decideReply, freeAgentOffer } from "./policies.ts";
 import { closeSeason, ensurePayroll, offseason, serviceLoans } from "./recovery.ts";
 
 export interface RunConfig {
@@ -74,7 +74,8 @@ export interface Event {
     | "recovery"
     | "unviable"
     | "emergency"
-    | "borrow";
+    | "borrow"
+    | "release";
   club: string;
   amount?: number;
   detail?: string;
@@ -100,10 +101,22 @@ export interface World {
   joinedThisSeason: number;
   nextPlayer: number;
   nextLoan: number;
+  /** Current window ("pre" or "mid") and its binding listings: player id → asking fee. */
+  window: "pre" | "mid";
+  listings: Map<string, number>;
 }
 
 export interface RunResult {
-  config: { clubs: number; seasons: number; seed: number; ruleset: string; scenario: string; policies: PolicyName[] };
+  config: {
+    clubs: number;
+    seasons: number;
+    seed: number;
+    ruleset: string;
+    scenario: string;
+    policies: PolicyName[];
+    /** Transfer windows per season (2 with transfer/2's midseason window). */
+    windows: number;
+  };
   seasons: SeasonStats[];
   failures: InvariantFailure[];
   deals: Deal[];
@@ -234,6 +247,8 @@ export function found(config: RunConfig): World {
     joinedThisSeason: 0,
     nextPlayer: 0,
     nextLoan: 0,
+    window: "pre",
+    listings: new Map(),
   };
   const policies = config.scenario.policy ? [config.scenario.policy] : (config.policies ?? POLICIES);
   for (let i = 0; i < config.clubs; i++) {
@@ -319,6 +334,14 @@ function market(w: World) {
   const minFee = w.config.scenario.minFee ?? r.minFee;
   const maxBids = w.config.scenario.maxBids ?? r.maxBids;
   const fr = r.finance(2 * (w.clubs.size - 1));
+  const mk = r.market;
+  // Binding listings: each available club lists surplus players at an asking fee.
+  w.listings = new Map();
+  if (mk?.bindingListings)
+    for (const c of w.clubs.values()) {
+      if (!available(w)) continue;
+      for (const l of decideListings(w, c).slice(0, mk.maxListings)) w.listings.set(l.player, l.ask);
+    }
   const bids: Array<{ buyer: string; player: HPlayer; fee: number; order: number }> = [];
   let order = 0;
   for (const c of w.clubs.values()) {
@@ -336,8 +359,11 @@ function market(w: World) {
   // Sellers reply to each offer; unavailable sellers' offers lapse (the player stays).
   const accepted = bids.filter((b) => {
     const seller = b.player.club ? w.clubs.get(b.player.club)! : null;
-    if (seller && !available(w)) return false;
-    const ok = seller ? decideReply(w, seller, b.player, b.fee) : true;
+    const ask = w.listings.get(b.player.id);
+    // A bid at or above a binding listing's asking fee completes the sale: no veto, no reply needed.
+    const binding = ask !== undefined && b.fee >= ask;
+    if (seller && !binding && !available(w)) return false;
+    const ok = seller ? binding || decideReply(w, seller, b.player, b.fee) : true;
     if (ok) w.market.accepted++;
     else w.market.rejected++;
     return ok;
@@ -364,12 +390,64 @@ function market(w: World) {
       w.market.failed++;
       continue;
     }
-    credit(w, buyer.id, "transfer", -b.fee, `transfer:${w.season}:${p.id}:${buyer.id}`);
-    if (from) credit(w, from, "transfer", b.fee, `transfer:${w.season}:${p.id}:${from}`);
+    const tag = w.window === "pre" ? "" : `${w.window}:`;
+    credit(w, buyer.id, "transfer", -b.fee, `transfer:${w.season}:${tag}${p.id}:${buyer.id}`);
+    if (from) credit(w, from, "transfer", b.fee, `transfer:${w.season}:${tag}${p.id}:${from}`);
     p.club = buyer.id;
     if (r.contractSeasons) p.wage = 0; // a new contract, priced at the market when the season starts
     done.add(p.id);
     w.deals.push({ season: w.season, player: p.id, from, to: buyer.id, fee: b.fee, overall: p.overall });
+  }
+  if (mk?.freeAgency) freeAgentRound(w);
+}
+
+/**
+ * transfer/2 free agency, at the end of the previous season's contracts: each club renews the players
+ * it wants (by policy) and releases the rest, who become free agents. A released player keeps no wage.
+ */
+function expiries(w: World) {
+  for (const p of [...w.players.values()]) {
+    if (!p.club || p.retired || p.contractUntil >= w.season) continue;
+    const c = w.clubs.get(p.club)!;
+    if (decideRenewal(w, c, p)) {
+      p.wage = 0; // renewed: repriced at the market when the season starts
+      continue;
+    }
+    w.events.push({ season: w.season, round: null, kind: "release", club: c.id, detail: p.id });
+    p.club = null;
+    p.wage = 0;
+  }
+}
+
+/**
+ * The free-agent round: unattached players, best first, each choose the best wage offer from the clubs
+ * that want them (ties by a seeded club order). Signing is for wages alone (no fee); the contract is
+ * priced like any other new contract.
+ */
+function freeAgentRound(w: World) {
+  const r = w.config.ruleset;
+  const fr = r.finance(2 * (w.clubs.size - 1));
+  const free = [...w.players.values()]
+    .filter((p) => !p.club && !p.retired)
+    .sort((a, b) => b.overall - a.overall || a.id.localeCompare(b.id));
+  for (const p of free) {
+    let best: { club: string; multiple: number; rank: number } | null = null;
+    for (const c of w.clubs.values()) {
+      if (c.administration && squadOf(w, c.id).length >= r.squad.min) continue;
+      if (!available(w)) continue;
+      const multiple = freeAgentOffer(w, c, p, fr);
+      if (multiple === null) continue;
+      const rank = hash(`fa:${w.config.seed}:${w.season}:${w.window}:${p.id}:${c.id}`);
+      if (!best || multiple > best.multiple || (multiple === best.multiple && rank < best.rank))
+        best = { club: c.id, multiple, rank };
+    }
+    if (!best) continue;
+    p.club = best.club;
+    p.wage = Math.round((r.wage(p.overall, fr) * best.multiple) / 1000) * 1000;
+    const y = r.contractYears ?? { young: 3, prime: 2, veteran: 1 };
+    const years = p.age >= 31 ? y.veteran : p.age >= 27 ? y.prime : y.young;
+    p.contractUntil = w.season + years - 1;
+    w.deals.push({ season: w.season, player: p.id, from: null, to: best.club, fee: 0, overall: p.overall });
   }
 }
 
@@ -441,6 +519,13 @@ function playSeason(w: World) {
   const goals = new Map<string, number>();
   const seasonFixtures: Fixture[] = [];
   for (let round = 1; round <= rounds; round++) {
+    // transfer/2: the midseason window, between the halves (before the second half's first round).
+    if (r.market?.midseasonWindow && round === Math.floor(rounds / 2) + 1) {
+      w.window = "mid";
+      market(w);
+      setWages(w, fr); // new contracts from this window are priced now
+      w.window = "pre";
+    }
     // Payroll check before the round (insolvency/1): cash plus money due at kick-off.
     for (const c of w.clubs.values()) {
       if (c.withdrawnFrom !== null) continue;
@@ -575,6 +660,8 @@ export function nextSeason(w: World, s: number, prev?: SeasonStats): SeasonStats
     age(w);
     takeovers(w);
     if (w.config.ruleset.lender) offseason(w);
+    if (w.config.ruleset.market?.freeAgency && w.config.ruleset.contractSeasons) expiries(w);
+    w.window = "pre";
     market(w);
   }
   playSeason(w);
@@ -600,6 +687,7 @@ export function runLeague(config: RunConfig): RunResult {
       seed: config.seed,
       ruleset: config.ruleset.name,
       scenario: config.scenario.name,
+      windows: config.ruleset.market?.midseasonWindow ? 2 : 1,
       policies: [...new Set([...w.clubs.values()].map((c) => c.policy))],
     },
     seasons,

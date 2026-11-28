@@ -20,6 +20,9 @@ export interface SeasonStats {
   avgWagePerRound: number;
   maxWagePerRound: number;
   deals: number;
+  /** Of those, free-agent signings (no fee) and transfers between clubs. */
+  freeSignings: number;
+  releases: number;
   fees: number;
   avgFee: number;
   market: { bids: number; accepted: number; rejected: number; failed: number; unavailable: number };
@@ -102,6 +105,8 @@ export function seasonStats(w: World, ledgerFrom: number, prev?: SeasonStats): S
     avgWagePerRound: Math.round(wages.reduce((s, x) => s + x, 0) / Math.max(1, wages.length)),
     maxWagePerRound: Math.max(0, ...wages),
     deals: deals.length,
+    freeSignings: deals.filter((d) => d.from === null).length,
+    releases: events.filter((e) => e.kind === "release").length,
     fees: deals.reduce((s, d) => s + d.fee, 0),
     avgFee: deals.length ? Math.round(deals.reduce((s, d) => s + d.fee, 0) / deals.length) : 0,
     market: { ...w.market },

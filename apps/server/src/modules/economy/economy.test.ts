@@ -165,3 +165,44 @@ describe("contracts and running costs (finance/3 candidate)", () => {
     expect(r.seasons.every((s) => s.flows.operating === undefined)).toBe(true);
   });
 });
+
+describe("transfer/2: free agency, binding listings and a midseason window", () => {
+  const t2 = RULESETS["candidate-t2"]!;
+
+  it("moves players: releases become free signings for no fee, listings sell, and invariants hold", () => {
+    const r = runLeague({ ...base, seasons: 6, seed: 11, ruleset: t2 });
+    expect(r.failures).toEqual([]);
+    const free = r.deals.filter((d) => d.from === null);
+    expect(free.length).toBeGreaterThan(0);
+    expect(free.every((d) => d.fee === 0)).toBe(true);
+    // With binding listings (available, off by default), listed players sell at their asking fee.
+    const binding = runLeague({ ...base, seasons: 6, seed: 11, ruleset: RULESETS["t2-binding"]! });
+    expect(binding.failures).toEqual([]);
+    expect(binding.deals.filter((d) => d.from !== null).length).toBeGreaterThan(0);
+    expect(r.events.some((e) => e.kind === "release")).toBe(true);
+    // Gate 6: at least one deal per four clubs per window.
+    const windows = 5 + 6;
+    expect(r.deals.length / (windows * 20)).toBeGreaterThanOrEqual(0.25);
+  });
+
+  it("never sells an unattached player for a fee, and only pays fees between clubs", () => {
+    const w = found({ ...base, clubs: 8, seed: 12, ruleset: t2 });
+    for (let s = 1; s <= 4; s++) nextSeason(w, s);
+    expect(checkInvariants(w)).toEqual([]);
+    for (const e of w.ledger.filter((x) => x.kind === "transfer")) expect(w.clubs.has(e.club)).toBe(true);
+    const fees = w.ledger.filter((x) => x.kind === "transfer").reduce((n, e) => n + e.amount, 0);
+    expect(fees).toBe(0); // every fee paid was received by another club
+  });
+
+  it("trades in the midseason window too", () => {
+    const r = runLeague({ ...base, seasons: 1, seed: 13, ruleset: RULESETS["t2-binding"]! });
+    expect(r.deals.length).toBeGreaterThan(0); // season 1 has no preseason window: these are midseason
+    const off = runLeague({
+      ...base,
+      seasons: 1,
+      seed: 13,
+      ruleset: { ...RULESETS["t2-binding"]!, market: { ...RULESETS["t2-binding"]!.market!, midseasonWindow: false } },
+    });
+    expect(off.deals).toEqual([]);
+  });
+});

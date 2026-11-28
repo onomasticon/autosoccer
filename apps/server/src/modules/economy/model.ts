@@ -164,6 +164,15 @@ export interface Ruleset {
   /** Contract wages priced by the market at signing/renewal (contract rulesets only). */
   wageMarket?: { alpha: number; min: number; max: number };
   contractYears?: { young: number; prime: number; veteran: number };
+  /** transfer/2 market mechanics (contract rulesets): free agency, binding listings, a midseason window. */
+  market?: {
+    freeAgency: boolean;
+    bindingListings: boolean;
+    midseasonWindow: boolean;
+    listingAsk: number;
+    maxListings: number;
+    renewal: { keepBest: number; keepYoungUpTo: number };
+  };
 }
 
 /** Synthetic match model: goals ~ Poisson(exp(base + k × strength difference)). */

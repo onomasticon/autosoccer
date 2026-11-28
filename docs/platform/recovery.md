@@ -67,7 +67,7 @@ These are pure rule functions, shared by the harness and, once integrated, by se
 - **Acceptance gates for the calibrated candidate** ([economy-harness.md](economy-harness.md#initial-acceptance-gates-proposed-tune-with-evidence)):
   - **Pass:** 1 (invariants), 2 (no forfeits), 3 (no free money), 4 (Gini ≤ 0.45 and the richest quarter ≤ 60% in baseline), 5 (open competition) and 7 (recovery within a season).
   - **Borderline, gate 8 (no runaway inflation):** baseline is just inside the limit at Ȼ955m against 960m, held-out is 8% over, and the ageing-wave scenario is 16% over.
-  - **Fail, gate 6 (liquidity):** 230–291 deals against roughly 2,500 needed. That's still 3× legacy, but it's a transfer-market design problem (bidding policies and reservation prices). Finance can't fix it.
+  - **Gate 6 (liquidity):** this failed with transfer/1, at 230–291 deals. **[transfer/2](transfer-market.md) fixes it:** free agency and a midseason window lift it to 0.69 deals per club per window, against a gate of 0.25, while concentration stays inside its gate. With transfer/2, seven of eight gates pass on both seed sets.
 - **The band is narrow.** That's because income and costs are both fixed amounts. A self-correcting money supply needs a working transfer market, where money moves between clubs. Liquidity is therefore the next lever, before finance/3 is adopted.
 - **The harness found and fixed a real bug.** Forced sales could sell a club's second keeper, because the list of sellable players was computed once (`candidate-lean`, seed 3, season 35). Sales now re-check after each one, and the case is a regression test.
 
@@ -75,5 +75,5 @@ These are pure rule functions, shared by the harness and, once integrated, by se
 
 - **Persistence.** Database tables for loans, liens, auctions and administration, settled exactly once at round and window boundaries.
 - **Mid-season defaults.** Settlement must respect registration windows (a player sold at a mid-season auction joins at the next boundary) while fixtures stay playable.
-- **Liquidity.** Bidding and reservation-price rules (with #96's market), until gates 6 and 8 pass on baseline and held-out seeds. Then adopt finance/3.
+- **Inflation on held-out seeds** (gate 8, about 10% over with transfer/2). Take one careful step on running costs or the distribution, or accept a looser gate. Then adopt finance/3, insolvency/2 and transfer/2 together.
 - **Fan-facing pages** for loans, defaults, auctions and recoveries (#100).

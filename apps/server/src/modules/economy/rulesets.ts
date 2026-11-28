@@ -6,7 +6,7 @@
 import { FINANCE_3, finance3, RULES, rulesFor, wageFor } from "../finance/rules.ts";
 import { INSOLVENCY_2 } from "../insolvency/recovery.ts";
 import { INSOLVENCY } from "../insolvency/rules.ts";
-import { guideFee, TRANSFER } from "../transfers/rules.ts";
+import { guideFee, TRANSFER, TRANSFER_2 } from "../transfers/rules.ts";
 import type { Ruleset, Scenario } from "./model.ts";
 
 export const LEGACY: Ruleset = {
@@ -91,9 +91,31 @@ const GRID: Record<string, Partial<typeof FINANCE_3>> = {
   "c-ops15-a0": { operatingPerSeason: 1_500_000, wageMarket: { alpha: 0, min: 1, max: 1 } },
 };
 
+/** transfer/2 on top of the calibrated candidate: free agency, binding listings, a midseason window. */
+const withMarket = (base: Ruleset, name: string, over: Partial<NonNullable<Ruleset["market"]>> = {}): Ruleset => ({
+  ...base,
+  name,
+  maxBids: TRANSFER_2.maxBids,
+  market: {
+    freeAgency: TRANSFER_2.freeAgency,
+    bindingListings: TRANSFER_2.bindingListings,
+    midseasonWindow: TRANSFER_2.midseasonWindow,
+    listingAsk: TRANSFER_2.listingAsk,
+    maxListings: TRANSFER_2.maxListings,
+    renewal: { ...TRANSFER_2.renewal },
+    ...over,
+  },
+});
+
 export const RULESETS: Record<string, Ruleset> = {
   legacy: LEGACY,
   candidate: CANDIDATE,
+  "candidate-t2": withMarket(CANDIDATE, "candidate-t2"),
+  "t2-no-mid": withMarket(CANDIDATE, "t2-no-mid", { midseasonWindow: false }),
+  "t2-no-fa": withMarket(CANDIDATE, "t2-no-fa", { freeAgency: false }),
+  "t2-binding": withMarket(CANDIDATE, "t2-binding", { bindingListings: true }),
+  "t2-ask75": withMarket(CANDIDATE, "t2-ask75", { bindingListings: true, listingAsk: 0.75 }),
+  "t2-keep8": withMarket(CANDIDATE, "t2-keep8", { renewal: { keepBest: 8, keepYoungUpTo: 23 } }),
   "candidate-v0": UNCALIBRATED,
   "candidate-lean": variant("candidate-lean", { distribution: 4_000_000 }),
   "candidate-rich": variant("candidate-rich", { distribution: 5_000_000 }),
