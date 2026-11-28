@@ -175,10 +175,13 @@ export function ratedPlayer(row: PlayerRow, snapshot: ReadonlyMap<string, Player
  * player is new. Idempotent: existing snapshots are never rewritten. Returns how many were written.
  */
 export async function developSeason(db: Db, toSeasonId: string, fromSeasonId: string | null): Promise<number> {
+  // The season's club players, and (Phase 2) the free agents in its league's pool.
   const players = await db<(PlayerRow & { season_slug: string })[]>`
-    select p.*, s.slug as season_slug from players p
-    join season_teams st on st.team_id = p.team_id join seasons s on s.id = st.season_id
-    where st.season_id = ${toSeasonId} and p.retired_season_id is null order by p.team_id, p.shirt_number`;
+    select p.*, s.slug as season_slug from players p, seasons s
+    where s.id = ${toSeasonId} and p.retired_season_id is null
+      and (p.team_id in (select team_id from season_teams where season_id = s.id)
+        or (p.team_id is null and s.league_id is not null and p.pool_league_id = s.league_id))
+    order by p.team_id nulls last, p.shirt_number, p.id`;
   const seasonNo = seasonNumber(players[0]?.season_slug ?? "");
   const prev = fromSeasonId ? await seasonRatings(db, fromSeasonId) : new Map<string, PlayerAttributes>();
   const records = fromSeasonId ? await seasonRecords(db, fromSeasonId) : new Map<string, SeasonRecord>();
