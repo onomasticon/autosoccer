@@ -96,6 +96,14 @@ export function summarise(g: Group) {
     }),
     distressedSeasons: all.reduce((s, x) => s + x.distressed, 0),
     deals: all.reduce((s, x) => s + x.deals, 0),
+    freeSignings: all.reduce((s, x) => s + x.freeSignings, 0),
+    releases: all.reduce((s, x) => s + x.releases, 0),
+    /** Gate 6: completed deals per club per window (median across runs). */
+    dealsPerClubWindow: g.runs.map((r) => {
+      // The first season has no preseason window (clubs are founded), only a midseason one if any.
+      const windows = r.seasons.length - 1 + (r.config.windows === 2 ? r.seasons.length : 0);
+      return r.seasons.reduce((n, s) => n + s.deals, 0) / Math.max(1, windows * r.config.clubs);
+    }),
     bids: all.reduce((s, x) => s + x.market.bids, 0),
     accepted: all.reduce((s, x) => s + x.market.accepted, 0),
     failedDeals: all.reduce((s, x) => s + x.market.failed, 0),
@@ -196,12 +204,12 @@ export function markdown(
     );
   lines.push("", "## Market and players", "");
   lines.push(
-    "| Ruleset | Scenario | Bids | Accepted | Deals | Fell through | Manager unavailable | Avg fee | Retirements | New players | Squad sizes | Avg overall first → last |",
-    "| --- | --- | ---: | ---: | ---: | ---: | ---: | --- | ---: | ---: | --- | --- |",
+    "| Ruleset | Scenario | Bids | Accepted | Deals | Free signings | Releases | Deals per club per window | Fell through | Manager unavailable | Avg fee | Retirements | New players | Squad sizes | Avg overall first → last |",
+    "| --- | --- | ---: | ---: | ---: | ---: | ---: | --- | ---: | ---: | --- | ---: | ---: | --- | --- |",
   );
   for (const s of summaries)
     lines.push(
-      `| ${s.ruleset} | ${s.scenario} | ${s.bids} | ${s.accepted} | ${s.deals} | ${s.failedDeals} | ${s.unavailable} | ${dist(s.avgFee, cr)} | ${s.retirements} | ${s.newPlayers} | ${s.squadMin}–${s.squadMax} | ${dist(s.avgOverallFirst)} → ${dist(s.avgOverallLast)} |`,
+      `| ${s.ruleset} | ${s.scenario} | ${s.bids} | ${s.accepted} | ${s.deals} | ${s.freeSignings} | ${s.releases} | ${dist(s.dealsPerClubWindow, fx)} | ${s.failedDeals} | ${s.unavailable} | ${dist(s.avgFee, cr)} | ${s.retirements} | ${s.newPlayers} | ${s.squadMin}–${s.squadMax} | ${dist(s.avgOverallFirst)} → ${dist(s.avgOverallLast)} |`,
     );
   lines.push("", "## Competition", "");
   lines.push(
