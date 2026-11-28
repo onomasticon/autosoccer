@@ -228,7 +228,7 @@ export async function contractFacts(db: Db, w: MarketWindow, step: Step, teamId:
     const ending = new Set(contracts.filter((c) => c.ends_season < s.number).map((c) => c.player_id));
     return { ...base, expiring: squad.filter((p) => ending.has(p.id)).map(fact) };
   }
-  const free = await playersOf(db, s.id, { unattached: true });
+  const free = shortlist(await playersOf(db, s.id, { unattached: true }), s.rounds);
   return {
     ...base,
     freeAgents: free.map((p) => ({
@@ -239,6 +239,30 @@ export async function contractFacts(db: Db, w: MarketWindow, step: Step, teamId:
     })),
   };
 }
+
+/**
+ * Which free agents a club is shown (the same list for every club): the best at each position and
+ * the cheapest of the rest. The whole pool (300+ players at founding) made prompts of 25–85k tokens,
+ * and in the live pilot (#101) six models ran out of answer room or time before deciding.
+ */
+export const FREE_AGENT_SHORTLIST = { bestPerPosition: 10, cheapestPerPosition: 5 } as const;
+
+export function shortlist<P extends { id: string; position: string; overall: number }>(free: P[], rounds: number): P[] {
+  const out: P[] = [];
+  for (const pos of ["GK", "DF", "MF", "FW"]) {
+    const at = free.filter((p) => p.position === pos).sort((a, b) => b.overall - a.overall || a.id.localeCompare(b.id));
+    const best = at.slice(0, FREE_AGENT_SHORTLIST.bestPerPosition);
+    const cheapest = at
+      .slice(FREE_AGENT_SHORTLIST.bestPerPosition)
+      .sort((a, b) => minWage(a.overall, rounds) - minWage(b.overall, rounds) || a.id.localeCompare(b.id))
+      .slice(0, FREE_AGENT_SHORTLIST.cheapestPerPosition);
+    out.push(...best, ...cheapest);
+  }
+  return out;
+}
+
+/** Answer room for a contract decision: reasoning models think at length about a market. */
+export const CONTRACT_MAX_OUTPUT_TOKENS = 12_000;
 
 /** The least a free agent signs for: 90% of the market wage at his rating, to the nearest Ȼ10k. */
 export const minWage = (overall: number, rounds: number) =>
@@ -283,7 +307,8 @@ export async function runContractDecision(
   const system = contractSystem(manager, facts.club.name);
   const prompt = contractPrompt(facts);
   const ids = { seasonId: w.season_id, teamId, runId: run.id };
-  if (!(await reserveFor(deps, ids, system, prompt))) {
+  const room = { ...deps, maxOutputTokens: deps.maxOutputTokens ?? CONTRACT_MAX_OUTPUT_TOKENS };
+  if (!(await reserveFor(room, ids, system, prompt))) {
     await finishRun(db, run.id, {
       status: "skipped_budget",
       prompt: { system, user: prompt },
@@ -299,7 +324,7 @@ export async function runContractDecision(
       schema: (step === "renewals" ? RenewalDecision : FreeAgentOffers) as never,
       task: `contracts.${step}`,
       context: facts,
-      maxTokens: deps.maxOutputTokens ?? 4000,
+      maxTokens: deps.maxOutputTokens ?? CONTRACT_MAX_OUTPUT_TOKENS,
     });
     usage = addUsage(usage, res);
     await gate.settle({ ...ids, ...usage });

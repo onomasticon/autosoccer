@@ -50,6 +50,7 @@ export interface Phase2Rollover {
 export interface RolloverSummary {
   rule: typeof ROLLOVER_RULE;
   from: string;
+  /** Players who retired (injury/1's emergency cover, which always leaves at season end, isn't counted). */
   retired: number;
   graduates: number;
   developed: number;
@@ -163,7 +164,7 @@ async function finish(db: Db, leagueId: string, season: SeasonRow, prev: SeasonR
     "Opening setup for the new season (the manager sets its own before round 1).",
   );
   const [counts] = await db<{ retired: number; graduates: number }[]>`
-    select (select count(*)::int from players where retired_season_id = ${prev.id}
+    select (select count(*)::int from players where retired_season_id = ${prev.id} and emergency_season_id is null
               and team_id in (select team_id from season_teams where season_id = ${prev.id})) as retired,
            (select count(*)::int from players where academy_season_id = ${prev.id}) as graduates`;
   const summary: RolloverSummary = {
