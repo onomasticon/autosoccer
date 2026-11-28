@@ -174,4 +174,14 @@ describe("match API", () => {
     expect((await app.request("/api/v1/matches/not-a-uuid")).status).toBe(404);
     expect((await app.request("/api/v1/matches/00000000-0000-4000-8000-000000000000")).status).toBe(404);
   });
+
+  it("404s a replay whose file is missing from the store, instead of erroring", async () => {
+    const f = await insertFixture(t.db, await insertSeason(t.db, "lost"), home, away, 5, 4242);
+    const { matchId } = await playFixture(deps(), f);
+    // The database has the replay's record, but this store (e.g. after a restore) has no file.
+    const app = createApp({ db: t.db, store: new MemoryReplayStore() });
+    const rep = await app.request(`/api/v1/matches/${matchId}/replay`);
+    expect(rep.status).toBe(404);
+    expect((await app.request(`/api/v1/matches/${matchId}`)).status).toBe(200);
+  });
 });
