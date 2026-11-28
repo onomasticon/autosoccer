@@ -313,6 +313,21 @@ export function llmForModel(
   return new GatewayLlm(spec, openAiCompatible({ baseUrl, apiKey, fetch: opts.fetch }), opts);
 }
 
+/** The environment variable a model's live calls need (the one `llmForModel` reads). */
+export function keyEnvFor(spec: ModelSpec): string {
+  if (spec.route === "direct" && spec.provider === "anthropic") return "ANTHROPIC_API_KEY";
+  return spec.route === "openrouter" ? OPENROUTER.keyEnv : PROVIDERS[spec.provider].keyEnv;
+}
+
+/** Which of these models couldn't make a live call with this environment, and the key each lacks. */
+export function missingKeys(
+  specs: ModelSpec[],
+  env: Record<string, string | undefined> = process.env,
+): Array<{ model: string; key: string }> {
+  const has = (k: string) => !!env[k] || (k === "ANTHROPIC_API_KEY" && !!env.ANTHROPIC_KEY);
+  return specs.filter((s) => !has(keyEnvFor(s))).map((s) => ({ model: s.slug, key: keyEnvFor(s) }));
+}
+
 /** A copy of a JSON Schema without the given keywords, at every depth. */
 export function stripKeywords(schema: unknown, drop: ReadonlySet<string>): unknown {
   if (!drop.size || schema === null || typeof schema !== "object") return schema;
