@@ -10,9 +10,11 @@
  * When that season completes, rollover concludes the league instead of creating another season,
  * so the legacy rollover can never race the cutover.
  */
+
 import { createHash } from "node:crypto";
 import type { League } from "@autosoccer/contracts";
 import type { Db } from "@autosoccer/db";
+import { inauguralReadiness } from "../founding/inaugural.ts";
 
 export type LeagueStatus = "draft" | "active" | "concluded" | "archived";
 
@@ -300,6 +302,9 @@ export async function planActivate(db: Db, slug: string): Promise<Plan> {
       from seasons s where s.league_id = ${l.id} and s.status = 'scheduled'`;
     checks.push({ name: "has a scheduled season", ok: s!.n > 0, detail: `${s!.n} scheduled` });
     checks.push({ name: "season has clubs", ok: s!.clubs >= 2, detail: `${s!.clubs} clubs` });
+    // A league with an inaugural phase: founding and recruitment done, every squad viable and contracted.
+    const ready = await inauguralReadiness(db, l.id);
+    checks.push({ name: "inaugural phase complete", ok: ready.ok, detail: ready.problems.join("; ") || "ok" });
   }
   return plan("activate", slug, checks, [`${slug} → active: the scheduler starts playing its seasons`]);
 }

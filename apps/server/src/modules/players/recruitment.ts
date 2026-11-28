@@ -29,7 +29,8 @@ export const RECRUIT = {
   perClub: { GK: 2, DF: 4, MF: 4, FW: 4 } as Record<Position, number>,
   /** Pool surplus over what the clubs need, so the last clubs still have real choices. */
   surplus: 1.6,
-  squad: { min: 9, max: 16, keepers: 1 },
+  /** A viable squad: the minimum, a keeper, and enough outfielders to field a side (7-a-side: 6). */
+  squad: { min: 9, max: 16, keepers: 1, outfield: 6 },
   ages: { min: 17, max: 33 },
   /** Lowest wage anyone accepts, per season (whole credits). */
   minWage: 150_000,
@@ -308,10 +309,14 @@ export function settleRound(
   return { round, signings, outcomes };
 }
 
-/** Whether a squad can take the field and meets the minimum. */
+/** Whether a squad can take the field (a keeper and enough outfielders) and meets the minimum. */
 export function viable(c: ClubState, pool: Map<string, PoolPlayer>): boolean {
   const keepers = c.squad.filter((id) => pool.get(id)?.position === "GK").length;
-  return c.squad.length >= RECRUIT.squad.min && keepers >= RECRUIT.squad.keepers;
+  return (
+    c.squad.length >= RECRUIT.squad.min &&
+    keepers >= RECRUIT.squad.keepers &&
+    c.squad.length - keepers >= RECRUIT.squad.outfield
+  );
 }
 
 /**
@@ -333,7 +338,11 @@ export function safetyNet(
     const c = clubs.get(id)!;
     while (!viable(c, pool)) {
       const keepers = c.squad.filter((x) => pool.get(x)?.position === "GK").length;
-      const p = free().find((x) => (keepers < RECRUIT.squad.keepers ? x.position === "GK" : true));
+      // A keeper first, then outfielders (more keepers would leave a squad that can't field a side).
+      const needOutfield = c.squad.length - keepers < RECRUIT.squad.outfield;
+      const p =
+        free().find((x) => (keepers < RECRUIT.squad.keepers ? x.position === "GK" : x.position !== "GK")) ??
+        (keepers < RECRUIT.squad.keepers || needOutfield ? undefined : free()[0]);
       if (!p) break;
       c.budget -= p.prefs.minWage + RECRUIT.safetyNetFee;
       c.squad.push(p.id);

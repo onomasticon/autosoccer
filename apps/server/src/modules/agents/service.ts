@@ -55,6 +55,16 @@ export interface ManagerDeps {
   log?: Logger;
   /** Upper bound on output tokens per call, used for the spend reservation. */
   maxOutputTokens?: number;
+  /**
+   * The client for a manager's own model (Phase 2: every club is run by its founder's model). Without
+   * it, every manager uses `llm` (the original league's single configured model).
+   */
+  llmFor?: (model: string) => LlmClient;
+}
+
+/** Deps for one manager: its own model's client (and pricing) when a per-model factory is configured. */
+export function forManager(deps: ManagerDeps, model: string): ManagerDeps {
+  return deps.llmFor ? { ...deps, llm: deps.llmFor(model) } : deps;
 }
 
 /** Creates the four managers and their opening (v1) tactics for a season. Idempotent. */
@@ -197,10 +207,12 @@ export type PreMatchOutcome =
  * the team keeps its last valid tactics (matches always use the latest valid revision).
  * Never runs during a simulation: it's a separate job before the round is released.
  */
-export async function runPreMatch(deps: ManagerDeps, fixtureId: string, teamId: string): Promise<PreMatchOutcome> {
-  const { db, llm } = deps;
-  const gate = deps.gate ?? unlimitedGate;
+export async function runPreMatch(base: ManagerDeps, fixtureId: string, teamId: string): Promise<PreMatchOutcome> {
+  const { db } = base;
+  const gate = base.gate ?? unlimitedGate;
   const { fixture, manager } = await loadContext(db, fixtureId, teamId);
+  const deps = forManager(base, manager.model);
+  const llm = deps.llm;
   const start = await startRun(db, {
     key: preKey(fixtureId, teamId),
     agentId: manager.id,
@@ -300,10 +312,12 @@ export async function runPreMatch(deps: ManagerDeps, fixtureId: string, teamId: 
 export type PostMatchOutcome = { status: "already-done" } | { status: "reviewed" } | { status: "skipped-budget" };
 
 /** Post-match review: official result + stats → manager → memory rewrite (persisted). */
-export async function runPostMatch(deps: ManagerDeps, fixtureId: string, teamId: string): Promise<PostMatchOutcome> {
-  const { db, llm } = deps;
-  const gate = deps.gate ?? unlimitedGate;
+export async function runPostMatch(base: ManagerDeps, fixtureId: string, teamId: string): Promise<PostMatchOutcome> {
+  const { db } = base;
+  const gate = base.gate ?? unlimitedGate;
   const { fixture, manager } = await loadContext(db, fixtureId, teamId);
+  const deps = forManager(base, manager.model);
+  const llm = deps.llm;
   const start = await startRun(db, {
     key: postKey(fixtureId, teamId),
     agentId: manager.id,

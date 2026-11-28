@@ -51,7 +51,7 @@ export interface ContractPlayerFact {
 }
 
 export interface ContractFacts {
-  window: "preseason" | "midseason";
+  window: "preseason" | "midseason" | "recruitment";
   step: "renewals" | "free_agency";
   club: {
     name: string;

@@ -105,13 +105,24 @@ export async function tickMarketWindows(db: Db, opts: { now?: Date } = {}): Prom
   const now = opts.now ?? new Date();
   const windows = await db<MarketWindow[]>`
     select w.* from market_windows w join seasons s on s.id = w.season_id join leagues l on l.id = s.league_id
-    where w.phase <> 'closed' and l.status = 'active' and s.status in ('scheduled', 'active')
-    order by w.opens_at, w.kind`;
+    where w.phase <> 'closed' and s.status in ('scheduled', 'active')
+      -- Recruitment rounds run in the inaugural phase, before the league is activated.
+      and (l.status = 'active' or (w.kind = 'recruitment' and l.status = 'draft'))
+    order by w.opens_at, w.kind, w.round`;
   const out: WindowTick[] = [];
   for (const w of windows) {
     if (now < w.opens_at) {
       out.push({ windowId: w.id, kind: w.kind, action: "waiting" });
       continue;
+    }
+    if (w.kind === "recruitment") {
+      // Offer rounds run in order: each one's signings are settled before the next is asked.
+      const [earlier] = await db`
+        select 1 from market_windows where season_id = ${w.season_id} and kind = 'recruitment' and round < ${w.round} and phase <> 'closed'`;
+      if (earlier) {
+        out.push({ windowId: w.id, kind: w.kind, action: "waiting" });
+        continue;
+      }
     }
     if (w.kind === "midseason") {
       // Only once the first half has been played.
@@ -129,7 +140,7 @@ export async function tickMarketWindows(db: Db, opts: { now?: Date } = {}): Prom
     const [asked] = await db`select 1 from jobs where idempotency_key like ${`contracts:${w.id}:${step}:%`} limit 1`;
     if (!asked && now >= due) {
       const span =
-        step === "renewals" || w.kind === "midseason"
+        step === "renewals" || w.kind !== "preseason"
           ? w.deadline.getTime() - w.opens_at.getTime()
           : w.deadline.getTime() - w.phase_ends_at.getTime();
       const deadline = new Date(now.getTime() + span);

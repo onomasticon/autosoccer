@@ -11,6 +11,9 @@
  *   bun run leagues archive --league original --backup db/2026-12-01T03:00:00Z.dump [--confirm original]
  *   bun run leagues verify --league original      # an archived league still matches its archive inventory
  *   bun run leagues unarchive --league original [--confirm original]   # rollback of an archive
+ *   bun run leagues inaugural --league founders --models a,b,c,d --opens 2027-01-04T09:00:00Z --seed 7 --budget-usd 25 [--confirm founders]
+ *       # schedules the inaugural phase (founding, recruitment, safety net); `status` shows where it is
+ *   bun run leagues inaugural-status --league founders
  *   bun run leagues activate --league founders [--confirm founders]
  *   bun run leagues set-default --league founders [--confirm founders]
  *
@@ -19,6 +22,7 @@
  */
 import { createDb } from "@autosoccer/db";
 import { loadConfig } from "../apps/server/src/config.ts";
+import { inauguralReadiness, startInaugural } from "../apps/server/src/modules/founding/inaugural.ts";
 import {
   apply,
   inventory,
@@ -29,6 +33,7 @@ import {
   planFor,
   verifyArchive,
 } from "../apps/server/src/modules/league/leagues.ts";
+import { modelBySlug } from "../apps/server/src/modules/models/registry.ts";
 
 const [cmd = "list"] = process.argv
   .slice(2)
@@ -60,6 +65,35 @@ try {
     const l = await leagueBySlug(db, opt("league") ?? "");
     if (!l) throw new Error("no such league (--league)");
     console.log(JSON.stringify(await inventory(db, l.id), null, 2));
+  } else if (cmd === "inaugural") {
+    const slug = opt("league") ?? "";
+    const models = (opt("models") ?? "").split(",").filter(Boolean);
+    const unknown = models.filter((m) => !modelBySlug(m));
+    if (unknown.length) throw new Error(`not in the model registry: ${unknown.join(", ")}`);
+    const opens = new Date(opt("opens") ?? "");
+    if (Number.isNaN(opens.getTime())) throw new Error("--opens must be an ISO time");
+    const input = {
+      opens,
+      seed: Number(opt("seed") ?? 1),
+      models,
+      budgetPerTeamMicroUsd: Math.round(Number(opt("budget-usd") ?? 0) * 1_000_000),
+    };
+    console.log(
+      `inaugural ${slug}: ${models.length} founders, founding opens ${opens.toISOString()}, seed ${input.seed}, $${input.budgetPerTeamMicroUsd / 1e6} per club`,
+    );
+    if (opt("confirm") !== slug) console.log(`  dry run: re-run with --confirm ${slug} to schedule it`);
+    else {
+      const r = await startInaugural(db, slug, input);
+      console.log(`  scheduled: ${r.founders.length} founders invited; the scheduler runs each step at its time`);
+    }
+  } else if (cmd === "inaugural-status") {
+    const l = await leagueBySlug(db, opt("league") ?? "");
+    if (!l) throw new Error("no such league (--league)");
+    const phases = await db<{ kind: string; round: number; opens_at: Date; status: string }[]>`
+      select kind, round, opens_at, status from league_phases where league_id = ${l.id} order by opens_at, kind, round`;
+    for (const p of phases) console.log(`  ${p.kind.padEnd(11)} ${p.round}  ${p.opens_at.toISOString()}  ${p.status}`);
+    const ready = await inauguralReadiness(db, l.id);
+    console.log(ready.ok ? "  ready to activate" : `  not ready:\n    ${ready.problems.join("\n    ")}`);
   } else if (cmd === "verify") {
     const r = await verifyArchive(db, opt("league") ?? "");
     console.log(

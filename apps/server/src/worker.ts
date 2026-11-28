@@ -7,7 +7,7 @@ import { loadConfig, replayStore } from "./config.ts";
 import { buildHandlers } from "./jobs/handlers.ts";
 import { createWorker } from "./jobs/worker.ts";
 import { createLogger } from "./log.ts";
-import { editorialLlm, managerLlm } from "./modules/agents/index.ts";
+import { editorialLlm, managerLlm, managerLlmFor } from "./modules/agents/index.ts";
 import { heartbeat, startScheduler } from "./modules/ops/scheduler.ts";
 
 const config = loadConfig();
@@ -26,7 +26,14 @@ const worker = createWorker({
   log,
   pollMs: config.WORKER_POLL_MS,
   leaseMs: config.WORKER_LEASE_MS,
-  handlers: buildHandlers({ db, store, llm: managerLlm(config), editorialLlm: editorialLlm(config), log }),
+  handlers: buildHandlers({
+    db,
+    store,
+    llm: managerLlm(config),
+    llmFor: managerLlmFor(config),
+    editorialLlm: editorialLlm(config),
+    log,
+  }),
 });
 
 const beat = setInterval(() => {
