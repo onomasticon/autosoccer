@@ -55,8 +55,41 @@ On held-out seeds, `candidate-t2` gives 0.67 deals per club per window, a Gini o
 
 **Seven of eight gates pass on both seed sets.** Inflation is inside on baseline seeds and about 10% over on held-out seeds. The next lever is the size of running costs or the distribution. Last time, though, 1.1m of running costs broke the debt bound under stress, so this needs a small, careful step, or acceptance of slightly looser gate 8.
 
+## Persistence and the managers' tools (`modules/contracts`, migration 0018)
+
+These apply only to seasons whose `transfer_rule` is `transfer/2`. The original league is untouched.
+
+| Table | What it holds |
+| --- | --- |
+| `player_contracts` | A wage per season for a run of football years, and how it was signed (founding, recruitment, renewal, free agent, transfer, safety net). **At most one active contract per player**, enforced by a unique index |
+| `market_windows` | The preseason window (renewals, then free agency) and the midseason window (free agency only), each with its effective round and a hard deadline |
+| `contract_decisions` | Each club's renew or release call on each expiring contract, from its manager or the safe default |
+| `free_agent_offers` | Wage offers to free agents, and each offer's outcome |
+| `registration_moves` | A move during a season, effective from a round. Season-start registrations stay in `player_registrations`, so a lineup or payroll can be read **as of its round** (`registeredTeam`) |
+| `players.team_id` | Now nullable: a free agent belongs to no club. Only transfer/2 ever releases a player |
+
+**The managers' tools.** Each is a structured decision, the same for every model, recorded as a manager run with its prompt, output, tokens and cost:
+
+- **Renewals.** For each expiring contract, `renew` (a new contract at the market wage) or `release`.
+- **Free agency.** Up to 5 offers, each a wage per season (at least the player's minimum) and 1–4 years, committing no more than the club's cash.
+
+**Validation.** The platform checks every decision against the facts. An offer below the minimum, for someone who isn't a free agent, or beyond the club's cash is dropped with a reason. An answer that arrives after its step has ended is refused.
+
+**Settlement.**
+- **Atomic and exactly once.** Each step settles under a row lock on the window, and only from its own phase.
+- **Renewals.** A contract nobody decided on is renewed (the safe default). A release frees the player: he leaves his club, his season registration and his wage.
+- **Free agency.** Every offer is settled together through recruit/1's offer round: the player picks the offer that suits him, and ties go to a seeded order. A signing gets a club, the lowest free shirt number, a contract and a registration: from round 1 in preseason, or a registration move from the window's round in midseason. No fee changes hands.
+
+**Evidence.** `contracts.test.ts` runs a full preseason window and a midseason move on a real database:
+- a manager that never answers gets the defaults, and decisions are idempotent;
+- releases become free agents, and free agency settles once;
+- no fees, unique shirts, and one active contract per player;
+- late answers are refused;
+- round 3 reads the old club and round 4 the new one.
+
 ## Not yet
 
-- **Persistence.** Contracts, effective-dated registrations, releases, free-agent rounds and the midseason window, in the database with exactly-once settlement. This builds on recruit/1's offer rounds.
-- **Manager tools.** LLM managers get renewal, release and free-agent decisions as structured tools, alongside listings and bids.
+- **The calendar.** Opening, moving through and closing windows from calendar/1 in the scheduler (#99), and enqueueing each club's decision as a job.
+- **Payroll from contracts.** finance/3 settlement in the database: wages from `player_contracts`, plus running costs, loans and administration (#97).
+- **Founding contracts.** Founding and recruitment signings write their contracts (recruit/1 persistence).
 - **Public pages** for releases, free signings and the midseason window (#100).

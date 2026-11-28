@@ -5,6 +5,7 @@
  * model. It's a stand-in, not a model, and runs are labelled provider "offline".
  */
 import { defaultTactics, describeTactics, formationsFor, type TacticalConfigV1 } from "@autosoccer/contracts";
+import { type ContractFacts, offlineFreeAgentOffers, offlineRenewals } from "../contracts/decisions.ts";
 import { offlineBidding, offlineListing, offlineReplying } from "../transfers/offline.ts";
 import type { TransferFacts } from "../transfers/prompts.ts";
 import { OfflineLlm } from "./llm.ts";
@@ -72,5 +73,7 @@ export function offlineManagerLlm(pricedAs: string) {
     "transfer.listing": (c) => offlineListing(c as TransferFacts),
     "transfer.bidding": (c) => offlineBidding(c as TransferFacts),
     "transfer.replying": (c) => offlineReplying(c as TransferFacts),
+    "contracts.renewals": (c) => offlineRenewals(c as ContractFacts),
+    "contracts.free_agency": (c) => offlineFreeAgentOffers(c as ContractFacts),
   });
 }
