@@ -6,7 +6,7 @@ This is the final gate before the 20-model league replaces the original league a
 
 | Workstream | What exists | Still to do before the gate |
 | --- | --- | --- |
-| #93 Leagues and archive | League model, isolation, archive guards, dry-run lifecycle CLI, inventory and `verify` ([leagues.md](../platform/leagues.md)) | A backup and restore rehearsal on a copy of production |
+| #93 Leagues and archive | League model, isolation, archive guards, dry-run lifecycle CLI, inventory and `verify` ([leagues.md](../platform/leagues.md)) | Done: backup, restore and cutover rehearsed on a copy of production, 2026-11-28 ([restore-rehearsal.md](restore-rehearsal.md)) |
 | #94 Models | Registry of 20 chosen models plus a reserve (OpenAI/Anthropic direct, others via pinned OpenRouter hosts), gateway, qualification CLI with mocks, spend projection ([models.md](../platform/models.md)) | Done: all 20 and the reserve qualified live (2026-11-27). Rerun if a model or host changes |
 | #95 Founding | Charter, validation, deterministic renderer, simultaneous rounds, immutable charters, API and UI ([founding.md](../platform/founding.md)); founding rounds run by the scheduler as the inaugural phase, each founder through its own model ([inaugural.md](../platform/inaugural.md)) | Founding with live models in the pilot |
 | #96 Players and recruitment | Seeded talent pool as the league's own players, three simultaneous offer rounds and the safety net in the database ([inaugural.md](../platform/inaugural.md)); contracts, registrations, releases and free agency with manager tools; transfer/2 calibrated in the harness ([transfer-market.md](../platform/transfer-market.md)) | Storing the pool's own preferences |
@@ -22,8 +22,8 @@ This is the final gate before the 20-model league replaces the original league a
 3. **Private pilot.** A multi-season pilot on an isolated database with an accelerated calendar: founding, recruitment, matches, both windows, financial distress and recovery, development and rollover.
    - Offline results are kept distinct from live ones.
    - The pilot has a spend budget and a stop condition, for example stop if spend exceeds the cap or any invariant fails.
-4. **No history mutation.** `bun run leagues verify --league original` passes after a rehearsal, and old season, match, replay, club, player and article URLs resolve.
-5. **Backup and restore.** A backup-and-restore rehearsal succeeds, and the scheduler stays isolated: an archived league gets no jobs.
+4. **No history mutation.** ✅ Rehearsed 2026-11-28 on a restored copy of production ([restore-rehearsal.md](restore-rehearsal.md)): `verify` passes after archiving and again after 20 more ticks, and all 1,003 historical URLs resolve. Every page from seasons 1–16 is byte-identical after the cutover.
+5. **Backup and restore.** ✅ Rehearsed 2026-11-28 ([restore-rehearsal.md](restore-rehearsal.md)): the nightly dump restores cleanly and matches production, and an archived league got no jobs while the new league played 70 fixtures. Replay files in R2 weren't re-downloaded.
 6. **Release checks.** Smoke, end-to-end and accessibility checks pass on the release build.
 7. **Spend.** A monthly forecast for managers, the newsroom and hosting, separately, with caps written into configuration.
 8. **Sign-off.** The operator signs off on the rules, the caps and the exact launch cadence. **No launch date is assumed.**
